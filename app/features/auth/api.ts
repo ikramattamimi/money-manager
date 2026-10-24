@@ -2,7 +2,7 @@ import type { AuthError, Session } from '@supabase/supabase-js';
 import { useSupabase } from '@/lib/supabase';
 
 /** Panjang kode OTP. Harus sama dengan "Email OTP Length" di pengaturan Supabase Auth. */
-export const OTP_LENGTH = 6;
+export const OTP_LENGTH = 8;
 
 export const authApi = {
   async getSession(): Promise<Session | null> {
