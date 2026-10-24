@@ -71,14 +71,15 @@ dengan bobot transaksi terbaru lebih tinggi.
 **Verify:** Dengan data Realbyte, `indomaret` menyarankan kategori yang paling
 sering dipakai untuk `indomaret`.
 
-### T3: Layar quick-add
-**What:** Tombol tambah di tab bar → sheet quick-add dengan kolom teks yang
-langsung fokus dan keyboard terbuka. Saat mengetik, chip hasil parsing
-(nominal, akun, kategori, tanggal) muncul dan diperbarui. Enter = simpan.
-Tombol "Form lengkap" untuk pindah ke form biasa. Mode beruntun: setelah
-simpan, kolom kosong lagi untuk transaksi berikutnya (berguna saat mengejar
-transaksi seminggu).
-**Files:** `app/components/money/QuickAddSheet.vue`
+### T3: Quick-add di panel catat transaksi
+**What:** Sambungkan parser T1 dan saran T2 ke `QuickAddPanel` fase 3 (sheet
+di HP, dialog di iPad, kartu inline + pintasan `N` di layar lebar). Kolom
+"Ketik saja" langsung fokus, chip hasil parsing (nominal, akun, kategori,
+tanggal, catatan) diperbarui saat mengetik, Enter = simpan. Tombol "Form
+lengkap" pindah ke form fase 4 T3. Mode beruntun ("Simpan & lagi", dan selalu
+di mode inline): setelah simpan, kolom kosong lagi untuk transaksi berikutnya.
+**Files:** `app/components/money/QuickAddPanel.vue`,
+`app/features/quick-add/*`
 **Verify:** Mencatat 10 transaksi beruntun tanpa menutup sheet. Satu
 transaksi = mengetik + 1 tap.
 

@@ -18,7 +18,7 @@ Tiap fase punya spec sendiri dengan format `.ai/templates/spec.md`.
 | Data | **TanStack Vue Query** | Pola dari `opnamix/.ai/conventions/data-fetching.md`: cache, optimistic update, refetch saat app dibuka lagi. |
 | Form | vee-validate + zod | Skema zod yang sama dipakai di server route. |
 | Backend | **Supabase** (Postgres, Auth, RLS, pg_cron) | Pola migration dan RPC dari `opnamix/supabase/migrations`. |
-| Gerak | **Motion** (motion-v) | Spring yang bisa disela (interruptible) dan meneruskan kecepatan jari, sesuai skill `apple-design`. |
+| Desain | Tema **design system opnamix**, Liquid Glass hanya di navigasi yang melayang | Acuan: `design/prototype.html` (HP, iPad, desktop). Gerak dengan CSS transition + WAAPI, mengikuti skill `emil-design-eng`. |
 | Excel | `xlsx` (SheetJS, dari CDN resmi) | Sama seperti `opnamix`. |
 | Deploy | Cloudflare Workers, preset Nitro `cloudflare_module` | `porto` deploy sebagai aset statis. Di sini butuh server route, jadi pakai Worker penuh. |
 
@@ -42,7 +42,7 @@ Tiap fase punya spec sendiri dengan format `.ai/templates/spec.md`.
 |---|---|---|---|
 | 1 | [fase-1-fondasi.md](fase-1-fondasi.md) | Project Nuxt, tooling, PWA, deploy | Semua fase lain tidak punya tempat berjalan |
 | 2 | [fase-2-database.md](fase-2-database.md) | Schema, RLS per buku, trigger buku pribadi, login OTP | Model berbagi sulit ditambahkan belakangan |
-| 3 | [fase-3-design.md](fase-3-design.md) | Design system ala Apple, komponen gerak, prototipe interaktif | UI dibangun dua kali: sekali asal jadi, sekali dirapikan |
+| 3 | [fase-3-design.md](fase-3-design.md) | Token opnamix, kerangka responsif HP/iPad/desktop, komponen dasar, panel catat transaksi | UI dibangun dua kali: sekali asal jadi, sekali dirapikan |
 | 4 | [fase-4-inti.md](fase-4-inti.md) | Akun, kategori, transaksi, tampilan harian/kalender/bulanan | Belum bisa dipakai sehari-hari |
 | 5 | [fase-5-impor-realbyte.md](fase-5-impor-realbyte.md) | Impor xlsx Realbyte, ekspor Excel | Data 2 tahun tertahan di Realbyte |
 | 6 | [fase-6-input-cepat.md](fase-6-input-cepat.md) | Quick-add teks bebas, template, transaksi berulang, Shortcut iOS | Keluhan #1 tidak terjawab |
@@ -76,7 +76,7 @@ Pekerjaan boleh paralel kalau file yang disentuh tidak sama. Konflik di
 | Gelombang | Jalur paralel | Catatan |
 |---|---|---|
 | A | **Fase 1**, sendirian | Membuat struktur folder yang dipakai semua fase |
-| B | **Fase 2** (`supabase/`) ∥ **Fase 3** (`app/components/ui`, `app/assets`, `app/pages/prototype`) | Fase 3 T6 (prototipe) memakai mock di `app/mocks`, bukan Supabase |
+| B | **Fase 2** (`supabase/`) ∥ **Fase 3** (`app/components/ui`, `app/assets`, `app/pages/prototype`) | Fase 3 T5 (layar prototipe) memakai mock di `app/mocks`, bukan Supabase |
 | C | **Fase 4** T1 (akun) ∥ T2 (kategori), lalu T3-T6 (transaksi & tampilan) | T3 butuh akun dan kategori |
 | D | **Fase 5** ∥ **Fase 9** | Folder fitur berbeda (`features/import` vs `features/books`) |
 | E | **Fase 6** T1-T2 (quick-add) ∥ T3-T4 (template, berulang) ∥ **Fase 7** | Fase 7 hanya membaca transaksi |
@@ -89,7 +89,8 @@ Pekerjaan boleh paralel kalau file yang disentuh tidak sama. Konflik di
 - Setiap task harus lolos `pnpm build`, `pnpm typecheck`, dan `pnpm lint`.
 - Semua layar baru memakai komponen dan token dari fase 3. Tidak ada warna,
   jarak, durasi, atau spring yang ditulis langsung di halaman.
-- Uji di **iPhone asli dalam mode standalone** (Add to Home Screen), bukan
+- Uji di **iPhone asli dalam mode standalone** (Add to Home Screen), di iPad, dan
+  di desktop (lebar ≥ 1180px), bukan
   hanya di simulator desktop. Safe area, keyboard, dan gestur sering berbeda.
 - Uji manual alur utama setelah tiap fase: login OTP, tambah transaksi, transfer,
   lihat saldo, impor, ekspor.

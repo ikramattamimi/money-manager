@@ -28,7 +28,7 @@ belum ada setelah fase 4.
 
 ## Current State
 - Relevant files:
-  - Kerangka layar statistik dari prototipe fase 3 T6
+  - Layar statistik dari prototipe fase 3 T5 (`CompositionBar`, `Meter`, grafik 6 bulan)
 - Existing patterns:
   - RPC `month_summary` dari fase 4 T5
 
@@ -42,12 +42,13 @@ category_id?)`.
 **Verify:** Total breakdown = total pengeluaran bulan itu di tab Transaksi.
 
 ### T2: Layar statistik
-**What:** Pilih periode (minggu, bulan, tahun, rentang), donut chart per
-kategori, daftar kategori dengan persentase dan nominal. Tap kategori →
-rincian subkategori dan tren 6 bulan → daftar transaksinya.
+**What:** Pilih periode (minggu, bulan, tahun, rentang), `CompositionBar` per
+kategori dengan legenda persentase dan nominal (seperti prototipe), grafik
+masuk/keluar 6 bulan. Tap kategori → rincian subkategori dan tren 6 bulan →
+daftar transaksinya. Di iPad dan desktop, kartu tampil 2 kolom.
 **Files:** `app/pages/stats/*`
-**Verify:** Ganti bulan dengan swipe, grafik beranimasi mulus dari nilai lama
-ke nilai baru.
+**Verify:** Ganti bulan memperbarui angka tanpa layar berkedip. Tampilan sama
+dengan layar Statistik di `design/prototype.html` di keempat ukuran.
 
 ### T3: Budget
 **What:** Budget total dan per kategori per bulan. Progres batang dengan warna

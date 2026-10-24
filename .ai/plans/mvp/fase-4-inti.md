@@ -35,7 +35,7 @@ akun dengan total aset.
 ## Current State
 - Relevant files:
   - Schema dari fase 2, komponen dari fase 3
-  - Layar prototipe `app/pages/prototype/*` (fase 3 T6) dijadikan dasar
+  - Layar prototipe `app/pages/prototype/*` (fase 3 T5) dan `design/prototype.html` dijadikan dasar
 - Existing patterns:
   - `opnamix/src/lib/format.ts` untuk format angka
 
@@ -44,7 +44,7 @@ akun dengan total aset.
 ### T1: Akun dan grup akun
 **What:** Daftar akun per grup dengan saldo dan total aset/utang/bersih
 (seperti tab Akun di Realbyte). Tambah, edit, arsipkan, dan urutkan dengan
-drag (spring + rubber-band dari fase 3). Opsi "sertakan di total".
+drag (`useSwipe` dari fase 3). Opsi "sertakan di total".
 **Files:** `app/features/accounts/*`, `app/pages/accounts/*`
 **Verify:** Total aset = jumlah saldo akun yang `include_in_total`. Mengarsipkan
 akun menyembunyikannya tanpa menghapus transaksinya.
@@ -57,12 +57,15 @@ edit, arsipkan, urutkan, pindah subkategori ke induk lain.
 lamanya tetap menampilkan nama kategorinya.
 
 ### T3: Form transaksi
-**What:** Sheet tambah/edit transaksi: segmented control jenis, keypad nominal,
-tanggal & jam (default sekarang), akun, kategori, note, description. Untuk
-transfer: akun tujuan dan biaya. Tombol "Simpan" dan "Simpan & tambah lagi".
-Ingat akun dan kategori terakhir per jenis transaksi.
+**What:** Sambungkan `QuickAddPanel` fase 3 (sheet di HP, dialog di iPad,
+kartu inline di layar lebar) ke Supabase, lalu tambahkan form lengkap untuk
+tambah/edit: tanggal & jam (default sekarang), akun, kategori, note,
+description. Untuk transfer: akun tujuan dan biaya. Tombol "Simpan" dan
+"Simpan & lagi". Ingat akun dan kategori terakhir per jenis transaksi. Tap
+baris transaksi membuka form edit (panel kanan di desktop, sheet di HP).
 **Files:** `app/features/transactions/*`,
-`app/components/money/TransactionSheet.vue`
+`app/components/money/QuickAddPanel.vue`,
+`app/components/money/TransactionForm.vue`
 **Verify:** Transfer Rp100.000 dengan biaya Rp2.500 dari BCA ke Gopay: BCA
 berkurang Rp102.500, Gopay bertambah Rp100.000. Tidak bisa transfer ke akun
 yang sama.
