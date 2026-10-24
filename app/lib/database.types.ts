@@ -840,7 +840,33 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      budget_status: {
+        Args: { p_book_id: string; p_month: number; p_year: number }
+        Returns: {
+          amount: number
+          budget_id: string
+          carried: number
+          carry_over: boolean
+          category_id: string | null
+          spent: number
+          start_on: string
+        }[]
+      }
       bump_template: { Args: { p_template_id: string }; Returns: number }
+      category_breakdown: {
+        Args: {
+          p_book_id: string
+          p_from: string
+          p_to: string
+          p_type: Database["public"]["Enums"]["transaction_type"]
+        }
+        Returns: {
+          category_id: string | null
+          root_id: string | null
+          total: number
+          tx_count: number
+        }[]
+      }
       commit_import: {
         Args: { p_book_id: string; p_payload: Json }
         Returns: Json
@@ -874,6 +900,16 @@ export type Database = {
         Args: { p_book_id: string; p_keys: string[] }
         Returns: string[]
       }
+      monthly_trend: {
+        Args: {
+          p_book_id: string
+          p_category_id?: string
+          p_month: number
+          p_months?: number
+          p_year: number
+        }
+        Returns: { expense: number; income: number; month: number; year: number }[]
+      }
       months_overview: {
         Args: { p_book_id: string; p_year: number }
         Returns: {
@@ -889,6 +925,27 @@ export type Database = {
       }
       post_due_recurring: { Args: { p_book_id?: string }; Returns: number }
       revert_import: { Args: { p_batch_id: string }; Returns: number }
+      search_transactions: {
+        Args: {
+          p_account_id?: string
+          p_book_id: string
+          p_category_id?: string
+          p_from?: string
+          p_limit?: number
+          p_max?: number
+          p_min?: number
+          p_offset?: number
+          p_query?: string
+          p_to?: string
+          p_type?: Database["public"]["Enums"]["transaction_type"]
+        }
+        Returns: {
+          id: string
+          total_count: number
+          total_expense: number
+          total_income: number
+        }[]
+      }
       suggest_from_note: {
         Args: { p_book_id: string; p_note: string }
         Returns: {
