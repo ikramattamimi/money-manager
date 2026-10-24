@@ -282,6 +282,8 @@ export type Database = {
           book_id: string
           created_at: string
           emoji: string
+          icon: string
+          tone: string
           id: string
           kind: Database["public"]["Enums"]["category_kind"]
           name: string
@@ -294,6 +296,8 @@ export type Database = {
           book_id: string
           created_at?: string
           emoji?: string
+          icon?: string
+          tone?: string
           id?: string
           kind: Database["public"]["Enums"]["category_kind"]
           name: string
@@ -306,6 +310,8 @@ export type Database = {
           book_id?: string
           created_at?: string
           emoji?: string
+          icon?: string
+          tone?: string
           id?: string
           kind?: Database["public"]["Enums"]["category_kind"]
           name?: string
@@ -755,6 +761,53 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { p_token: string }; Returns: string }
+      account_ledger: {
+        Args: { p_account_id: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          account_id: string
+          amount: number
+          balance_after: number
+          category_id: string
+          delta: number
+          fee: number
+          id: string
+          is_adjustment: boolean
+          note: string
+          occurred_at: string
+          to_account_id: string
+          type: Database["public"]["Enums"]["transaction_type"]
+        }[]
+      }
+      adjust_balance: {
+        Args: { p_account_id: string; p_actual: number }
+        Returns: {
+          account_id: string
+          amount: number
+          book_id: string
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          dedupe_key: string | null
+          description: string
+          fee: number
+          id: string
+          import_batch_id: string | null
+          is_adjustment: boolean
+          note: string
+          occurred_at: string
+          recurring_rule_id: string | null
+          source: Database["public"]["Enums"]["transaction_source"]
+          to_account_id: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_invite: {
         Args: {
           p_book_id: string
@@ -779,6 +832,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      months_overview: {
+        Args: { p_book_id: string; p_year: number }
+        Returns: {
+          expense: number
+          income: number
+          month: number
+          tx_count: number
+        }[]
       }
     }
     Enums: {
