@@ -192,7 +192,9 @@ function addFirst() {
             @prev="shiftMonth(-1)"
             @next="shiftMonth(1)"
           />
-          <HeaderButton label="Cari"><Search aria-hidden="true" /></HeaderButton>
+          <HeaderButton label="Cari" @click="navigateTo('/search')"
+            ><Search aria-hidden="true"
+          /></HeaderButton>
         </template>
         <PageHero
           :label="`Sisa ${MONTHS_LONG[month - 1]}`"
