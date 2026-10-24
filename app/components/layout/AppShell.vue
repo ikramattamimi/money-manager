@@ -16,13 +16,20 @@ import { NAV_ITEMS, navHref } from '@/lib/navigation';
 //       landscape (>= 1024px) panel catat inline di halaman Transaksi.
 // Desktop (>= 1180px): sidebar, panel catat inline, pintasan N.
 // Halaman digulir oleh window supaya bar ringkas dan safe area sederhana.
-const props = defineProps<{
-  base: string;
-  bookName: string;
-  userName: string;
-  userRole: string;
-  extras?: SidebarExtra[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    base: string;
+    bookName: string;
+    userName: string;
+    userRole: string;
+    extras?: SidebarExtra[];
+    /** false untuk peran viewer: tanpa tombol tambah, panel catat, dan pintasan N */
+    canAdd?: boolean;
+    /** Ada = tombol + di HP membuka ini (halaman form penuh), bukan sheet catat cepat */
+    phoneAdd?: () => void;
+  }>(),
+  { extras: undefined, canAdd: true, phoneAdd: undefined },
+);
 const emit = defineEmits<{ logout: [] }>();
 
 const route = useRoute();
@@ -34,12 +41,19 @@ const txPath = navHref(props.base, NAV_ITEMS[0]!);
 const active = computed(() => {
   const match = [...NAV_ITEMS]
     .reverse()
-    .find((item) => item.path && route.path.startsWith(props.base + item.path));
+    .find((item) =>
+      [item.path, ...(item.also ?? [])].some((p) => p && route.path.startsWith(props.base + p)),
+    );
   return match?.key ?? 'tx';
 });
 
 /** Tombol +, tombol sidebar, dan pintasan N */
 async function startQuickAdd() {
+  if (!props.canAdd) return;
+  if (!md.value && props.phoneAdd) {
+    props.phoneAdd();
+    return;
+  }
   if (!lg.value) {
     ui.open.value = true;
     return;
@@ -76,6 +90,7 @@ watch(lg, (wide) => {
     :user-name="userName"
     :user-role="userRole"
     :extras="extras"
+    :can-add="canAdd"
     @add="startQuickAdd"
     @logout="emit('logout')"
   />
@@ -90,10 +105,10 @@ watch(lg, (wide) => {
 
   <CompactTopBar />
   <TabBar :base="base" :active="active" />
-  <AddButton @press="startQuickAdd" />
+  <AddButton v-if="canAdd" @press="startQuickAdd" />
   <Toaster />
 
-  <template v-if="!lg">
+  <template v-if="!lg && canAdd">
     <CenterDialog
       v-if="md"
       v-model:open="ui.open.value"

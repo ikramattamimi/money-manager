@@ -20,6 +20,7 @@ defineProps<{
   userName: string;
   userRole: string;
   extras?: SidebarExtra[];
+  canAdd?: boolean;
 }>();
 const emit = defineEmits<{ add: []; logout: [] }>();
 
@@ -56,6 +57,7 @@ const ITEM =
     </div>
 
     <button
+      v-if="canAdd !== false"
       type="button"
       class="press mx-0.5 mb-1.5 mt-1 flex h-9.5 items-center justify-center gap-1.5 rounded-[10px] bg-on-grad text-label font-bold text-grad-ink"
       @click="emit('add')"

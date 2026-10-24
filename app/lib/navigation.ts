@@ -7,6 +7,8 @@ export interface NavItem {
   icon: Component;
   /** Relatif terhadap base shell ('' untuk app, '/prototype' untuk prototipe) */
   path: string;
+  /** Awalan path lain yang termasuk tab ini, mis. halaman pengaturan di bawah Lainnya */
+  also?: string[];
 }
 
 // Label spesifik, bukan "Beranda"
@@ -14,7 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'tx', label: 'Transaksi', icon: List, path: '' },
   { key: 'stats', label: 'Statistik', icon: ChartPie, path: '/stats' },
   { key: 'accounts', label: 'Akun', icon: Wallet, path: '/accounts' },
-  { key: 'more', label: 'Lainnya', icon: LayoutGrid, path: '/more' },
+  { key: 'more', label: 'Lainnya', icon: LayoutGrid, path: '/more', also: ['/settings'] },
 ];
 
 export function navHref(base: string, item: NavItem): string {

@@ -74,6 +74,12 @@ function save(again = false) {
   }
 }
 
+function openFull() {
+  qa.source.openFull?.({ ...qa.draft.value });
+  qa.reset();
+  if (!props.inline) emit('saved');
+}
+
 defineExpose({ focus });
 </script>
 
@@ -185,7 +191,16 @@ defineExpose({ focus });
       </button>
     </div>
 
-    <div>
+    <button
+      v-if="qa.source.openFull"
+      type="button"
+      class="press -mt-1 self-start text-meta font-semibold text-primary-ink hover:underline"
+      @click="openFull"
+    >
+      Form lengkap: tanggal, jam, keterangan, biaya transfer
+    </button>
+
+    <div v-if="qa.source.templates.value.length">
       <div class="pb-1.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Template
       </div>
