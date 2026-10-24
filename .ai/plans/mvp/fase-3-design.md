@@ -200,3 +200,23 @@ Urungkan, dan checklist review layar (tema gelap, reduced motion, target
 sentuh, safe area, hover, label).
 **Files:** `.ai/conventions/design.md`
 **Verify:** Checklist dipakai di review PR fase 4.
+
+## Catatan pelaksanaan (24 Okt 2026)
+
+- **Komponen satu-file** (`Card`, `CardHead`, `Toaster`, `BottomSheet`,
+  `CenterDialog`) ada di `app/components/base/`, bukan `ui/`: modul
+  shadcn-nuxt menganggap setiap isi `components/ui` adalah folder komponen.
+  Komponen data di `components/data`, grafik di `components/charts`, kerangka
+  di `components/layout`.
+- **Layout:** `AppShell` dipakai lewat `layouts/prototype.vue` (data tiruan,
+  base `/prototype`). Layout default dibiarkan polos untuk halaman login;
+  fase 4 menambah layout `app` dengan sumber data Supabase. `app.vue` sekarang
+  memakai `<NuxtLayout>`.
+- **Parser quick-add** dipindah ke `app/features/quick-add/parser.ts` sekarang
+  (bukan fase 6), menerima daftar akun/kategori sebagai argumen. Fase 6 T1
+  memperluasnya.
+- **Tema** punya pilihan Sistem (mengikuti `prefers-color-scheme`), disimpan per
+  perangkat (`useTheme`).
+- **Belum:** uji di iPhone dan iPad asli, jadi `.ai/specs/design-review.md`
+  belum dibuat. Verifikasi sejauh ini di browser pada 393×852, 820×1180, dan
+  1440×900.
