@@ -1,0 +1,7 @@
+allowBuilds:
+  esbuild: true
+  workerd: true
+  unrs-resolver: true
+
+# Tolak paket yang dirilis kurang dari 24 jam (proteksi supply-chain)
+minimumReleaseAge: 1440

@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+app/lib/database.types.ts
+.ai
+.nuxt
+.output
+.wrangler
+.claude
+public

@@ -1,0 +1,18 @@
+// Deploy ke Cloudflare Workers: aset statis + server route Nitro dalam satu Worker.
+// `pnpm run deploy` = build lalu `wrangler deploy` (login sekali: `npx wrangler login`).
+// NUXT_PUBLIC_SUPABASE_URL dan NUXT_PUBLIC_SUPABASE_ANON_KEY dibaca saat build:
+// isi di .env atau di pengaturan build Workers Builds, bukan di sini.
+// Secret server (mis. ANTHROPIC_API_KEY di fase 10) diisi lewat `wrangler secret put`.
+{
+  "name": "money-manager",
+  "main": "./.output/server/index.mjs",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./.output/public",
+    "binding": "ASSETS",
+  },
+  "observability": {
+    "enabled": true,
+  },
+}
