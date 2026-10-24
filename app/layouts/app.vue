@@ -72,7 +72,7 @@ provideQuickAddSource({
 const extras = [
   { label: 'Template', icon: Zap },
   { label: 'Berulang', icon: Repeat },
-  { label: 'Impor', icon: Download },
+  { label: 'Impor', icon: Download, to: '/settings/import' },
 ];
 
 async function logout() {

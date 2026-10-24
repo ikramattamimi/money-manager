@@ -11,6 +11,8 @@ export interface SidebarExtra {
   label: string;
   icon: Component;
   count?: number;
+  /** Ada = tautan ke halaman ini; tanpa ini tombol belum aktif (fitur fase berikutnya) */
+  to?: string;
 }
 
 defineProps<{
@@ -34,6 +36,8 @@ const THEMES = [
   { value: 'system', label: 'Sistem', icon: Monitor },
   { value: 'dark', label: 'Gelap', icon: Moon },
 ] as const;
+
+const NuxtLink = resolveComponent('NuxtLink');
 
 const ITEM =
   'press grid h-9 w-full grid-cols-[2.75rem_1fr_auto] items-center rounded-[9px] text-label font-medium text-on-grad-2 hover:bg-glass hover:text-on-grad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad [&_svg]:size-4.5 [&_svg]:justify-self-center';
@@ -90,13 +94,20 @@ const ITEM =
         >
           Input cepat
         </div>
-        <button v-for="extra in extras" :key="extra.label" type="button" :class="ITEM">
+        <component
+          :is="extra.to ? NuxtLink : 'button'"
+          v-for="extra in extras"
+          :key="extra.label"
+          :type="extra.to ? undefined : 'button'"
+          :to="extra.to"
+          :class="ITEM"
+        >
           <component :is="extra.icon" aria-hidden="true" />
           <span class="text-left">{{ extra.label }}</span>
           <small v-if="extra.count" class="mr-2.5 text-xs tabular-nums text-on-grad-3">{{
             extra.count
           }}</small>
-        </button>
+        </component>
       </template>
     </nav>
 

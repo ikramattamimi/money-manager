@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { BookOpen, LogOut, Monitor, Moon, Sun, Tag, Wallet } from '@lucide/vue';
+import {
+  BookOpen,
+  Download,
+  History,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  Tag,
+  Upload,
+  Wallet,
+} from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import SettingRow from '@/components/data/SettingRow.vue';
@@ -68,6 +79,25 @@ const SECTION =
         title="Kategori"
         :subtitle="categoryCount ? `${categoryCount} kategori aktif` : undefined"
         @click="navigateTo('/settings/categories')"
+      />
+      <SettingRow
+        :icon="Download"
+        tone="primary"
+        title="Impor dari Realbyte"
+        subtitle="File .xlsx ekspor Money Manager"
+        @click="navigateTo('/settings/import')"
+      />
+      <SettingRow
+        :icon="History"
+        title="Riwayat impor"
+        subtitle="Lihat atau batalkan impor"
+        @click="navigateTo('/settings/import/history')"
+      />
+      <SettingRow
+        :icon="Upload"
+        title="Ekspor Excel"
+        subtitle="Unduh transaksi sebagai .xlsx"
+        @click="navigateTo('/settings/export')"
       />
     </Card>
 
