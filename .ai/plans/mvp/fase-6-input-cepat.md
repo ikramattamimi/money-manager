@@ -109,3 +109,45 @@ membuka URL itu. Sediakan link iCloud Shortcut yang siap dipasang.
 **Files:** `app/pages/add.vue`, `app/pages/settings/shortcuts.vue`
 **Verify:** Dari Siri: "Catat pengeluaran" → ucapkan "kopi 25 ribu gopay" →
 app terbuka dengan chip yang benar.
+
+## Catatan pelaksanaan
+
+Dikerjakan di branch `fase-6-input-cepat` (dicabang dari `fase-5-impor`).
+
+- **T1 Parser** (`parseQuick`, alias `parseQuickAdd`): 50 kasus tes. Nominal
+  (`25.000`, `25rb`, `1,5jt`, `2.5k`, `20rb+5rb`), akun dari nama/alias termasuk
+  tanpa tanda hubung (`jago utama`) dan salah ketik satu huruf (`gopy`), jenis
+  (`+`, `gaji/terima/masuk`, `bca > gopay`, `tf bca gopay`, `transfer bca ke
+  gopay`), waktu (`kemarin`, `kemarin lusa`, `2 hari lalu`, nama hari, `tgl 12`,
+  `tanggal 5/9`, `19.30`, `jam 7`). `Draft.date` ('today'/'yesterday') diganti
+  `occurredAt` (ISO, null = sekarang). `confidence` 0–1.
+- **T2 Saran**: RPC `suggest_from_note` memakai indeks trigram
+  `transactions_note_trgm_idx` yang sudah ada di baseline. Bobot = kemiripan ×
+  kebaruan (90 hari = ½). Nominal hanya disarankan kalau berulang dan ≥ 40%
+  bobot (migration `suggest_amount_share`). Dengan data Realbyte:
+  `indomaret` → Snacks/BCA, `shopeefood` → Main Course/Seabank, `camel kuning`
+  → Cigarette. Tes di `supabase/tests/suggest_test.sql`.
+- **T3 Panel**: isian disusun dari ketikan → pilihan manual → saran riwayat →
+  bawaan. Chip akun/kategori membuka grid gaya Realbyte (bukan memutar
+  pilihan). Chip "Biasanya Rp…" muncul kalau ada nominal yang biasa dipakai.
+  Kolom "Ketik saja" di halaman `/transaction` (HP) memakai parser dan saran
+  yang sama; "Simpan & lagi" kembali ke kolom ketik.
+- **T4 Template**: urut dari paling sering dipakai (RPC `bump_template`).
+  Bernominal = satu tap langsung tersimpan (sumber `template`); tanpa nominal
+  = panel diisi lalu keypad dibuka. Dibuat dari Lainnya → Template atau
+  "Jadikan template" saat mengubah transaksi.
+- **T5 Berulang**: tabel baru `recurring_pending` untuk draf "tanya dulu".
+  Trigger mengisi `day_of_month` (jangkar) dan `next_run_on`. Tanggal 31 jatuh
+  di tanggal terakhir bulan pendek, termasuk 29 Feb. `post_due_recurring()`
+  dijalankan pg_cron setiap hari 07.00 WIB, idempoten lewat
+  `dedupe_key = rr:<aturan>:<tanggal>`, dan juga dipanggil app setelah aturan
+  disimpan supaya yang jatuh tempo hari ini langsung tercatat. Fungsi ini
+  `SECURITY INVOKER` (migration `recurring_invoker`): dari app hanya untuk buku
+  pemanggil, pg_cron jalan sebagai postgres. Draf muncul di atas daftar
+  Transaksi (Catat / Lewati). Tes di `supabase/tests/recurring_test.sql`.
+- **T6 Shortcut**: `/add?text=...` membuka form dengan teks terisi (HP: halaman
+  `/transaction`; iPad/desktop: panel catat cepat). Panduan di Lainnya →
+  Shortcut iPhone. **Belum ada link iCloud Shortcut siap pasang**: harus dibuat
+  dari iPhone (app Pintasan) lalu dibagikan; langkahnya ada di halaman panduan.
+  Catatan iOS: Pintasan membuka URL di Safari, bukan di PWA yang dipasang, jadi
+  user harus masuk juga di Safari.
