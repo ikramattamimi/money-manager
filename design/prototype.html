@@ -1,0 +1,1606 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f2f4f9" />
+<title>Money Manager · Prototipe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
+<!--
+  Prototipe desain Money Manager.
+
+  Tema mengikuti design system Opnamix (D:/Work/Poject/2026/opnamix/src/index.css):
+  latar abu kebiruan, kartu putih bergaris tipis radius 14px, pita gradien biru
+  di kepala halaman dengan chip kaca, ikon di kotak warna lembut, DM Sans.
+
+  Liquid Glass hanya di lapisan yang melayang di atas konten: tab bar, tombol
+  tambah, dan bar judul ringkas yang muncul saat menggulir.
+
+  Gerak (Emil Kowalski): tekan scale(0.97) 160ms ease-out; masuk/keluar
+  ease-out kustom < 300ms; sheet memakai kurva drawer iOS, keluar lebih cepat
+  dari masuk; tab tanpa animasi selain lensa; hanya transform/opacity;
+  hover hanya untuk pointer presisi; prefers-reduced-motion dihormati.
+-->
+<style>
+:root {
+  /* Token Opnamix (mode terang) */
+  --background: #f2f4f9;
+  --foreground: #131a2b;
+  --card: #ffffff;
+  --surface-2: #f6f7fb;
+  --muted-foreground: #576075;
+  --faint: #8790a3;
+  --border: #e3e7f0;
+  --border-strong: #cfd6e4;
+  --primary: #2563eb;
+  --primary-accent: #2563eb;
+  --primary-ink: #1d4ed8;
+  --primary-soft: #eaf0fe;
+  --ok: #15803d;
+  --ok-soft: #e7f5ec;
+  --warn: #b45309;
+  --warn-soft: #fdf2e1;
+  --bad: #c81e1e;
+  --bad-soft: #fdecec;
+
+  --r1: #2a78d6;
+  --r2: #eb6834;
+  --r3: #1baf7a;
+  --r4: #eda100;
+  --r5: #e87ba4;
+  --r6: #7c3aed;
+
+  --grad-hero:
+    radial-gradient(90% 170% at 100% 0%, rgba(130, 170, 255, 0.5), transparent 60%),
+    linear-gradient(118deg, #0a2466 0%, #1543c2 58%, #3b6cf2 100%);
+  --grad-stripe: rgba(255, 255, 255, 0.035);
+  --glass: rgba(255, 255, 255, 0.11);
+  --glass-2: rgba(255, 255, 255, 0.2);
+  --glass-line: rgba(255, 255, 255, 0.16);
+  --glass-shade: rgba(0, 0, 0, 0.18);
+  --on-grad: #fff;
+  --on-grad-2: rgba(255, 255, 255, 0.76);
+  --on-grad-3: rgba(255, 255, 255, 0.5);
+  --dot-ok: #4ade80;
+  --dot-bad: #fb7185;
+  --dot-warn: #fbbf24;
+
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-float: 0 18px 40px rgba(10, 20, 50, 0.2);
+  --scrim: rgba(8, 14, 30, 0.45);
+
+  --radius: 14px;
+  --radius-control: 8px;
+
+  /* Liquid Glass untuk lapisan melayang */
+  --lg-fill: rgba(255, 255, 255, 0.55);
+  --lg-rim-hi: rgba(255, 255, 255, 0.95);
+  --lg-rim-lo: rgba(255, 255, 255, 0.3);
+  --lg-shadow: 0 12px 32px -10px rgba(10, 20, 50, 0.28), 0 2px 6px -2px rgba(10, 20, 50, 0.12);
+  --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+
+  /* Gerak */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  /* Token Opnamix (mode gelap: arang netral, biru hanya di header dan aksen) */
+  --background: #0c0f14;
+  --foreground: #e6e9ef;
+  --card: #141820;
+  --surface-2: #1a1f29;
+  --muted-foreground: #9ea6b5;
+  --faint: #6f7788;
+  --border: #252b36;
+  --border-strong: #353d4c;
+  --primary: #2f66ee;
+  --primary-accent: #6e9bff;
+  --primary-ink: #a3beff;
+  --primary-soft: rgba(110, 155, 255, 0.14);
+  --ok: #4ade80;
+  --ok-soft: rgba(74, 222, 128, 0.12);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.12);
+  --bad: #f87171;
+  --bad-soft: rgba(248, 113, 113, 0.13);
+  --r1: #3987e5;
+  --r2: #d95926;
+  --r3: #199e70;
+  --r4: #c98500;
+  --r5: #d55181;
+  --r6: #a78bfa;
+  --grad-hero:
+    radial-gradient(90% 170% at 100% 0%, rgba(90, 130, 255, 0.3), transparent 60%),
+    linear-gradient(118deg, #0b1430 0%, #142a66 60%, #2445a8 100%);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --lg-fill: rgba(30, 35, 46, 0.55);
+  --lg-rim-hi: rgba(255, 255, 255, 0.35);
+  --lg-rim-lo: rgba(255, 255, 255, 0.05);
+  --lg-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.7), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
+  --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.18), inset 0 -1px 1px rgba(255, 255, 255, 0.05);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  font: 14px/1.4 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-optical-sizing: auto;
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+input { font: inherit; color: inherit; }
+svg { display: block; flex: none; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: 'DM Mono', ui-monospace, monospace; }
+.muted { color: var(--muted-foreground); }
+.faint { color: var(--faint); }
+[hidden] { display: none !important; }
+
+/* Ikon gaya lucide */
+.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.i-sm { width: 15px; height: 15px; }
+.i-lg { width: 22px; height: 22px; }
+
+/* Tekan: umpan balik instan, hanya transform */
+.press { transition: transform 160ms var(--ease-out); }
+.press:active { transform: scale(0.97); }
+.press-icon:active { transform: scale(0.92); }
+
+/* ------------------------------------------------------------ */
+/* Perangkat                                                     */
+/* ------------------------------------------------------------ */
+/*
+ * Tiga tata letak (pratinjau berdampingan: design/preview.html):
+ * - HP (< 768px): tab bar kaca di bawah, sheet dari bawah.
+ * - iPad (768–1179px): tab bar kaca mengambang di atas tengah (gaya iPadOS),
+ *   sheet menjadi dialog di tengah; landscape (>= 1024px) mendapat kolom kanan.
+ * - Desktop (>= 1180px): sidebar gradien Opnamix, panel "Catat cepat" selalu
+ *   terbuka di kolom kanan, pintasan keyboard N.
+ */
+.device { position: fixed; inset: 0; overflow: hidden; background: var(--background); isolation: isolate; }
+.main { position: absolute; inset: 0; }
+
+.screen {
+  position: absolute; inset: 0; overflow-y: auto; overscroll-behavior-y: contain;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px calc(env(safe-area-inset-bottom, 0px) + 112px);
+  scrollbar-width: none;
+}
+.screen::-webkit-scrollbar { display: none; }
+/* Pindah tab dipakai puluhan kali sehari: tanpa animasi */
+.screen:not(.active) { display: none; }
+.screen > .inner { max-width: 1120px; margin: 0 auto; }
+.wide-only { display: none !important; }
+
+/* ------------------------------------------------------------ */
+/* Kepala halaman: pita gradien Opnamix                          */
+/* ------------------------------------------------------------ */
+.page-header {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 10px 12px 12px; border-radius: 16px;
+  background: var(--grad-hero); color: var(--on-grad);
+}
+.page-header::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 47px, var(--grad-stripe) 47px 48px);
+}
+.page-header > * { position: relative; z-index: 1; }
+.ph-top { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.ph-top h1 { flex: 1; margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.hbtn {
+  height: 32px; min-width: 32px; padding: 0 8px; border-radius: var(--radius-control);
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  border: 1px solid var(--glass-line); background: var(--glass); color: var(--on-grad);
+  font-size: 13px; font-weight: 600;
+}
+.hbtn .i { width: 16px; height: 16px; }
+.hgroup { display: inline-flex; align-items: center; border: 1px solid var(--glass-line); background: var(--glass); border-radius: var(--radius-control); height: 32px; }
+.hgroup button { height: 30px; width: 30px; display: grid; place-items: center; border-radius: 7px; }
+.hgroup span { font-size: 13px; font-weight: 600; padding: 0 2px; min-width: 64px; text-align: center; }
+@media (hover: hover) and (pointer: fine) {
+  .hbtn:hover, .hgroup button:hover { background: var(--glass-2); }
+}
+
+/* Angka utama di dalam header */
+.ph-hero { display: flex; flex-direction: column; gap: 2px; padding: 2px 2px 0; }
+.ph-hero > small { font-size: 12px; color: var(--on-grad-2); }
+.ph-hero > b { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+.progress { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.progress .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--on-grad-2); }
+.progress .lbl b { color: var(--on-grad); font-weight: 600; }
+.progress .track { height: 6px; border-radius: 999px; background: var(--glass-shade); overflow: hidden; }
+.progress .track span { display: block; height: 100%; border-radius: 999px; background: var(--on-grad); transform-origin: left; transition: transform 300ms var(--ease-out); }
+
+/* StatChip */
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--glass-line); background: var(--glass); font-size: 12px; color: var(--on-grad-2); white-space: nowrap;
+}
+.stat-chip b { color: var(--on-grad); font-weight: 700; }
+.stat-chip .d { width: 6px; height: 6px; border-radius: 50%; }
+
+/* SegmentedControl varian glass (di atas gradien) dan default */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px; border-radius: 12px; }
+.seg button { height: 30px; border-radius: 9px; font-size: 13px; font-weight: 500; display: grid; place-items: center; transition: background-color 150ms ease, color 150ms ease; }
+.seg.on-grad { background: var(--glass-shade); }
+.seg.on-grad button { color: var(--on-grad-2); }
+.seg.on-grad button[aria-pressed='true'] { background: var(--glass-2); color: var(--on-grad); font-weight: 600; }
+.seg.plain { background: var(--surface-2); border: 1px solid var(--border); }
+.seg.plain button { color: var(--muted-foreground); }
+.seg.plain button[aria-pressed='true'] { background: var(--card); color: var(--foreground); font-weight: 600; box-shadow: var(--shadow-card); }
+
+/* ------------------------------------------------------------ */
+/* Kartu dan daftar                                              */
+/* ------------------------------------------------------------ */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-card); }
+.card-pad { padding: 14px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 4px; }
+.card-title { font-size: 15.5px; font-weight: 700; letter-spacing: -0.005em; }
+.section { margin-top: 14px; }
+.group-label {
+  display: flex; justify-content: space-between; padding: 14px 10px 6px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground);
+}
+.group-label .num { letter-spacing: 0; text-transform: none; font-size: 12px; }
+.list { padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+
+.tone { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; flex: none; }
+.tone .i { width: 18px; height: 18px; }
+.tone-sm { width: 30px; height: 30px; border-radius: 8px; }
+.tone-sm .i { width: 15px; height: 15px; }
+
+/* Baris (ListRow) dengan geser-untuk-hapus */
+.row-wrap { position: relative; border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: 1fr; transition: grid-template-rows 220ms var(--ease-out), opacity 160ms ease; }
+.row-wrap.gone { grid-template-rows: 0fr; opacity: 0; }
+.row-wrap > .clip { overflow: hidden; position: relative; min-height: 0; }
+.row-actions { position: absolute; inset: 0; display: flex; justify-content: flex-end; align-items: center; padding-right: 18px; gap: 6px; background: var(--bad); color: #fff; font-size: 13px; font-weight: 600; visibility: hidden; }
+.row-wrap.swiping .row-actions { visibility: visible; }
+.row {
+  position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 2px 12px; align-items: center;
+  padding: 9px 10px; background: var(--card); touch-action: pan-y; width: 100%;
+  transition: transform 260ms var(--ease-out);
+}
+.row.dragging { transition: none; }
+.row .ttl { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .sub { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .val { font-size: 13.5px; font-weight: 700; text-align: right; white-space: nowrap; }
+.row .meta { font-size: 11px; color: var(--faint); text-align: right; margin-top: 1px; }
+@media (hover: hover) and (pointer: fine) { .row:hover { background: var(--surface-2); } }
+.plus { color: var(--primary-accent); }
+.minus { color: var(--bad); }
+.neutral { color: var(--muted-foreground); }
+
+/* KpiStrip */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.kpi { background: var(--surface-2); border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.kpi small { font-size: 12px; color: var(--muted-foreground); display: flex; align-items: center; gap: 6px; }
+.kpi small i { width: 8px; height: 8px; border-radius: 2px; }
+.kpi b { font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Meter */
+.meter { height: 4px; border-radius: 999px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 999px; transform-origin: left; transition: transform 300ms var(--ease-out); }
+
+/* CompositionBar */
+.comp { display: flex; gap: 2px; height: 12px; border-radius: 999px; overflow: hidden; }
+.comp span { height: 100%; }
+.legend { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px 10px; align-items: center; font-size: 13px; margin-top: 12px; }
+.legend i { width: 8px; height: 8px; border-radius: 2px; }
+
+/* Kalender */
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-head span { text-align: center; font-size: 11px; font-weight: 600; color: var(--faint); padding: 2px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.cal-grid { gap: 2px; }
+.cal-grid button { min-height: 52px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; padding-top: 6px; gap: 1px; font-size: 13.5px; font-weight: 600; }
+.cal-grid button small { font-size: 9.5px; font-weight: 600; letter-spacing: -0.02em; }
+.cal-grid button.today { box-shadow: inset 0 0 0 1.5px var(--primary-accent); color: var(--primary-accent); }
+.cal-grid button.sel { background: var(--primary); color: #fff; box-shadow: none; }
+.cal-grid button.sel small { color: rgba(255, 255, 255, 0.85) !important; }
+.cal-grid button.future { color: var(--faint); font-weight: 500; }
+@media (hover: hover) and (pointer: fine) { .cal-grid button:not(.sel):hover { background: var(--surface-2); } }
+
+/* SettingRow */
+.set-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px; width: 100%; border-radius: 10px; }
+.set-row .t { font-size: 13.5px; font-weight: 600; }
+.set-row .s { font-size: 12px; color: var(--muted-foreground); }
+@media (hover: hover) and (pointer: fine) { .set-row:hover { background: var(--surface-2); } }
+
+/* Tombol (varian Opnamix) */
+.btn { height: 44px; padding: 0 16px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 14px; border: 1px solid transparent; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary[disabled] { opacity: 0.5; }
+.btn-secondary { background: var(--surface-2); border-color: var(--border); }
+.btn-soft { background: var(--primary-soft); color: var(--primary-ink); }
+.btn-ghost-danger { color: var(--bad); }
+.btn-sm { height: 32px; padding: 0 10px; font-size: 13px; border-radius: var(--radius-control); }
+
+/* ------------------------------------------------------------ */
+/* Liquid Glass: hanya lapisan yang melayang                     */
+/* ------------------------------------------------------------ */
+.lg {
+  position: relative;
+  background: var(--lg-fill);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: var(--lg-inner), var(--lg-shadow);
+}
+.lg::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(150deg, var(--lg-rim-hi), var(--lg-rim-lo) 35%, var(--lg-rim-lo) 65%, var(--lg-rim-hi));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.lg::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.3), transparent 60%);
+}
+.lg-tint { background: color-mix(in srgb, var(--primary) 88%, transparent); color: #fff; }
+@media (prefers-reduced-transparency: reduce) {
+  .lg { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .lg-tint { background: var(--primary); }
+}
+
+/* Bar judul ringkas: muncul setelah kepala halaman tergulir keluar */
+.topbar {
+  position: absolute; z-index: 30; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 8px);
+  height: 44px; border-radius: 22px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 16px;
+  opacity: 0; transform: translateY(-6px); pointer-events: none;
+  transition: opacity 160ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.topbar.show { opacity: 1; transform: none; pointer-events: auto; }
+.topbar b { flex: 1; font-size: 15px; font-weight: 700; }
+.topbar .val { font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.topbar button { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
+
+/* Dock bawah */
+.dock { position: absolute; z-index: 40; left: 12px; right: 84px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); display: flex; }
+.tabbar { flex: 1; height: 62px; border-radius: 31px; display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px; }
+.tabbar button { position: relative; z-index: 1; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 10.5px; font-weight: 600; color: var(--muted-foreground); border-radius: 27px; }
+.tabbar button .i { width: 22px; height: 22px; }
+.tabbar button[aria-selected='true'] { color: var(--primary-accent); }
+.tab-lens {
+  position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; border-radius: 27px;
+  background: color-mix(in srgb, var(--primary-accent) 12%, transparent);
+  transition: transform 220ms var(--ease-drawer);
+}
+.fab { position: absolute; z-index: 40; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; }
+.fab .i { width: 26px; height: 26px; stroke-width: 2.4; }
+
+/* ------------------------------------------------------------ */
+/* Sheet tambah transaksi (padat, gaya panel Opnamix)            */
+/* ------------------------------------------------------------ */
+.scrim { position: absolute; inset: 0; z-index: 50; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity 240ms var(--ease-out); }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: absolute; z-index: 55; left: 0; right: 0; bottom: 0; max-height: calc(100% - 48px);
+  background: var(--card); border-top: 1px solid var(--border); border-radius: 20px 20px 0 0;
+  box-shadow: var(--shadow-float);
+  padding: 6px 14px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  display: flex; flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 280ms var(--ease-drawer);
+  touch-action: none; will-change: transform;
+}
+.sheet.open { transform: translateY(0); }
+.sheet.closing { transition-duration: 200ms; } /* keluar lebih cepat dari masuk */
+.sheet.dragging { transition: none; }
+.grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 0 auto 8px; }
+.sheet-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sheet-head h2 { flex: 1; margin: 0; font-size: 15.5px; font-weight: 700; }
+.sheet-body { overflow-y: auto; touch-action: pan-y; scrollbar-width: none; display: flex; flex-direction: column; gap: 12px; }
+.amount { display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 6px 0 2px; }
+.amount span { font-size: 15px; font-weight: 600; color: var(--muted-foreground); }
+.amount b { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; }
+.amount.zero b { color: var(--border-strong); }
+.field label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
+.input {
+  width: 100%; height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-strong);
+  background: var(--card); outline: none; font-size: 16px; /* 16px: iOS tidak memperbesar halaman saat fokus */
+}
+.input:focus { border-color: var(--primary-accent); box-shadow: 0 0 0 3px var(--primary-soft); }
+.input::placeholder { color: var(--faint); }
+.hint { font-size: 12px; color: var(--faint); margin-top: 6px; }
+.choice-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice {
+  height: 32px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: var(--surface-2); color: var(--foreground);
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease;
+}
+.choice .i { width: 14px; height: 14px; color: var(--muted-foreground); }
+.choice.on { background: var(--primary-soft); border-color: color-mix(in srgb, var(--primary-accent) 35%, transparent); color: var(--primary-ink); }
+.choice.on .i { color: var(--primary-accent); }
+.choice.empty { color: var(--faint); font-weight: 500; border-style: dashed; background: transparent; }
+.tpl-row { display: flex; gap: 6px; overflow-x: auto; margin: 0 -14px; padding: 0 14px 2px; scrollbar-width: none; }
+.tpl-row::-webkit-scrollbar { display: none; }
+.tpl { flex: none; height: 34px; padding: 0 12px 0 6px; border-radius: 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: var(--card); }
+.tpl .tone { width: 24px; height: 24px; border-radius: 7px; }
+.tpl .tone .i { width: 13px; height: 13px; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.keypad button { height: 50px; border-radius: 10px; font-size: 22px; font-weight: 600; background: var(--surface-2); display: grid; place-items: center; }
+.keypad button.fn { font-size: 16px; color: var(--muted-foreground); }
+.sheet-foot { display: grid; grid-template-columns: auto 1fr; gap: 8px; margin-top: 2px; }
+
+/* Toast (Sonner-ish): masuk dari bawah, bisa disela */
+.toasts { position: absolute; z-index: 70; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 88px); display: grid; justify-items: center; pointer-events: none; }
+.toast {
+  pointer-events: auto; min-height: 44px; border-radius: 12px; padding: 6px 6px 6px 14px; display: flex; align-items: center; gap: 12px;
+  background: var(--foreground); color: var(--background); box-shadow: var(--shadow-float); font-size: 13.5px; font-weight: 500;
+  transition: transform 240ms var(--ease-out), opacity 200ms var(--ease-out);
+}
+@starting-style { .toast { transform: translateY(12px) scale(0.97); opacity: 0; } }
+.toast.leave { transform: translateY(8px) scale(0.97); opacity: 0; transition-duration: 160ms; }
+.toast button { height: 32px; padding: 0 12px; border-radius: 8px; font-weight: 700; color: var(--background); background: color-mix(in srgb, var(--background) 16%, transparent); }
+
+/* ------------------------------------------------------------ */
+/* Sidebar desktop (Opnamix: gradien, item kaca)                  */
+/* ------------------------------------------------------------ */
+.sidebar {
+  display: none; position: absolute; z-index: 45; inset: 0 auto 0 0; width: 232px;
+  flex-direction: column; gap: 10px; padding: 12px 10px;
+  background: linear-gradient(185deg, #0a2160 0%, #123a9e 58%, #2556d6 100%); color: var(--on-grad);
+}
+:root[data-theme='dark'] .sidebar { background: linear-gradient(185deg, #0a0f1f 0%, #0f1c42 60%, #172e6c 100%); }
+.sb-brand { display: grid; grid-template-columns: 44px 1fr; align-items: center; height: 44px; }
+.sb-logo { width: 34px; height: 34px; border-radius: 11px; justify-self: center; display: grid; place-items: center; background: var(--on-grad); color: #123a9e; box-shadow: var(--shadow-card); }
+.sb-logo .i { width: 18px; height: 18px; stroke-width: 2.4; }
+.sb-brand b { display: block; font-size: 15px; letter-spacing: 0.01em; }
+.sb-brand small { font-size: 12px; color: var(--on-grad-2); }
+.sb-cta { margin: 4px 2px 6px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--on-grad); color: #123a9e; font-weight: 700; font-size: 13.5px; }
+.sb-cta kbd { font: 600 11px 'DM Mono', monospace; padding: 1px 5px; border-radius: 4px; background: rgba(18, 58, 158, 0.1); }
+.sb-label { padding: 10px 12px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--on-grad-3); }
+.sb-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.sb-item {
+  display: grid; grid-template-columns: 44px 1fr auto; align-items: center; height: 36px; border-radius: 9px;
+  font-size: 13.5px; font-weight: 500; color: var(--on-grad-2);
+}
+.sb-item .i { justify-self: center; width: 18px; height: 18px; }
+.sb-item[aria-selected='true'] { background: var(--glass-2); color: var(--on-grad); font-weight: 600; box-shadow: inset 0 0 0 1px var(--glass-line); }
+.sb-item small { font-size: 12px; color: var(--on-grad-3); margin-right: 10px; }
+@media (hover: hover) and (pointer: fine) { .sb-item:not([aria-selected='true']):hover { background: var(--glass); color: var(--on-grad); } }
+.sb-foot { display: flex; flex-direction: column; gap: 8px; }
+.sb-profile { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; height: 44px; border-radius: 12px; border: 1px solid var(--glass-line); background: var(--glass); }
+.sb-profile .av { width: 30px; height: 30px; border-radius: 50%; justify-self: center; display: grid; place-items: center; background: var(--on-grad); color: #123a9e; font-size: 12px; font-weight: 700; }
+.sb-profile b { display: block; font-size: 13px; }
+.sb-profile small { font-size: 12px; color: var(--on-grad-2); }
+.sb-profile button { width: 28px; height: 28px; margin-right: 6px; border-radius: 8px; display: grid; place-items: center; color: var(--on-grad-2); }
+
+/* Kolom kanan Transaksi (landscape/desktop) */
+.tx-layout { display: block; }
+.tx-side { display: none; }
+.side-card { padding: 4px; }
+.side-card .card-head { padding: 10px 10px 4px; }
+
+/* ------------------------------------------------------------ */
+/* iPad dan lebih lebar                                          */
+/* ------------------------------------------------------------ */
+@media (min-width: 768px) {
+  .screen { padding: calc(env(safe-area-inset-top, 0px) + 80px) 24px 48px; }
+  .page-header { padding: 14px 16px 16px; border-radius: 18px; gap: 12px; }
+  .ph-top h1 { font-size: 22px; }
+  .ph-hero > b { font-size: 34px; }
+
+  /* Tab bar iPadOS: mengambang di atas tengah, ikon + label sebaris */
+  .dock { top: calc(env(safe-area-inset-top, 0px) + 14px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
+  .tabbar { flex: none; width: 460px; height: 50px; border-radius: 25px; }
+  .tabbar button { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13.5px; border-radius: 21px; }
+  .tabbar button .i { width: 18px; height: 18px; }
+  .tab-lens { border-radius: 21px; }
+  .fab { right: 24px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); width: 60px; height: 60px; }
+  .topbar { display: none; }
+  .toasts { bottom: 32px; }
+
+  /* Sheet menjadi dialog di tengah (form sheet iPad) */
+  .sheet {
+    left: 50%; right: auto; top: 50%; bottom: auto; width: 480px; max-height: min(720px, calc(100% - 96px));
+    border: 1px solid var(--border); border-radius: 20px; padding-bottom: 16px;
+    transform: translate(-50%, -46%) scale(0.98); opacity: 0; pointer-events: none;
+    transition: transform 240ms var(--ease-out), opacity 200ms var(--ease-out);
+  }
+  .sheet.open { transform: translate(-50%, -50%); opacity: 1; pointer-events: auto; }
+  .sheet.closing { transition-duration: 150ms; }
+  .grabber { display: none; }
+
+  .wide-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .wide-grid > .section, .wide-grid > .card { margin-top: 0; }
+  .span-2 { grid-column: 1 / -1; }
+  #acc-groups { columns: 2; column-gap: 14px; }
+  #acc-groups > section { break-inside: avoid; }
+  .more-wrap { max-width: 620px; margin: 0 auto; }
+}
+
+/* iPad landscape: kolom kanan dengan ringkasan, dan Catat cepat sebaris */
+@media (min-width: 1024px) {
+  .tx-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  .tx-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; padding-top: 14px; }
+  .wide-only { display: inline-flex !important; }
+  .fab { display: none; }
+
+  /* Sheet dipindah ke kolom kanan sebagai kartu yang selalu terbuka */
+  .sheet.inline {
+    position: static; transform: none; opacity: 1; pointer-events: auto; width: auto; max-height: none;
+    box-shadow: var(--shadow-card); border-radius: var(--radius); padding: 12px 14px 14px; transition: none;
+  }
+  .sheet.inline #sheet-close { display: none; }
+  .sheet.inline .sheet-body { overflow: visible; }
+  .sheet.inline .amount b { font-size: 30px; }
+}
+
+/* Desktop: sidebar Opnamix menggantikan tab bar */
+@media (min-width: 1180px) {
+  .sidebar { display: flex; }
+  .main { left: 232px; }
+  .dock { display: none; }
+  .screen { padding: 20px 28px 40px; }
+  .topbar { display: flex; left: calc(232px + 28px); right: 28px; top: 12px; }
+  .tx-layout { grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; }
+  .toasts { left: 232px; }
+}
+
+/* Muncul bertahap, hanya saat aplikasi pertama dibuka */
+.stagger > * { animation: rise 280ms var(--ease-out) both; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(n + 4) { animation-delay: 120ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; }
+  .press:active { transform: none; }
+  .row, .tab-lens, .topbar, .meter span, .progress .track span { transition-property: opacity !important; }
+  .sheet { transform: none !important; opacity: 0; pointer-events: none; transition: opacity 180ms ease !important; }
+  .sheet.open, .sheet.inline { opacity: 1; pointer-events: auto; }
+  @media (min-width: 768px) { .sheet:not(.inline) { transform: translate(-50%, -50%) !important; } }
+}
+</style>
+</head>
+<body>
+<!-- Ikon (jalur lucide, stroke 2) -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M10 2v2M14 2v2M6 2v2M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/></symbol>
+    <symbol id="i-cookie" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 14v.01"/></symbol>
+    <symbol id="i-fuel" viewBox="0 0 24 24"><path d="M3 22h12M4 9h10M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.83a2 2 0 0 0-.59-1.42L18 5"/></symbol>
+    <symbol id="i-parking" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4ZM3 6h18M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7ZM3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></symbol>
+    <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8M3 10a2 2 0 0 1 .71-1.53l7-6a2 2 0 0 1 2.58 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1ZM16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8M12 17.5v-11"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect x="2" y="6" width="20" height="14" rx="2"/></symbol>
+    <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M7 20h10M10 20c5.5-2.5.8-6.4 3-10M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8zM14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/></symbol>
+    <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21 12c.55 0 1-.45.95-1A10 10 0 0 0 13 2.05c-.55-.05-1 .4-1 .95v8a1 1 0 0 0 1 1zM21.21 15.89A10 10 0 1 1 8 2.83"/></symbol>
+    <symbol id="i-landmark" viewBox="0 0 24 24"><path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.34.52l-6.33 5.74a1 1 0 0 0 0 1.48l6.33 5.74A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zM12 9l6 6M18 9l-6 6"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.85.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.85z"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12M17 8l-5-5-5 5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3.13a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01"/></symbol>
+    <symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  </defs>
+</svg>
+
+<div class="device" id="device">
+
+  <!-- Sidebar desktop -->
+  <aside class="sidebar" aria-label="Navigasi utama">
+    <div class="sb-brand">
+      <span class="sb-logo"><svg class="i"><use href="#i-wallet"/></svg></span>
+      <span><b>Money Manager</b><small>Buku Pribadi</small></span>
+    </div>
+    <button class="sb-cta press" data-focus-quick>
+      <svg class="i i-sm"><use href="#i-plus"/></svg>Catat transaksi<kbd>N</kbd>
+    </button>
+    <nav class="sb-nav">
+      <div class="sb-label">Menu</div>
+      <button class="sb-item" data-tab="tx" aria-selected="true"><svg class="i"><use href="#i-list"/></svg>Transaksi<small class="num" id="sb-count"></small></button>
+      <button class="sb-item" data-tab="stats" aria-selected="false"><svg class="i"><use href="#i-pie"/></svg>Statistik<span></span></button>
+      <button class="sb-item" data-tab="accounts" aria-selected="false"><svg class="i"><use href="#i-wallet"/></svg>Akun<span></span></button>
+      <button class="sb-item" data-tab="more" aria-selected="false"><svg class="i"><use href="#i-grid"/></svg>Lainnya<span></span></button>
+      <div class="sb-label">Input cepat</div>
+      <button class="sb-item"><svg class="i"><use href="#i-zap"/></svg>Template<small class="num">5</small></button>
+      <button class="sb-item"><svg class="i"><use href="#i-repeat"/></svg>Berulang<small class="num">3</small></button>
+      <button class="sb-item"><svg class="i"><use href="#i-download"/></svg>Impor<span></span></button>
+    </nav>
+    <div class="sb-foot">
+      <div class="seg on-grad" role="group" aria-label="Tema" id="theme-pick-sb">
+        <button class="press" aria-pressed="true" data-theme="light">Terang</button>
+        <button class="press" aria-pressed="false" data-theme="dark">Gelap</button>
+      </div>
+      <div class="sb-profile">
+        <span class="av">IK</span>
+        <span style="min-width: 0"><b>ikra8520</b><small>Pemilik</small></span>
+        <button class="press press-icon" aria-label="Keluar"><svg class="i i-sm"><use href="#i-logout"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+  <!-- ===================== TRANSAKSI ===================== -->
+  <section class="screen active" id="screen-tx" data-title="Transaksi">
+    <div class="inner">
+    <header class="page-header" data-observe>
+      <div class="ph-top">
+        <h1>Transaksi</h1>
+        <div class="hgroup" aria-label="Pilih bulan">
+          <button class="press press-icon" data-month="-1" aria-label="Bulan sebelumnya"><svg class="i i-sm"><use href="#i-left"/></svg></button>
+          <span class="month-label">Okt 2026</span>
+          <button class="press press-icon" data-month="1" aria-label="Bulan berikutnya"><svg class="i i-sm"><use href="#i-right"/></svg></button>
+        </div>
+        <button class="hbtn press press-icon" aria-label="Cari"><svg class="i"><use href="#i-search"/></svg></button>
+      </div>
+      <div class="ph-hero">
+        <small>Sisa Oktober</small>
+        <b class="num" id="hero-net">Rp 0</b>
+        <div class="progress">
+          <div class="lbl"><span>Terpakai dari pemasukan</span><b class="num" id="hero-pct">0%</b></div>
+          <div class="track"><span id="hero-bar"></span></div>
+        </div>
+      </div>
+      <div class="chips-row">
+        <span class="stat-chip"><span class="d" style="background: var(--dot-ok)"></span>Masuk <b class="num" id="chip-in">0</b></span>
+        <span class="stat-chip"><span class="d" style="background: var(--dot-bad)"></span>Keluar <b class="num" id="chip-out">0</b></span>
+        <span class="stat-chip">Transaksi <b class="num" id="chip-count">0</b></span>
+      </div>
+      <div class="seg on-grad" role="group" aria-label="Tampilan" id="tx-view">
+        <button class="press" aria-pressed="true" data-view="daily">Harian</button>
+        <button class="press" aria-pressed="false" data-view="calendar">Kalender</button>
+        <button class="press" aria-pressed="false" data-view="monthly">Bulanan</button>
+      </div>
+    </header>
+    <div class="tx-layout">
+      <div id="tx-content"></div>
+      <aside class="tx-side" aria-label="Catat cepat dan ringkasan">
+        <div id="inline-slot"></div>
+        <div class="card side-card">
+          <div class="card-head"><span class="card-title">Pengeluaran teratas</span><span class="muted" style="font-size: 12px">Oktober</span></div>
+          <div class="list" id="top-cats"></div>
+        </div>
+      </aside>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===================== STATISTIK ===================== -->
+  <section class="screen" id="screen-stats" data-title="Statistik">
+    <div class="inner">
+    <header class="page-header" data-observe>
+      <div class="ph-top">
+        <h1>Statistik</h1>
+        <div class="hgroup" aria-label="Pilih bulan">
+          <button class="press press-icon" data-month="-1" aria-label="Bulan sebelumnya"><svg class="i i-sm"><use href="#i-left"/></svg></button>
+          <span class="month-label">Okt 2026</span>
+          <button class="press press-icon" data-month="1" aria-label="Bulan berikutnya"><svg class="i i-sm"><use href="#i-right"/></svg></button>
+        </div>
+      </div>
+      <div class="seg on-grad" role="group" aria-label="Jenis" id="stats-kind">
+        <button class="press" aria-pressed="true" data-kind="expense">Pengeluaran</button>
+        <button class="press" aria-pressed="false" data-kind="income">Pemasukan</button>
+      </div>
+    </header>
+
+    <div class="wide-grid section">
+    <div class="card card-pad section">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <span class="card-title" id="comp-title">Komposisi</span>
+        <b class="num" style="font-size: 15px" id="comp-total">Rp 0</b>
+      </div>
+      <div class="comp" id="comp" role="img" style="margin-top: 12px"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="card section">
+      <div class="card-head"><span class="card-title">Budget bulan ini</span><button class="btn btn-sm btn-soft press">Atur</button></div>
+      <div class="list" id="budgets" style="padding: 4px 4px 8px"></div>
+    </div>
+
+    <div class="card section span-2">
+      <div class="card-head"><span class="card-title">6 bulan terakhir</span><span class="muted" style="font-size: 12px">juta rupiah</span></div>
+      <div id="trend" style="padding: 8px 14px 14px"></div>
+    </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===================== AKUN ===================== -->
+  <section class="screen" id="screen-accounts" data-title="Akun">
+    <div class="inner">
+    <header class="page-header" data-observe>
+      <div class="ph-top">
+        <h1>Akun</h1>
+        <button class="hbtn press"><svg class="i"><use href="#i-plus"/></svg>Akun</button>
+      </div>
+      <div class="ph-hero">
+        <small>Aset bersih</small>
+        <b class="num" id="acc-total">Rp 0</b>
+      </div>
+      <div class="chips-row">
+        <span class="stat-chip"><span class="d" style="background: var(--dot-ok)"></span>Aset <b class="num" id="acc-assets">0</b></span>
+        <span class="stat-chip"><span class="d" style="background: var(--dot-bad)"></span>Utang <b class="num" id="acc-debts">0</b></span>
+      </div>
+    </header>
+    <div id="acc-groups"></div>
+    </div>
+  </section>
+
+  <!-- ===================== LAINNYA ===================== -->
+  <section class="screen" id="screen-more" data-title="Lainnya">
+    <div class="inner more-wrap">
+    <header class="page-header" data-observe>
+      <div class="ph-top"><h1>Lainnya</h1></div>
+    </header>
+
+    <div class="group-label"><span>Buku</span></div>
+    <div class="card list">
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--primary-soft); color: var(--primary-accent)"><svg class="i"><use href="#i-book"/></svg></span><span><div class="t">Pribadi</div><div class="s">Buku aktif · Pemilik</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--surface-2); color: var(--muted-foreground)"><svg class="i"><use href="#i-users"/></svg></span><span><div class="t">Anggota & undangan</div><div class="s">Berbagi buku dengan orang lain</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+    </div>
+
+    <div class="group-label"><span>Input cepat</span></div>
+    <div class="card list">
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--warn-soft); color: var(--warn)"><svg class="i"><use href="#i-zap"/></svg></span><span><div class="t">Template</div><div class="s">5 template</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--ok-soft); color: var(--ok)"><svg class="i"><use href="#i-repeat"/></svg></span><span><div class="t">Transaksi berulang</div><div class="s">3 aktif · berikutnya 1 Nov</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--primary-soft); color: var(--primary-accent)"><svg class="i"><use href="#i-mic"/></svg></span><span><div class="t">Shortcut Siri</div><div class="s">“Catat pengeluaran”</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+    </div>
+
+    <div class="group-label"><span>Data</span></div>
+    <div class="card list">
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--primary-soft); color: var(--primary-accent)"><svg class="i"><use href="#i-download"/></svg></span><span><div class="t">Impor dari Realbyte</div><div class="s">File .xlsx ekspor Money Manager</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--surface-2); color: var(--muted-foreground)"><svg class="i"><use href="#i-landmark"/></svg></span><span><div class="t">Impor mutasi bank</div><div class="s">BCA, Jago, Seabank</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--surface-2); color: var(--muted-foreground)"><svg class="i"><use href="#i-upload"/></svg></span><span><div class="t">Ekspor Excel</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+      <button class="set-row press"><span class="tone tone-sm" style="background: var(--surface-2); color: var(--muted-foreground)"><svg class="i"><use href="#i-tag"/></svg></span><span><div class="t">Kategori</div></span><svg class="i i-sm faint"><use href="#i-chev"/></svg></button>
+    </div>
+
+    <div class="group-label"><span>Tampilan</span></div>
+    <div class="seg plain" role="group" aria-label="Tema" id="theme-pick">
+      <button class="press" aria-pressed="true" data-theme="light">Terang</button>
+      <button class="press" aria-pressed="false" data-theme="dark">Gelap</button>
+    </div>
+
+    <div class="card list section">
+      <button class="set-row press btn-ghost-danger"><span class="tone tone-sm" style="background: var(--bad-soft); color: var(--bad)"><svg class="i"><use href="#i-logout"/></svg></span><span class="t">Keluar</span><span></span></button>
+    </div>
+    <p class="faint" style="text-align: center; font-size: 12px; margin-top: 14px">Prototipe desain · data tiruan</p>
+    </div>
+  </section>
+  </main>
+
+  <!-- Bar judul ringkas (Liquid Glass) -->
+  <div class="topbar lg" id="topbar" aria-hidden="true">
+    <b id="topbar-title">Transaksi</b>
+    <span class="val num" id="topbar-val"></span>
+    <button class="press press-icon" id="topbar-up" aria-label="Kembali ke atas"><svg class="i i-sm" style="transform: rotate(-90deg)"><use href="#i-right"/></svg></button>
+  </div>
+
+  <!-- Dock bawah (Liquid Glass) -->
+  <div class="dock">
+    <nav class="tabbar lg" role="tablist" aria-label="Navigasi utama" id="tabbar">
+      <span class="tab-lens" id="tab-lens"></span>
+      <button role="tab" aria-selected="true" data-tab="tx"><svg class="i"><use href="#i-list"/></svg>Transaksi</button>
+      <button role="tab" aria-selected="false" data-tab="stats"><svg class="i"><use href="#i-pie"/></svg>Statistik</button>
+      <button role="tab" aria-selected="false" data-tab="accounts"><svg class="i"><use href="#i-wallet"/></svg>Akun</button>
+      <button role="tab" aria-selected="false" data-tab="more"><svg class="i"><use href="#i-grid"/></svg>Lainnya</button>
+    </nav>
+  </div>
+  <button class="fab lg lg-tint press" id="fab" aria-label="Catat transaksi" aria-haspopup="dialog"><svg class="i"><use href="#i-plus"/></svg></button>
+
+  <!-- Sheet catat transaksi -->
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-hidden="true">
+    <div class="grabber"></div>
+    <div class="sheet-head">
+      <h2 id="sheet-title">Catat transaksi</h2>
+      <button class="btn btn-sm btn-secondary press" id="mode-toggle"><svg class="i i-sm"><use href="#i-hash"/></svg><span>Keypad</span></button>
+      <button class="btn btn-sm btn-secondary press press-icon" id="sheet-close" aria-label="Tutup" style="width: 32px; padding: 0"><svg class="i i-sm"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="sheet-body">
+      <div class="seg plain" role="group" aria-label="Jenis transaksi" id="type-pick">
+        <button class="press" aria-pressed="true" data-type="expense">Pengeluaran</button>
+        <button class="press" aria-pressed="false" data-type="income">Pemasukan</button>
+        <button class="press" aria-pressed="false" data-type="transfer">Transfer</button>
+      </div>
+
+      <div class="amount zero" id="amount"><span>Rp</span><b class="num">0</b></div>
+
+      <div id="mode-text" class="field">
+        <label for="quick">Ketik saja</label>
+        <input class="input" id="quick" type="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="kopi 25rb gopay" />
+        <div class="hint">Bisa juga: <span class="mono">bensin 100rb kemarin</span>, <span class="mono">bca &gt; gopay 99rb</span>, <span class="mono">+ gaji 5jt bca</span></div>
+      </div>
+
+      <div class="choice-row" id="choices"></div>
+
+      <div id="mode-keypad" hidden><div class="keypad" id="keypad"></div></div>
+
+      <div>
+        <div class="group-label" style="padding: 0 0 6px"><span>Template</span></div>
+        <div class="tpl-row" id="templates"></div>
+      </div>
+
+      <div class="sheet-foot">
+        <button class="btn btn-secondary press" id="save-more">Simpan & lagi</button>
+        <button class="btn btn-primary press" id="save" disabled>Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------------
+  // Data tiruan (bentuk mengikuti ekspor Realbyte, isi disamarkan)
+  // ------------------------------------------------------------------
+  const ACCOUNTS = [
+    { id: 'cash', name: 'Tunai', group: 'Tunai', balance: 412000 },
+    { id: 'bca', name: 'BCA', group: 'Bank', balance: 6820500 },
+    { id: 'jago', name: 'Jago · Utama', group: 'Bank', balance: 2215000 },
+    { id: 'seabank', name: 'Seabank', group: 'Bank', balance: 931250 },
+    { id: 'jago-dd', name: 'Jago · Dana Darurat', group: 'Tabungan', balance: 5400000 },
+    { id: 'gopay', name: 'GoPay', group: 'E-Wallet', balance: 284300 },
+    { id: 'spay', name: 'ShopeePay', group: 'E-Wallet', balance: 46000 },
+    { id: 'bibit', name: 'Bibit · Reksa Dana', group: 'Investasi', balance: 3150000 },
+    { id: 'piutang', name: 'Iuran Spotify Family', group: 'Piutang', balance: 220000 },
+    { id: 'cc', name: 'Kartu Kredit', group: 'Utang', balance: -1186750 },
+  ];
+  const GROUP_ICON = { Tunai: ['i-wallet', 'r3'], Bank: ['i-landmark', 'r1'], Tabungan: ['i-sprout', 'r3'], 'E-Wallet': ['i-phone', 'r6'], Investasi: ['i-pie', 'r4'], Piutang: ['i-coins', 'r5'], Utang: ['i-receipt', 'r2'] };
+  const ALIASES = { tunai: 'cash', cash: 'cash', bca: 'bca', jago: 'jago', seabank: 'seabank', gopay: 'gopay', spay: 'spay', shopeepay: 'spay', bibit: 'bibit' };
+
+  // Warna kategori dari palet grafik Opnamix (r1–r6), ikon gaya lucide
+  const CATS = {
+    food: { name: 'Makan', icon: 'i-utensils', tone: 'r2' },
+    snack: { name: 'Jajan', icon: 'i-cookie', tone: 'r4' },
+    coffee: { name: 'Kopi', icon: 'i-coffee', tone: 'r2' },
+    fuel: { name: 'Bensin', icon: 'i-fuel', tone: 'r5' },
+    parking: { name: 'Parkir', icon: 'i-parking', tone: 'r1' },
+    shop: { name: 'Belanja', icon: 'i-bag', tone: 'r6' },
+    sub: { name: 'Langganan', icon: 'i-phone', tone: 'r1' },
+    gift: { name: 'Hadiah', icon: 'i-gift', tone: 'r5' },
+    health: { name: 'Kesehatan', icon: 'i-heart', tone: 'r3' },
+    rent: { name: 'Kos', icon: 'i-house', tone: 'r1' },
+    admin: { name: 'Admin', icon: 'i-receipt', tone: 'r4' },
+    salary: { name: 'Gaji', icon: 'i-wallet', tone: 'r3' },
+    project: { name: 'Proyek', icon: 'i-briefcase', tone: 'r1' },
+    interest: { name: 'Bunga', icon: 'i-sprout', tone: 'r3' },
+    receivable: { name: 'Piutang', icon: 'i-coins', tone: 'r4' },
+    transfer: { name: 'Transfer', icon: 'i-swap', tone: 'muted' },
+  };
+  const INCOME_CATS = ['salary', 'project', 'interest', 'receivable'];
+  const LEARNED = {
+    kopi: 'coffee', 'point coffee': 'coffee', indomaret: 'shop', shopee: 'shop', shopeefood: 'food',
+    gofood: 'food', makan: 'food', lunch: 'food', dinner: 'food', sarapan: 'food', bubur: 'food', warteg: 'food',
+    snack: 'snack', jajan: 'snack', martabak: 'snack', bensin: 'fuel', pertalite: 'fuel', parkir: 'parking',
+    spotify: 'sub', icloud: 'sub', pulsa: 'sub', kuota: 'sub', obat: 'health', halodoc: 'health', kos: 'rent',
+    gaji: 'salary', proyek: 'project', kado: 'gift',
+  };
+
+  const T = (d, h, m, type, amount, cat, note, acc, to) => ({ id: Math.random().toString(36).slice(2), date: new Date(2026, 9, d, h, m), type, amount, cat, note, acc, to });
+  let txs = [
+    T(24, 8, 12, 'expense', 18000, 'coffee', 'Point Coffee', 'gopay'),
+    T(24, 12, 40, 'expense', 35000, 'food', 'Makan siang', 'cash'),
+    T(24, 13, 5, 'expense', 2000, 'parking', 'Parkir', 'cash'),
+    T(23, 19, 22, 'expense', 52500, 'food', 'ShopeeFood', 'spay'),
+    T(23, 9, 0, 'transfer', 200000, 'transfer', 'Isi saldo', 'bca', 'gopay'),
+    T(23, 7, 45, 'expense', 100000, 'fuel', 'Pertalite', 'cash'),
+    T(22, 20, 10, 'expense', 87300, 'shop', 'Indomaret', 'bca'),
+    T(22, 15, 30, 'income', 1500000, 'project', 'Proyek landing page', 'jago'),
+    T(21, 12, 15, 'expense', 28000, 'food', 'Warteg', 'cash'),
+    T(21, 10, 0, 'expense', 54990, 'sub', 'Spotify Family', 'cc'),
+    T(20, 18, 30, 'income', 44000, 'receivable', 'Iuran Spotify', 'gopay'),
+    T(20, 8, 20, 'expense', 15000, 'snack', 'Bubur ayam', 'cash'),
+    T(19, 21, 5, 'expense', 163900, 'health', 'Halodoc', 'gopay'),
+    T(18, 16, 40, 'expense', 250000, 'gift', 'Kado ulang tahun', 'bca'),
+    T(15, 9, 0, 'expense', 1200000, 'rent', 'Kos Oktober', 'bca'),
+    T(10, 11, 30, 'expense', 38648, 'shop', 'Casing HP', 'seabank'),
+    T(9, 14, 0, 'expense', 25770, 'coffee', 'Kopi susu', 'seabank'),
+    T(5, 7, 30, 'expense', 100000, 'fuel', 'Pertalite', 'cash'),
+    T(1, 9, 0, 'income', 7500000, 'salary', 'Gaji September', 'bca'),
+    T(1, 9, 5, 'income', 18420, 'interest', 'Bunga Jago', 'jago'),
+  ];
+  const HISTORY = [['Mei', 7.5, 6.1], ['Jun', 8.1, 7.4], ['Jul', 7.5, 8.2], ['Agu', 9.3, 6.9], ['Sep', 7.6, 7.1]];
+  const BUDGETS = [{ cat: 'food', limit: 1500000 }, { cat: 'coffee', limit: 300000 }, { cat: 'shop', limit: 500000 }, { cat: 'fuel', limit: 400000 }];
+  const TEMPLATES = [
+    { cat: 'coffee', label: 'Kopi', text: 'kopi 18rb gopay' },
+    { cat: 'fuel', label: 'Bensin', text: 'bensin 100rb tunai' },
+    { cat: 'food', label: 'Makan siang', text: 'makan siang 35rb tunai' },
+    { cat: 'parking', label: 'Parkir', text: 'parkir 2rb tunai' },
+    { cat: 'sub', label: 'Spotify', text: 'spotify 54990 bca' },
+  ];
+
+  // ------------------------------------------------------------------
+  // Utilitas
+  // ------------------------------------------------------------------
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const fmt = (n) => Math.abs(Math.round(n)).toLocaleString('id-ID');
+  const rp = (n) => (n < 0 ? '−' : '') + 'Rp ' + fmt(n);
+  const short = (n) => {
+    const a = Math.abs(n);
+    if (a >= 1e6) return (a / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' jt';
+    if (a >= 1e3) return Math.round(a / 1e3) + ' rb';
+    return String(a);
+  };
+  const tiny = (n) => { const a = Math.abs(n); return a >= 1e6 ? (a / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + 'jt' : Math.round(a / 1e3) + 'rb'; };
+  const DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const MONTHS_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const TODAY = new Date(2026, 9, 24, 14, 0);
+  const accName = (id) => ACCOUNTS.find((a) => a.id === id)?.name ?? id;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const toneStyle = (tone) => tone === 'muted'
+    ? 'background: var(--surface-2); color: var(--muted-foreground)'
+    : `background: color-mix(in srgb, var(--${tone}) 15%, transparent); color: var(--${tone})`;
+  const icon = (id, cls = 'i') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
+
+  function segmented(root, onChange) {
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      $$('button', root).forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      onChange(btn.dataset);
+    });
+    return (key, val) => $$('button', root).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset[key] === val)));
+  }
+
+  // ------------------------------------------------------------------
+  // Transaksi
+  // ------------------------------------------------------------------
+  let txView = 'daily';
+  let selectedDay = 24;
+
+  const totals = () => txs.reduce((s, t) => {
+    if (t.type === 'income') s.inc += t.amount;
+    if (t.type === 'expense') s.out += t.amount;
+    return s;
+  }, { inc: 0, out: 0 });
+
+  function renderHeader() {
+    const { inc, out } = totals();
+    $('#hero-net').textContent = rp(inc - out);
+    const pct = inc ? Math.min(1, out / inc) : 0;
+    $('#hero-pct').textContent = Math.round(pct * 100) + '%';
+    $('#hero-bar').style.transform = `scaleX(${pct})`;
+    $('#chip-in').textContent = short(inc);
+    $('#chip-out').textContent = short(out);
+    $('#chip-count').textContent = txs.length;
+  }
+
+  function rowHTML(t) {
+    const c = CATS[t.type === 'transfer' ? 'transfer' : t.cat];
+    const sub = t.type === 'transfer' ? `${accName(t.acc)} → ${accName(t.to)}` : `${c.name} · ${accName(t.acc)}`;
+    const cls = t.type === 'income' ? 'plus' : t.type === 'expense' ? 'minus' : 'neutral';
+    const sign = t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '';
+    const time = t.date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="row-wrap" data-id="${t.id}"><div class="clip">
+      <div class="row-actions" aria-hidden="true">${icon('i-x', 'i i-sm')}Hapus</div>
+      <div class="row">
+        <span class="tone" style="${toneStyle(c.tone)}">${icon(c.icon)}</span>
+        <span style="min-width: 0"><div class="ttl">${esc(t.note)}</div><div class="sub">${esc(sub)}</div></span>
+        <span><div class="val num ${cls}">${sign}${rp(t.amount)}</div><div class="meta num">${time}</div></span>
+      </div></div></div>`;
+  }
+
+  function dayLabel(date) {
+    const d = date.getDate();
+    if (d === 24) return 'Hari ini';
+    if (d === 23) return 'Kemarin';
+    return `${DAYS[date.getDay()]}, ${d} Okt`;
+  }
+  const dayNet = (list) => list.reduce((s, t) => s + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0), 0);
+
+  function renderDaily() {
+    const by = new Map();
+    [...txs].sort((a, b) => b.date - a.date).forEach((t) => {
+      const k = t.date.getDate();
+      by.has(k) ? by.get(k).push(t) : by.set(k, [t]);
+    });
+    return [...by.values()].map((list) => {
+      const net = dayNet(list);
+      return `<section>
+        <div class="group-label"><span>${dayLabel(list[0].date)}</span><span class="num ${net > 0 ? 'plus' : 'minus'}">${net ? (net > 0 ? '+' : '−') + 'Rp ' + fmt(net) : ''}</span></div>
+        <div class="card list">${list.map(rowHTML).join('')}</div>
+      </section>`;
+    }).join('');
+  }
+
+  function renderCalendar() {
+    const offset = (new Date(2026, 9, 1).getDay() + 6) % 7;
+    const sums = {};
+    for (const t of txs) {
+      const s = (sums[t.date.getDate()] ??= { inc: 0, out: 0 });
+      if (t.type === 'income') s.inc += t.amount;
+      if (t.type === 'expense') s.out += t.amount;
+    }
+    let cells = '<span></span>'.repeat(offset);
+    for (let d = 1; d <= 31; d++) {
+      const s = sums[d];
+      const cls = [d === 24 && 'today', d === selectedDay && 'sel', d > 24 && 'future'].filter(Boolean).join(' ');
+      cells += `<button class="press ${cls}" data-cal="${d}" aria-label="${d} Oktober" aria-pressed="${d === selectedDay}">
+        <span class="num">${d}</span>
+        ${s?.out ? `<small class="num minus">${tiny(s.out)}</small>` : ''}
+        ${s?.inc ? `<small class="num plus">+${tiny(s.inc)}</small>` : ''}
+      </button>`;
+    }
+    const list = txs.filter((t) => t.date.getDate() === selectedDay).sort((a, b) => b.date - a.date);
+    return `<div class="card card-pad section" style="padding: 10px 8px">
+        <div class="cal-head">${['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((d) => `<span>${d}</span>`).join('')}</div>
+        <div class="cal-grid">${cells}</div>
+      </div>
+      <div class="group-label"><span>${selectedDay} Oktober</span><span class="num">${list.length} transaksi</span></div>
+      ${list.length ? `<div class="card list">${list.map(rowHTML).join('')}</div>` : '<div class="card card-pad muted" style="text-align: center; font-size: 13px">Tidak ada transaksi di tanggal ini.</div>'}`;
+  }
+
+  function monthSeries() {
+    const { inc, out } = totals();
+    return [...HISTORY, ['Okt', inc / 1e6, out / 1e6]];
+  }
+
+  function renderMonthly() {
+    const rows = monthSeries().slice().reverse();
+    return `<div class="card list section">${rows.map(([m, i, o]) => {
+      const net = (i - o) * 1e6;
+      return `<div class="row" style="grid-template-columns: 36px minmax(0,1fr) auto">
+        <span class="tone" style="${toneStyle('muted')}; font-weight: 700; font-size: 12px">${m}</span>
+        <span style="min-width: 0"><div class="ttl">${m === 'Okt' ? 'Oktober (berjalan)' : MONTHS_LONG[MONTHS.indexOf(m)]}</div>
+          <div class="sub num">Masuk ${i.toLocaleString('id-ID', { maximumFractionDigits: 2 })} jt · Keluar ${o.toLocaleString('id-ID', { maximumFractionDigits: 2 })} jt</div></span>
+        <span><div class="val num ${net >= 0 ? 'plus' : 'minus'}">${net >= 0 ? '+' : '−'}${short(net)}</div></span>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  function renderTx(first = false) {
+    renderHeader();
+    renderTopCats();
+    const box = $('#tx-content');
+    box.innerHTML = txView === 'daily' ? renderDaily() : txView === 'calendar' ? renderCalendar() : renderMonthly();
+    box.classList.toggle('stagger', first && !reduceMotion.matches);
+    bindRows(box);
+    updateTopbar();
+  }
+
+  segmented($('#tx-view'), ({ view }) => { txView = view; renderTx(); });
+  $('#tx-content').addEventListener('click', (e) => {
+    const cell = e.target.closest('[data-cal]');
+    if (cell) { selectedDay = +cell.dataset.cal; renderTx(); }
+  });
+
+  // Geser baris ke kiri untuk hapus, dengan Urungkan
+  function bindRows(root) {
+    $$('.row-wrap', root).forEach((wrap) => {
+      const row = $('.row', wrap);
+      let pointer = null, x0 = 0, y0 = 0, dx = 0, t0 = 0, axis = null;
+      row.addEventListener('pointerdown', (e) => {
+        if (pointer !== null) return; // abaikan jari kedua
+        pointer = e.pointerId; x0 = e.clientX; y0 = e.clientY; dx = 0; t0 = performance.now(); axis = null;
+      });
+      row.addEventListener('pointermove', (e) => {
+        if (e.pointerId !== pointer) return;
+        const mx = e.clientX - x0, my = e.clientY - y0;
+        if (!axis) {
+          if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+          axis = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
+          if (axis === 'x') { row.setPointerCapture(pointer); row.classList.add('dragging'); wrap.classList.add('swiping'); }
+        }
+        if (axis !== 'x') return;
+        dx = mx > 0 ? mx * 0.15 : mx; // ke kanan: gesekan
+        row.style.transform = `translateX(${dx}px)`;
+      });
+      const end = (e) => {
+        if (e.pointerId !== pointer) return;
+        pointer = null;
+        if (axis !== 'x') return;
+        row.classList.remove('dragging');
+        const v = Math.abs(dx) / (performance.now() - t0);
+        if (dx < 0 && (Math.abs(dx) > row.offsetWidth * 0.45 || (v > 0.11 && dx < -40))) {
+          row.style.transform = `translateX(-${row.offsetWidth}px)`;
+          removeTx(wrap.dataset.id, wrap);
+        } else {
+          row.style.transform = '';
+          setTimeout(() => pointer === null && wrap.classList.remove('swiping'), 260);
+        }
+      };
+      row.addEventListener('pointerup', end);
+      row.addEventListener('pointercancel', end);
+    });
+  }
+
+  function removeTx(id, wrap) {
+    const idx = txs.findIndex((t) => t.id === id);
+    if (idx < 0) return;
+    const [removed] = txs.splice(idx, 1);
+    wrap.classList.add('gone');
+    setTimeout(() => { renderTx(); renderStats(); }, 230);
+    toast(`${removed.note} dihapus`, () => { txs.splice(idx, 0, removed); renderTx(); renderStats(); flash(removed.id); });
+  }
+
+  function flash(id) {
+    const row = $(`.row-wrap[data-id="${id}"] .row`);
+    if (!row) return;
+    row.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+    // WAAPI: sorotan sekali jalan, tidak meninggalkan transisi warna di baris
+    // (yang akan ikut beranimasi saat tema diganti)
+    row.animate(
+      [{ backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-soft') }, { backgroundColor: getComputedStyle(row).backgroundColor }],
+      { duration: 900, easing: 'ease-out' },
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Toast
+  // ------------------------------------------------------------------
+  let toastTimer;
+  function toast(text, onUndo) {
+    const region = $('#toasts');
+    const old = $('.toast', region);
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<span>${esc(text)}</span>${onUndo ? '<button class="press">Urungkan</button>' : ''}`;
+    region.append(el);
+    const close = () => { el.classList.add('leave'); setTimeout(() => el.remove(), 170); };
+    if (onUndo) $('button', el).addEventListener('click', () => { onUndo(); clearTimeout(toastTimer); close(); });
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(close, 4000);
+  }
+  // Timer toast berhenti saat tab disembunyikan (Sonner)
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(toastTimer); });
+
+  // ------------------------------------------------------------------
+  // Statistik
+  // ------------------------------------------------------------------
+  let statsKind = 'expense';
+  function renderStats() {
+    const by = {};
+    let total = 0;
+    for (const t of txs) if (t.type === statsKind) { by[t.cat] = (by[t.cat] ?? 0) + t.amount; total += t.amount; }
+    const items = Object.entries(by).sort((a, b) => b[1] - a[1]);
+    $('#comp-title').textContent = statsKind === 'expense' ? 'Pengeluaran per kategori' : 'Pemasukan per kategori';
+    $('#comp-total').textContent = rp(total);
+    $('#comp').setAttribute('aria-label', items.map(([k, v]) => `${CATS[k].name} ${Math.round((v / total) * 100)}%`).join(', '));
+    $('#comp').innerHTML = items.map(([k, v]) => `<span style="flex: ${v}; background: var(--${CATS[k].tone})"></span>`).join('');
+    $('#legend').innerHTML = items.map(([k, v]) => `
+      <i style="background: var(--${CATS[k].tone})"></i>
+      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">${CATS[k].name}</span>
+      <small class="num muted">${Math.round((v / total) * 100)}%</small>
+      <b class="num" style="text-align: right; font-weight: 600">${rp(v)}</b>`).join('');
+
+    const spent = {};
+    for (const t of txs) if (t.type === 'expense') spent[t.cat] = (spent[t.cat] ?? 0) + t.amount;
+    $('#budgets').innerHTML = BUDGETS.map(({ cat, limit }) => {
+      const s = spent[cat] ?? 0, p = s / limit;
+      const tone = p > 1 ? 'bad' : p > 0.8 ? 'warn' : 'ok';
+      const c = CATS[cat];
+      return `<div class="row" style="grid-template-columns: 36px minmax(0,1fr)">
+        <span class="tone" style="${toneStyle(c.tone)}">${icon(c.icon)}</span>
+        <span style="min-width: 0; display: flex; flex-direction: column; gap: 6px">
+          <span style="display: flex; justify-content: space-between; gap: 8px"><span class="ttl">${c.name}</span>
+            <span class="num" style="font-size: 12px; font-weight: 600; color: var(--${tone === 'ok' ? 'muted-foreground' : tone})">${p > 1 ? 'Lewat ' + short(s - limit) : 'Sisa ' + short(limit - s)}</span></span>
+          <span class="meter" role="meter" aria-valuenow="${Math.round(p * 100)}" aria-valuemin="0" aria-valuemax="100" aria-label="Budget ${c.name}"><span style="background: var(--${tone}); transform: scaleX(${Math.min(p, 1)})"></span></span>
+          <span class="sub num">${rp(s)} dari ${rp(limit)}</span>
+        </span></div>`;
+    }).join('');
+
+    const series = monthSeries();
+    const max = Math.max(...series.flatMap(([, i, o]) => [i, o]));
+    $('#trend').innerHTML = `<div style="display: grid; grid-template-columns: repeat(${series.length}, 1fr); gap: 8px; align-items: end; height: 120px">
+      ${series.map(([m, i, o]) => `<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end">
+        <div style="display: flex; gap: 3px; align-items: flex-end; height: 100%">
+          <span title="Masuk ${i} jt" style="width: 10px; height: ${(i / max) * 100}%; background: var(--primary-accent); border-radius: 3px 3px 1px 1px"></span>
+          <span title="Keluar ${o} jt" style="width: 10px; height: ${(o / max) * 100}%; background: var(--bad); opacity: 0.85; border-radius: 3px 3px 1px 1px"></span>
+        </div>
+        <small class="muted" style="font-size: 11px">${m}</small></div>`).join('')}
+    </div>
+    <div style="display: flex; gap: 14px; margin-top: 10px; font-size: 12px" class="muted">
+      <span style="display: flex; align-items: center; gap: 6px"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--primary-accent)"></i>Masuk</span>
+      <span style="display: flex; align-items: center; gap: 6px"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--bad)"></i>Keluar</span>
+    </div>`;
+  }
+  segmented($('#stats-kind'), ({ kind }) => { statsKind = kind; renderStats(); });
+
+  // ------------------------------------------------------------------
+  // Akun
+  // ------------------------------------------------------------------
+  function renderAccounts() {
+    const groups = {};
+    let assets = 0, debts = 0;
+    for (const a of ACCOUNTS) {
+      (groups[a.group] ??= []).push(a);
+      a.balance >= 0 ? (assets += a.balance) : (debts += a.balance);
+    }
+    $('#acc-total').textContent = rp(assets + debts);
+    $('#acc-assets').textContent = short(assets);
+    $('#acc-debts').textContent = short(debts);
+    $('#acc-groups').innerHTML = Object.entries(groups).map(([g, list]) => {
+      const [ic, tone] = GROUP_ICON[g];
+      const sum = list.reduce((s, a) => s + a.balance, 0);
+      return `<section><div class="group-label"><span>${g}</span><span class="num">${rp(sum)}</span></div>
+      <div class="card list">${list.map((a) => `
+        <button class="row press" style="border-radius: 10px">
+          <span class="tone" style="${toneStyle(tone)}">${icon(ic)}</span>
+          <span style="min-width: 0"><div class="ttl">${a.name}</div><div class="sub">${g}</div></span>
+          <span class="val num ${a.balance < 0 ? 'minus' : ''}">${rp(a.balance)}</span>
+        </button>`).join('')}</div></section>`;
+    }).join('');
+  }
+
+  // Kolom kanan (landscape/desktop): kategori pengeluaran terbesar bulan ini
+  function renderTopCats() {
+    const by = {};
+    let total = 0;
+    for (const t of txs) if (t.type === 'expense') { by[t.cat] = (by[t.cat] ?? 0) + t.amount; total += t.amount; }
+    const items = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const max = items[0]?.[1] ?? 1;
+    $('#top-cats').innerHTML = items.map(([k, v]) => `
+      <div class="row" style="grid-template-columns: 30px minmax(0,1fr) auto; padding: 7px 8px">
+        <span class="tone tone-sm" style="${toneStyle(CATS[k].tone)}">${icon(CATS[k].icon)}</span>
+        <span style="min-width: 0; display: flex; flex-direction: column; gap: 5px">
+          <span class="ttl" style="font-size: 13px">${CATS[k].name} <span class="faint num" style="font-weight: 500">${Math.round((v / total) * 100)}%</span></span>
+          <span class="meter"><span style="background: var(--${CATS[k].tone}); transform: scaleX(${v / max})"></span></span>
+        </span>
+        <span class="val num" style="font-size: 13px">${short(v)}</span>
+      </div>`).join('');
+    $('#sb-count').textContent = txs.length;
+  }
+
+  // ------------------------------------------------------------------
+  // Tab bar (lensa meluncur) dan bar judul ringkas
+  // ------------------------------------------------------------------
+  // Tab bar (HP/iPad) dan sidebar (desktop) memakai tombol data-tab yang sama
+  const tabs = $$('#tabbar [data-tab]');
+  const navButtons = $$('[data-tab]');
+  const lens = $('#tab-lens');
+  let activeTab = 'tx';
+  function placeLens(instant) {
+    const btn = tabs.find((b) => b.dataset.tab === activeTab);
+    if (!btn.offsetWidth) return; // tab bar tersembunyi (desktop)
+    if (instant) lens.style.transition = 'none';
+    lens.style.width = btn.offsetWidth + 'px';
+    lens.style.transform = `translateX(${btn.offsetLeft - 4}px)`;
+    if (instant) { lens.offsetWidth; lens.style.transition = ''; }
+  }
+  navButtons.forEach((btn) => btn.addEventListener('click', () => {
+    const screen = $(`#screen-${btn.dataset.tab}`);
+    if (btn.dataset.tab === activeTab) {
+      screen.scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+      return;
+    }
+    activeTab = btn.dataset.tab;
+    navButtons.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === activeTab)));
+    $$('.screen').forEach((s) => s.classList.toggle('active', s === screen));
+    placeLens();
+    // Pindah tab instan: bar ringkas langsung menyesuaikan, tanpa memudar
+    const bar = $('#topbar');
+    bar.style.transition = 'none';
+    updateTopbar();
+    bar.offsetWidth;
+    bar.style.transition = '';
+  }));
+  new ResizeObserver(() => placeLens(true)).observe($('#tabbar'));
+
+  function updateTopbar() {
+    const screen = $(`#screen-${activeTab}`);
+    const header = $('.page-header', screen);
+    const show = screen.scrollTop > header.offsetHeight - 20;
+    const bar = $('#topbar');
+    bar.classList.toggle('show', show);
+    bar.setAttribute('aria-hidden', String(!show));
+    $('#topbar-title').textContent = screen.dataset.title;
+    const { inc, out } = totals();
+    $('#topbar-val').textContent = activeTab === 'tx' ? 'Sisa ' + short(inc - out) : activeTab === 'accounts' ? $('#acc-total').textContent : '';
+  }
+  $$('.screen').forEach((s) => s.addEventListener('scroll', updateTopbar, { passive: true }));
+  $('#topbar-up').addEventListener('click', () => $(`#screen-${activeTab}`).scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' }));
+
+  let monthIdx = 9;
+  $$('[data-month]').forEach((b) => b.addEventListener('click', () => {
+    monthIdx = Math.min(9, Math.max(0, monthIdx + Number(b.dataset.month)));
+    $$('.month-label').forEach((l) => (l.textContent = `${MONTHS[monthIdx]} 2026`));
+    if (monthIdx !== 9) toast('Prototipe: data hanya ada untuk Oktober');
+  }));
+
+  // Tema
+  const setThemeMore = segmented($('#theme-pick'), ({ theme }) => applyTheme(theme));
+  const setThemeSb = segmented($('#theme-pick-sb'), ({ theme }) => applyTheme(theme));
+  const setTheme = (k, v) => { setThemeMore(k, v); setThemeSb(k, v); };
+  function applyTheme(theme) {
+    setTheme('theme', theme);
+    document.documentElement.dataset.theme = theme;
+    $('meta[name="theme-color"]').content = theme === 'dark' ? '#0c0f14' : '#f2f4f9';
+    try { localStorage.setItem('mm-proto-theme', theme); } catch {}
+  }
+  try {
+    const saved = localStorage.getItem('mm-proto-theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(saved); setTheme('theme', saved);
+  } catch { applyTheme('light'); }
+
+  // ------------------------------------------------------------------
+  // Catat transaksi: ketik bebas -> nominal, akun, kategori, tanggal
+  // ------------------------------------------------------------------
+  function parseQuick(text) {
+    let rest = ' ' + text.toLowerCase() + ' ';
+    const out = { amount: 0, acc: null, to: null, date: null, note: '', cat: null, type: null };
+    const m = rest.match(/(\d+(?:[.,]\d+)*)\s*(rb|ribu|k|jt|juta)?(?=\s)/);
+    if (m) {
+      let n = parseFloat(m[1].replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+      if (/^(rb|ribu|k)$/.test(m[2] ?? '')) n *= 1e3;
+      if (/^(jt|juta)$/.test(m[2] ?? '')) n *= 1e6;
+      out.amount = Math.round(n);
+      rest = rest.replace(m[0], ' ');
+    }
+    const tf = rest.match(/\b(\w+)\s*>\s*(\w+)\b/);
+    if (tf && ALIASES[tf[1]] && ALIASES[tf[2]]) { out.type = 'transfer'; out.acc = ALIASES[tf[1]]; out.to = ALIASES[tf[2]]; rest = rest.replace(tf[0], ' '); }
+    if (/\+|\bgaji\b|\bterima\b|\bmasuk\b/.test(rest)) out.type ??= 'income';
+    rest = rest.replace('+', ' ');
+    if (/\bkemarin\b/.test(rest)) { out.date = 'kemarin'; rest = rest.replace('kemarin', ' '); }
+    for (const [alias, id] of Object.entries(ALIASES)) {
+      const re = new RegExp(`\\b${alias}\\b`);
+      if (!out.acc && re.test(rest)) { out.acc = id; rest = rest.replace(re, ' '); }
+    }
+    out.note = rest.replace(/\s+/g, ' ').trim();
+    const key = Object.keys(LEARNED).find((k) => out.note.includes(k));
+    out.cat = key ? LEARNED[key] : null;
+    return out;
+  }
+
+  const sheet = $('#sheet'), scrim = $('#scrim'), quick = $('#quick');
+  const wide = matchMedia('(min-width: 768px)');
+  const fresh = () => ({ type: 'expense', amount: 0, acc: 'cash', to: null, cat: null, note: '', date: null });
+  let manual = fresh(), draft = fresh(), mode = 'text';
+  const setType = segmented($('#type-pick'), ({ type }) => { manual.type = draft.type = type; renderDraft(); });
+
+  function choice(kind, iconId, value, label) {
+    return `<button class="choice press ${value ? 'on' : 'empty'}" data-choice="${kind}">${icon(iconId)}${value ?? label}</button>`;
+  }
+  function renderDraft() {
+    const a = $('#amount');
+    $('b', a).textContent = fmt(draft.amount);
+    a.classList.toggle('zero', !draft.amount);
+    $('b', a).style.color = draft.amount ? (draft.type === 'income' ? 'var(--primary-accent)' : '') : '';
+    $('#choices').innerHTML = [
+      choice('acc', 'i-wallet', draft.acc && accName(draft.acc), 'Akun'),
+      draft.type === 'transfer'
+        ? choice('to', 'i-swap', draft.to && accName(draft.to), 'Ke akun')
+        : choice('cat', draft.cat ? CATS[draft.cat].icon : 'i-tag', draft.cat && CATS[draft.cat].name, 'Kategori'),
+      choice('date', 'i-cal', draft.date === 'kemarin' ? 'Kemarin' : 'Hari ini'),
+      draft.note ? choice('note', 'i-pen', esc(draft.note)) : '',
+    ].join('');
+    const ok = draft.amount > 0 && (draft.type !== 'transfer' || draft.to);
+    $('#save').disabled = $('#save-more').disabled = !ok;
+    $('#save').textContent = ok ? `Simpan ${rp(draft.amount)}` : 'Simpan';
+  }
+
+  quick.addEventListener('input', () => {
+    const p = parseQuick(quick.value);
+    const type = p.type ?? manual.type;
+    draft = { type, amount: p.amount, note: p.note, date: p.date ?? manual.date, acc: p.acc ?? manual.acc, to: p.to ?? manual.to, cat: p.cat ?? manual.cat };
+    setType('type', type);
+    renderDraft();
+  });
+  quick.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('#save').disabled) save(false); });
+
+  // Tap pilihan: putar opsi (di app asli membuka daftar)
+  $('#choices').addEventListener('click', (e) => {
+    const kind = e.target.closest('[data-choice]')?.dataset.choice;
+    if (kind === 'acc') {
+      const ids = ACCOUNTS.filter((a) => a.balance >= 0).map((a) => a.id);
+      draft.acc = manual.acc = ids[(ids.indexOf(draft.acc) + 1) % ids.length];
+    } else if (kind === 'to') {
+      const ids = ACCOUNTS.map((a) => a.id).filter((id) => id !== draft.acc);
+      draft.to = manual.to = ids[(ids.indexOf(draft.to) + 1) % ids.length];
+    } else if (kind === 'cat') {
+      const ids = Object.keys(CATS).filter((k) => k !== 'transfer' && (draft.type === 'income') === INCOME_CATS.includes(k));
+      draft.cat = manual.cat = ids[(ids.indexOf(draft.cat) + 1) % ids.length];
+    } else if (kind === 'date') {
+      draft.date = manual.date = draft.date === 'kemarin' ? null : 'kemarin';
+    } else return;
+    renderDraft();
+  });
+
+  $('#keypad').innerHTML = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', 'del']
+    .map((k) => `<button class="press ${k === 'del' || k === '000' ? 'fn' : ''}" data-key="${k}" ${k === 'del' ? 'aria-label="Hapus angka"' : ''}>${k === 'del' ? icon('i-back', 'i i-lg') : k}</button>`).join('');
+  $('#keypad').addEventListener('click', (e) => {
+    const k = e.target.closest('[data-key]')?.dataset.key;
+    if (!k) return;
+    const s = String(draft.amount || '');
+    draft.amount = Number(k === 'del' ? s.slice(0, -1) : (s + k).slice(0, 12)) || 0;
+    renderDraft();
+  });
+  $('#mode-toggle').addEventListener('click', () => {
+    mode = mode === 'text' ? 'keypad' : 'text';
+    $('#mode-text').hidden = mode !== 'text';
+    $('#mode-keypad').hidden = mode !== 'keypad';
+    $('#mode-toggle').innerHTML = mode === 'text' ? `${icon('i-hash', 'i i-sm')}<span>Keypad</span>` : `${icon('i-keyboard', 'i i-sm')}<span>Ketik</span>`;
+    mode === 'text' ? quick.focus({ preventScroll: true }) : quick.blur();
+  });
+
+  $('#templates').innerHTML = TEMPLATES.map((t, i) => `<button class="tpl press" data-tpl="${i}"><span class="tone" style="${toneStyle(CATS[t.cat].tone)}">${icon(CATS[t.cat].icon)}</span>${t.label}</button>`).join('');
+  $('#templates').addEventListener('click', (e) => {
+    const i = e.target.closest('[data-tpl]')?.dataset.tpl;
+    if (i === undefined) return;
+    if (mode !== 'text') $('#mode-toggle').click();
+    quick.value = TEMPLATES[i].text;
+    quick.dispatchEvent(new Event('input'));
+  });
+
+  function save(again) {
+    const date = new Date(TODAY);
+    if (draft.date === 'kemarin') date.setDate(23);
+    else date.setHours(new Date().getHours(), new Date().getMinutes());
+    const cat = draft.type === 'transfer' ? 'transfer' : draft.cat ?? (draft.type === 'income' ? 'salary' : 'shop');
+    const t = {
+      id: Math.random().toString(36).slice(2), date, type: draft.type, amount: draft.amount, cat,
+      note: draft.note ? draft.note[0].toUpperCase() + draft.note.slice(1) : CATS[cat].name,
+      acc: draft.acc, to: draft.to,
+    };
+    txs.push(t);
+    if (activeTab !== 'tx') $('[data-tab="tx"]').click();
+    renderTx(); renderStats();
+    toast(`Tersimpan · ${rp(t.amount)}`, () => { txs = txs.filter((x) => x.id !== t.id); renderTx(); renderStats(); });
+    if (again || isInline()) {
+      if (isInline()) setTimeout(() => flash(t.id), 60);
+      // Mode beruntun: kosongkan isian, pertahankan akun dan jenis
+      manual = { ...fresh(), type: draft.type, acc: draft.acc };
+      draft = { ...manual };
+      quick.value = '';
+      renderDraft();
+      quick.focus({ preventScroll: true });
+    } else {
+      closeSheet();
+      setTimeout(() => flash(t.id), 120);
+    }
+  }
+  $('#save').addEventListener('click', () => save(false));
+  $('#save-more').addEventListener('click', () => save(true));
+
+  // Sheet: buka/tutup, drag 1:1, gesekan di atas, flick untuk menutup
+  let lastFocus = null;
+  function openSheet() {
+    lastFocus = document.activeElement;
+    manual = fresh(); draft = fresh(); quick.value = '';
+    setType('type', 'expense');
+    renderDraft();
+    sheet.classList.remove('closing');
+    sheet.style.transform = '';
+    sheet.setAttribute('aria-hidden', 'false');
+    sheet.classList.add('open');
+    scrim.classList.add('open');
+    if (mode === 'text') setTimeout(() => quick.focus({ preventScroll: true }), 50);
+  }
+  function closeSheet() {
+    sheet.classList.add('closing');
+    sheet.classList.remove('open');
+    sheet.style.transform = '';
+    scrim.classList.remove('open');
+    scrim.style.opacity = '';
+    sheet.setAttribute('aria-hidden', 'true');
+    quick.blur();
+    lastFocus?.focus?.({ preventScroll: true });
+  }
+  $('#fab').addEventListener('click', openSheet);
+  $('#sheet-close').addEventListener('click', closeSheet);
+  scrim.addEventListener('click', closeSheet);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet(); });
+  {
+    let pointer = null, y0 = 0, dy = 0, t0 = 0, dragging = false;
+    const body = $('.sheet-body', sheet);
+    sheet.addEventListener('pointerdown', (e) => {
+      // Drag-untuk-menutup hanya untuk sheet bawah di HP
+      if (pointer !== null || !sheet.classList.contains('open') || wide.matches) return;
+      if (e.target.closest('input, button, .tpl-row')) return;
+      if (body.contains(e.target) && body.scrollTop > 0) return;
+      pointer = e.pointerId; y0 = e.clientY; dy = 0; t0 = performance.now(); dragging = false;
+    });
+    sheet.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== pointer) return;
+      const raw = e.clientY - y0;
+      if (!dragging) {
+        if (Math.abs(raw) < 6) return;
+        dragging = true;
+        sheet.setPointerCapture(pointer);
+        sheet.classList.add('dragging');
+      }
+      dy = raw >= 0 ? raw : -Math.sqrt(-raw) * 3; // ke atas: gesekan
+      sheet.style.transform = `translateY(${dy}px)`;
+      scrim.style.opacity = String(Math.max(0, 1 - dy / sheet.offsetHeight));
+    });
+    const end = (e) => {
+      if (e.pointerId !== pointer) return;
+      pointer = null;
+      if (!dragging) return;
+      sheet.classList.remove('dragging');
+      const v = dy / (performance.now() - t0);
+      if (dy > sheet.offsetHeight * 0.3 || (v > 0.11 && dy > 24)) closeSheet();
+      else { sheet.style.transform = ''; scrim.style.opacity = ''; }
+    };
+    sheet.addEventListener('pointerup', end);
+    sheet.addEventListener('pointercancel', end);
+  }
+
+  // ------------------------------------------------------------------
+  // Layar lebar (>= 1024px): sheet dipindah ke kolom kanan sebagai kartu
+  // "Catat cepat" yang selalu terbuka. Logika form tetap satu.
+  // ------------------------------------------------------------------
+  const inlineMq = matchMedia('(min-width: 1024px)');
+  const isInline = () => sheet.classList.contains('inline');
+  function syncInline() {
+    if (inlineMq.matches) {
+      $('#inline-slot').append(sheet);
+      sheet.classList.add('inline');
+      sheet.classList.remove('open', 'closing');
+      sheet.style.transform = '';
+      sheet.setAttribute('role', 'region');
+      sheet.removeAttribute('aria-modal');
+      sheet.setAttribute('aria-hidden', 'false');
+      $('#sheet-title').textContent = 'Catat cepat';
+      scrim.classList.remove('open');
+      renderDraft();
+    } else if (isInline()) {
+      $('#device').insertBefore(sheet, $('#toasts'));
+      sheet.classList.remove('inline');
+      sheet.setAttribute('role', 'dialog');
+      sheet.setAttribute('aria-modal', 'true');
+      sheet.setAttribute('aria-hidden', 'true');
+      $('#sheet-title').textContent = 'Catat transaksi';
+    }
+  }
+  inlineMq.addEventListener('change', syncInline);
+
+  function startQuickAdd() {
+    if (!isInline()) return openSheet();
+    if (activeTab !== 'tx') $('[data-tab="tx"]').click();
+    if (mode !== 'text') $('#mode-toggle').click();
+    quick.focus(); // pintasan keyboard: tanpa animasi
+  }
+  $$('[data-focus-quick]').forEach((b) => b.addEventListener('click', startQuickAdd));
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'n' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest?.('input, textarea')) return;
+    e.preventDefault();
+    startQuickAdd();
+  });
+
+  // Mulai
+  renderTx(true);
+  renderStats();
+  renderAccounts();
+  syncInline();
+  requestAnimationFrame(() => placeLens(true));
+})();
+</script>
+</body>
+</html>

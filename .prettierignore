@@ -6,3 +6,4 @@ app/lib/database.types.ts
 .wrangler
 .claude
 public
+design

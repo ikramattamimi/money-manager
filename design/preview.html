@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pratinjau Perangkat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+<!--
+  Pratinjau prototype.html di tiga ukuran perangkat. Setiap bingkai adalah
+  iframe dengan lebar asli perangkat, lalu diperkecil agar muat di layar.
+-->
+<style>
+:root { --bg: #e4e8f0; --fg: #131a2b; --muted: #576075; --card: #fff; --border: #d5dbe7; --primary: #2563eb; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--fg); font: 14px/1.4 'DM Sans', system-ui, sans-serif; display: flex; flex-direction: column; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px; }
+header h1 { margin: 0; font-size: 16px; flex: 1; min-width: 180px; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 12px; background: #f6f7fb; border: 1px solid var(--border); }
+.seg button { height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: none; font: inherit; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.seg button:active { transform: scale(0.97); }
+.seg button[aria-pressed='true'] { background: var(--card); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1); }
+.stage { flex: 1; display: flex; align-items: center; justify-content: center; gap: 32px; padding: 8px 20px 28px; overflow: hidden; min-height: 0; }
+figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+figcaption { font-size: 12px; font-weight: 600; color: var(--muted); }
+/* Bingkai ikut diperkecil: tebal tepi dan radius = nilai asli x skala */
+.frame {
+  position: relative; overflow: hidden; background: #000; box-sizing: content-box;
+  border-style: solid; border-width: calc(var(--b) * var(--s, 1) * 1px); border-radius: calc(var(--r) * var(--s, 1) * 1px);
+  box-shadow: 0 30px 60px -20px rgba(10, 20, 50, 0.35);
+}
+.frame iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: #f2f4f9; }
+.phone { --r: 46; --b: 10; border-color: #16181d; }
+.tablet { --r: 30; --b: 14; border-color: #16181d; }
+.desktop { --r: 12; --b: 1; border-color: #c7cedb; }
+.desktop .bar { position: absolute; inset: 0 0 auto; height: 30px; background: #eef1f6; border-bottom: 1px solid #d5dbe7; display: flex; align-items: center; gap: 6px; padding: 0 12px; z-index: 1; }
+.desktop .bar i { width: 10px; height: 10px; border-radius: 50%; background: #d5dbe7; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Money Manager · pratinjau perangkat</h1>
+  <div class="seg" role="group" aria-label="Perangkat" id="pick">
+    <button aria-pressed="true" data-show="all">Semua</button>
+    <button aria-pressed="false" data-show="phone">iPhone</button>
+    <button aria-pressed="false" data-show="ipad">iPad</button>
+    <button aria-pressed="false" data-show="ipad-l">iPad landscape</button>
+    <button aria-pressed="false" data-show="desktop">Desktop</button>
+  </div>
+</header>
+<div class="stage" id="stage">
+  <figure data-device="phone"><div class="frame phone" data-w="393" data-h="852"><iframe src="prototype.html" title="iPhone"></iframe></div><figcaption>iPhone · 393 × 852</figcaption></figure>
+  <figure data-device="ipad"><div class="frame tablet" data-w="820" data-h="1180"><iframe src="prototype.html" title="iPad"></iframe></div><figcaption>iPad · 820 × 1180</figcaption></figure>
+  <figure data-device="ipad-l" hidden><div class="frame tablet" data-w="1180" data-h="820"><iframe src="prototype.html" title="iPad landscape"></iframe></div><figcaption>iPad landscape · 1180 × 820</figcaption></figure>
+  <figure data-device="desktop"><div class="frame desktop" data-w="1440" data-h="900" data-chrome="30"><div class="bar"><i></i><i></i><i></i></div><iframe src="prototype.html" title="Desktop"></iframe></div><figcaption>Desktop · 1440 × 900</figcaption></figure>
+</div>
+<script>
+  const stage = document.getElementById('stage');
+  const figures = [...stage.querySelectorAll('figure')];
+
+  // Ukuran iframe = ukuran asli perangkat; bingkai diperkecil agar muat
+  function layout() {
+    const visible = figures.filter((f) => !f.hidden);
+    const availH = stage.clientHeight - 40;
+    const availW = stage.clientWidth - 32 * (visible.length - 1) - 40;
+    const totalW = visible.reduce((s, f) => s + Number(f.querySelector('.frame').dataset.w), 0);
+    const maxH = Math.max(...visible.map((f) => Number(f.querySelector('.frame').dataset.h) + Number(f.querySelector('.frame').dataset.chrome ?? 0)));
+    const scale = Math.min(1, availW / totalW, availH / maxH);
+    for (const f of visible) {
+      const frame = f.querySelector('.frame');
+      const w = Number(frame.dataset.w), h = Number(frame.dataset.h), chrome = Number(frame.dataset.chrome ?? 0);
+      const iframe = frame.querySelector('iframe');
+      iframe.style.width = w + 'px';
+      iframe.style.height = h + 'px';
+      iframe.style.top = chrome * scale + 'px';
+      iframe.style.transform = `scale(${scale})`;
+      frame.style.setProperty('--s', scale);
+      frame.style.width = w * scale + 'px';
+      frame.style.height = (h + chrome) * scale + 'px';
+    }
+  }
+
+  document.getElementById('pick').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    for (const b of btn.parentElement.children) b.setAttribute('aria-pressed', String(b === btn));
+    const show = btn.dataset.show;
+    for (const f of figures) f.hidden = show === 'all' ? f.dataset.device === 'ipad-l' : f.dataset.device !== show;
+    layout();
+  });
+  new ResizeObserver(layout).observe(stage);
+  layout();
+</script>
+</body>
+</html>

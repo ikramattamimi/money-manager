@@ -8,6 +8,12 @@
       "port": 8787
     },
     {
+      "name": "design",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "serve@14.2.4", "design", "-l", "4000", "--no-clipboard"],
+      "port": 4000
+    },
+    {
       "name": "dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev", "--port", "3000"],
