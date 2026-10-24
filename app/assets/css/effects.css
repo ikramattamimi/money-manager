@@ -56,6 +56,66 @@
     background: repeating-linear-gradient(90deg, transparent 0 47px, var(--grad-stripe) 47px 48px);
   }
 
+  /* Isian form: 44px, teks 16px (iOS tidak memperbesar halaman saat fokus) */
+  .field-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    background: var(--card);
+    color: var(--foreground);
+    font-size: 16px;
+    outline: none;
+  }
+  .field-input:focus {
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .field-input::placeholder {
+    color: var(--faint);
+  }
+  .field-input[aria-invalid='true'] {
+    border-color: var(--bad);
+  }
+  select.field-input {
+    appearance: none;
+    padding-right: 32px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+      linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+    background-position:
+      calc(100% - 17px) 19px,
+      calc(100% - 12px) 19px;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+  }
+  /* Tombol aksi form di halaman HP (FormPage): menempel di bawah layar */
+  .form-page-actions {
+    position: sticky;
+    bottom: 0;
+    margin: auto -14px 0;
+    padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 10px);
+    border-top: 1px solid var(--border);
+    background: var(--background);
+  }
+
+  /* iOS Safari memberi kolom tanggal lebar minimum bawaan sehingga melewati
+     layar; appearance none + min-width 0 membuatnya patuh pada width 100% */
+  .field-input:is([type='date'], [type='time'], [type='datetime-local']) {
+    appearance: none;
+    -webkit-appearance: none;
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+  .field-input::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+
   /* Tekan: umpan balik instan, hanya transform */
   .press {
     transition: transform 160ms var(--ease-out);

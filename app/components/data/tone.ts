@@ -17,6 +17,21 @@ export const TONE_CLASS: Record<Tone, string> = {
   r6: 'bg-r6/15 text-r6',
 };
 
+/** Warna teks saja (ikon tanpa latar, mis. di grid pilihan) */
+export const TONE_TEXT: Record<Tone, string> = {
+  primary: 'text-primary-accent',
+  ok: 'text-ok',
+  warn: 'text-warn',
+  bad: 'text-bad',
+  neutral: 'text-muted-foreground',
+  r1: 'text-r1',
+  r2: 'text-r2',
+  r3: 'text-r3',
+  r4: 'text-r4',
+  r5: 'text-r5',
+  r6: 'text-r6',
+};
+
 /** Warna isi solid (batang, titik legenda) */
 export const TONE_FILL: Record<Tone, string> = {
   primary: 'bg-primary-accent',

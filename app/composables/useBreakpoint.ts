@@ -4,6 +4,11 @@
  */
 export const BREAKPOINTS = { md: 768, lg: 1024, xl: 1180 } as const;
 
+/** Lebar HP saat ini (< md). Untuk event handler: form dibuka sebagai halaman, bukan dialog. */
+export function isPhoneWidth() {
+  return import.meta.client && !matchMedia(`(min-width: ${BREAKPOINTS.md}px)`).matches;
+}
+
 export function useBreakpoint() {
   const md = useState('bp:md', () => false);
   const lg = useState('bp:lg', () => false);
