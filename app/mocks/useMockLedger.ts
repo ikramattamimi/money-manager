@@ -27,7 +27,7 @@ export function useMockLedger() {
 
   function add(draft: Draft) {
     const date = new Date(TODAY);
-    if (draft.date === 'yesterday') date.setDate(date.getDate() - 1);
+    if (draft.occurredAt) date.setTime(new Date(draft.occurredAt).getTime());
     else date.setHours(new Date().getHours(), new Date().getMinutes());
     const categoryId =
       draft.type === 'transfer'
