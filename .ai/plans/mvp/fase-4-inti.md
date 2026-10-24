@@ -52,20 +52,28 @@ akun menyembunyikannya tanpa menghapus transaksinya.
 ### T2: Kategori
 **What:** Kategori pemasukan dan pengeluaran, 2 level, dengan emoji. Tambah,
 edit, arsipkan, urutkan, pindah subkategori ke induk lain.
-**Files:** `app/features/categories/*`, `app/pages/settings/categories.vue`
+**Files:** `app/features/categories/*`, `app/pages/settings/categories/*`
 **Verify:** Kategori yang diarsipkan tidak muncul di pilihan, tetapi transaksi
 lamanya tetap menampilkan nama kategorinya.
 
 ### T3: Form transaksi
-**What:** Sambungkan `QuickAddPanel` fase 3 (sheet di HP, dialog di iPad,
-kartu inline di layar lebar) ke Supabase, lalu tambahkan form lengkap untuk
-tambah/edit: tanggal & jam (default sekarang), akun, kategori, note,
-description. Untuk transfer: akun tujuan dan biaya. Tombol "Simpan" dan
-"Simpan & lagi". Ingat akun dan kategori terakhir per jenis transaksi. Tap
-baris transaksi membuka form edit (panel kanan di desktop, sheet di HP).
+**What:** Sambungkan `QuickAddPanel` fase 3 (dialog di iPad, kartu inline di
+layar lebar) ke Supabase, lalu tambahkan form lengkap untuk tambah/edit:
+tanggal & jam (default sekarang), akun, kategori, note, description. Untuk
+transfer: akun tujuan dan biaya. Tombol "Simpan" dan "Simpan & lagi". Ingat
+akun dan kategori terakhir per jenis transaksi. Tap baris transaksi membuka
+form edit.
+
+Di HP form adalah **halaman penuh** `/transaction`, bukan modal: tombol +
+dan tap baris membuka halaman ini, dengan kolom "Ketik saja" di atas untuk
+transaksi baru. Di iPad dan desktop form tampil sebagai dialog. Kategori dan
+akun dipilih lewat grid gaya Realbyte (`GridPicker`): 3 kolom, kategori utama
+membuka subkategori di bawah barisnya, grup akun membuka akunnya; setelah
+memilih kategori, grid akun langsung muncul kalau akun belum diisi.
 **Files:** `app/features/transactions/*`,
 `app/components/money/QuickAddPanel.vue`,
-`app/components/money/TransactionForm.vue`
+`app/components/money/TransactionForm.vue`, `app/pages/transaction.vue`,
+`app/components/data/GridPicker.vue`
 **Verify:** Transfer Rp100.000 dengan biaya Rp2.500 dari BCA ke Gopay: BCA
 berkurang Rp102.500, Gopay bertambah Rp100.000. Tidak bisa transfer ke akun
 yang sama.
@@ -94,5 +102,41 @@ yang sama. Swipe bulan terasa langsung (data bulan sebelah di-prefetch).
 ### T6: Detail akun
 **What:** Halaman akun: saldo, daftar transaksi akun itu (termasuk transfer
 masuk/keluar), dan saldo berjalan.
-**Files:** `app/pages/accounts/[id].vue`
+**Files:** `app/pages/accounts/[id]/index.vue`
 **Verify:** Saldo berjalan di baris terakhir = saldo akun saat ini.
+
+## Catatan pelaksanaan
+
+Dikerjakan di branch `fase-4-inti`. Perbedaan dari rencana:
+
+- **Kategori pakai ikon + warna, bukan emoji.** Kolom baru `categories.icon`
+  (nama ikon lucide, kebab-case) dan `categories.tone` (`neutral`, `r1`–`r6`)
+  di migration `category_icon_tone` dan `category_sub_tone`. Supaya sama
+  dengan bahasa visual fase 3 (`ToneIcon`). Subkategori ikut warna induknya.
+  Daftar ikon ada di `app/features/categories/icons.ts`.
+- **RPC:** `months_overview(book, year)` menggantikan `month_summary`, sekalian
+  untuk tampilan Bulanan. Ditambah `account_ledger` (saldo berjalan, T6) dan
+  `adjust_balance` (T4). Semua `SECURITY INVOKER`, jadi RLS tetap berlaku. Tes
+  ada di `supabase/tests/ledger_test.sql`.
+- **Semua form di HP jadi halaman penuh**, bukan sheet (permintaan setelah uji
+  di iPhone). Kerangka `FormPage` + `useFormPage()`; rute `/transaction`,
+  `/accounts/new`, `/accounts/[id]/edit`, `/accounts/[id]/adjust`,
+  `/settings/categories/new`, `/settings/categories/[id]`. Tombol + di HP
+  membuka `/transaction` (dengan "Ketik saja"), bukan sheet catat cepat. Aturan
+  lengkapnya di `.ai/conventions/design.md` bagian Form.
+- **Form edit di iPad/desktop** tampil sebagai dialog tengah (`Overlay`), bukan
+  panel kanan. Panel kanan di layar lebar tetap untuk catat cepat.
+- **Pilihan kategori dan akun** pakai grid gaya Realbyte (`GridPicker`), bukan
+  `<select>`.
+- **Validasi form** ditulis manual (cukup untuk beberapa field), tanpa
+  vee-validate/zod.
+- **Buku aktif** = buku pertama milik user, atau buku pertama yang bisa
+  diakses. Pindah buku menyusul di fase 9.
+- **Batas data:** transaksi per bulan dimuat sampai 1000 baris; detail akun
+  menampilkan 200 transaksi terakhir. Pagination menyusul kalau dibutuhkan.
+- **Urutkan** (akun dan kategori) memakai `SortableList` dengan pegangan drag
+  dan Alt+panah untuk keyboard, dengan optimistic update.
+- **Statistik** baru berupa komposisi per kategori utama untuk bulan aktif.
+  Selebihnya di fase 7.
+- Halaman **Lainnya** berisi buku aktif, tautan Akun dan Kategori, tema, dan
+  keluar.

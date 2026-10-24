@@ -40,7 +40,7 @@ Ada dua jenis kaca, jangan dicampur:
 
 | Ukuran | Navigasi | Catat transaksi |
 |---|---|---|
-| HP < 768px | `TabBar` bawah + `AddButton` | `BottomSheet` |
+| HP < 768px | `TabBar` bawah + `AddButton` | Halaman `/transaction` (lihat Form) |
 | iPad 768–1023px | `TabBar` atas tengah + `AddButton` | `CenterDialog` |
 | iPad landscape 1024–1179px | `TabBar` atas tengah | Inline di kolom kanan Transaksi |
 | Desktop ≥ 1180px | `AppSidebar` | Inline + pintasan `N` |
@@ -51,6 +51,26 @@ Ada dua jenis kaca, jangan dicampur:
   pita tergulir keluar; isi `summary` dengan angka terpenting halaman.
 - Target sentuh ≥ 44px di HP (tombol `size="touch"`), input 16px.
 
+## Form
+
+- **HP (< 768px): form selalu halaman penuh, bukan modal/sheet.** Bungkus
+  dengan `FormPage` (bar atas "‹ Kembali" + judul, `layout: false`), form diberi
+  prop `page` (atau `layout="page"`) supaya judulnya disembunyikan dan tombol
+  aksinya menempel di bawah (`.form-page-actions`).
+- **iPad dan desktop:** form tampil sebagai dialog (`Overlay` / `CenterDialog`).
+- Pembuka form memanggil `useFormPage().openAsPage(path)`: di HP pindah ke
+  halaman dan mengembalikan `true`; selain itu `false` dan pemanggil membuka
+  dialog. Halaman form menutup dengan `closePage(fallback)` (kembali ke layar
+  sebelumnya, atau `fallback` kalau dibuka langsung).
+- Rute halaman form: `/transaction`, `/accounts/new`, `/accounts/[id]/edit`,
+  `/accounts/[id]/adjust`, `/settings/categories/new?kind=`,
+  `/settings/categories/[id]`. Form baru mengikuti pola yang sama.
+- Pilihan kategori dan akun memakai `GridPicker` (grid 3 kolom gaya Realbyte:
+  sel induk membuka anaknya di bawah barisnya). Di halaman HP grid menempel di
+  bawah layar seperti keyboard; di dialog tampil di dalam form.
+- Isian teks tetap 16px (iOS tidak memperbesar halaman). Kolom tanggal memakai
+  `.field-input` yang sudah menangani lebar minimum bawaan iOS.
+
 ## Gerak
 
 | Hal | Aturan |
@@ -59,7 +79,7 @@ Ada dua jenis kaca, jangan dicampur:
 | Pindah tab / halaman | Tanpa animasi |
 | Aksi keyboard (`N`, `Esc`, Enter) | Tanpa animasi |
 | Lensa tab bar | 220ms `--ease-drawer` |
-| Sheet | Masuk 280ms, keluar 200ms, `--ease-drawer` |
+| Sheet, grid pilihan di HP | Masuk 280ms, keluar 200ms, `--ease-drawer` |
 | Dialog | Masuk 240ms dari `scale(0.98)` + opacity, keluar 150ms |
 | Toast | Masuk lewat `@starting-style`, keluar 160ms |
 | Sorotan baris baru | WAAPI `element.animate`, bukan transisi warna permanen |
@@ -94,6 +114,7 @@ Pakai `useSwipe` dan fungsi di `app/lib/gesture.ts`:
 
 - [ ] Mode terang dan gelap, tanpa warna literal
 - [ ] HP, iPad portrait, iPad landscape, desktop sesuai tabel tata letak
+- [ ] Form di HP berupa halaman (`FormPage`), bukan modal
 - [ ] Tekan terasa (`.press`), target sentuh ≥ 44px di HP
 - [ ] Tidak ada animasi saat pindah halaman atau aksi keyboard
 - [ ] Reduce Motion dan Reduce Transparency diuji

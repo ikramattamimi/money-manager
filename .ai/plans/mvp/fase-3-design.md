@@ -41,7 +41,7 @@ sebagai token dan komponen yang dipakai ulang.
 
 | Ukuran | Navigasi | Catat transaksi | Isi |
 |---|---|---|---|
-| **HP** (< 768px) | Tab bar kaca mengambang di bawah (4 tab) + tombol + kaca terpisah di kanan. Bar judul ringkas kaca muncul di atas setelah header tergulir keluar | Sheet dari bawah | Satu kolom |
+| **HP** (< 768px) | Tab bar kaca mengambang di bawah (4 tab) + tombol + kaca terpisah di kanan. Bar judul ringkas kaca muncul di atas setelah header tergulir keluar | Sheet dari bawah (diganti di fase 4: semua form di HP berupa halaman penuh, lihat `.ai/conventions/design.md` bagian Form) | Satu kolom |
 | **iPad portrait** (768–1023px) | Tab bar kaca mengambang di atas tengah, ikon dan label sebaris (gaya iPadOS). Tombol + kaca di kanan bawah | Dialog di tengah (form sheet), 480px | Statistik dan grup akun 2 kolom, Lainnya maks 620px |
 | **iPad landscape kecil** (1024–1179px) | Tab bar kaca di atas | Kartu **Catat cepat** selalu terbuka di kolom kanan (360px). Tombol + disembunyikan | Daftar transaksi kiri, kolom kanan: Catat cepat + Pengeluaran teratas |
 | **Desktop** dan iPad Air/Pro landscape (≥ 1180px) | Sidebar gradien opnamix 232px: logo + nama buku, tombol "Catat transaksi" dengan `N`, menu, pilihan tema, profil. Bar judul ringkas kaca di atas area isi | Kartu Catat cepat di kolom kanan (380px), pintasan keyboard `N` | Konten maks 1120px di tengah |

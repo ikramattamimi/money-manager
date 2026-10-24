@@ -72,15 +72,16 @@ dengan bobot transaksi terbaru lebih tinggi.
 sering dipakai untuk `indomaret`.
 
 ### T3: Quick-add di panel catat transaksi
-**What:** Sambungkan parser T1 dan saran T2 ke `QuickAddPanel` fase 3 (sheet
-di HP, dialog di iPad, kartu inline + pintasan `N` di layar lebar). Kolom
+**What:** Sambungkan parser T1 dan saran T2 ke `QuickAddPanel` fase 3 (dialog
+di iPad, kartu inline + pintasan `N` di layar lebar) dan ke kolom "Ketik saja"
+di halaman `/transaction` (HP: form selalu halaman, bukan sheet). Kolom
 "Ketik saja" langsung fokus, chip hasil parsing (nominal, akun, kategori,
 tanggal, catatan) diperbarui saat mengetik, Enter = simpan. Tombol "Form
 lengkap" pindah ke form fase 4 T3. Mode beruntun ("Simpan & lagi", dan selalu
 di mode inline): setelah simpan, kolom kosong lagi untuk transaksi berikutnya.
 **Files:** `app/components/money/QuickAddPanel.vue`,
 `app/features/quick-add/*`
-**Verify:** Mencatat 10 transaksi beruntun tanpa menutup sheet. Satu
+**Verify:** Mencatat 10 transaksi beruntun tanpa meninggalkan form. Satu
 transaksi = mengetik + 1 tap.
 
 ### T4: Template
@@ -101,9 +102,9 @@ bulan yang lebih pendek. Fungsi dijalankan dua kali di hari yang sama tidak
 membuat transaksi ganda.
 
 ### T6: Shortcut iOS
-**What:** Route `/add?text=...` membuka sheet quick-add (opsional dengan teks
-sudah terisi). Panduan di Pengaturan untuk membuat Shortcut iOS: tombol home
-screen, Back Tap, atau Siri ("Catat pengeluaran") yang meminta teks lalu
+**What:** Route `/add?text=...` membuka form catat transaksi (di HP halaman
+`/transaction`; opsional dengan teks sudah terisi). Panduan di Pengaturan untuk
+membuat Shortcut iOS: tombol home screen, Back Tap, atau Siri ("Catat pengeluaran") yang meminta teks lalu
 membuka URL itu. Sediakan link iCloud Shortcut yang siap dipasang.
 **Files:** `app/pages/add.vue`, `app/pages/settings/shortcuts.vue`
 **Verify:** Dari Siri: "Catat pengeluaran" → ucapkan "kopi 25 ribu gopay" →
