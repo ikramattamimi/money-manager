@@ -1,0 +1,215 @@
+/*
+ * Token desain Money Manager. Satu-satunya tempat nilai warna literal boleh
+ * ditulis. Nilai disalin dari design system Opnamix
+ * (opnamix/src/index.css) lewat prototipe design/prototype.html.
+ *
+ * Tema aktif lewat atribut data-theme="light|dark" di <html>, diatur oleh
+ * useTheme (pilihan "Sistem" diterjemahkan ke light/dark di sana).
+ * Opasitas di Tailwind 4 memakai color-mix, jadi nilai cukup hex/rgba.
+ */
+:root {
+  /* Permukaan */
+  --background: #f2f4f9;
+  --foreground: #131a2b;
+  --card: #ffffff;
+  --surface-2: #f6f7fb;
+  --muted-foreground: #576075;
+  --faint: #8790a3; /* hanya untuk meta sekunder */
+  --border: #e3e7f0;
+  --border-strong: #cfd6e4;
+
+  /* Primer: isi tombol, aksen (teks/ikon/fokus), tinta tautan, latar lembut */
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --primary-accent: #2563eb;
+  --primary-ink: #1d4ed8;
+  --primary-soft: #eaf0fe;
+
+  /* Status */
+  --ok: #15803d;
+  --ok-soft: #e7f5ec;
+  --warn: #b45309;
+  --warn-soft: #fdf2e1;
+  --bad: #c81e1e;
+  --bad-soft: #fdecec;
+  --destructive: #c81e1e;
+
+  /* Palet grafik & kategori (lolos validator buta warna Opnamix) */
+  --r1: #2a78d6;
+  --r2: #eb6834;
+  --r3: #1baf7a;
+  --r4: #eda100;
+  --r5: #e87ba4;
+  --r6: #7c3aed;
+
+  /* Gradien kepala halaman & sidebar, kaca di atas gradien */
+  --grad-hero:
+    radial-gradient(90% 170% at 100% 0%, rgba(130, 170, 255, 0.5), transparent 60%),
+    linear-gradient(118deg, #0a2466 0%, #1543c2 58%, #3b6cf2 100%);
+  --grad-side: linear-gradient(185deg, #0a2160 0%, #123a9e 58%, #2556d6 100%);
+  --grad-stripe: rgba(255, 255, 255, 0.035);
+  --grad-ink: #123a9e; /* teks di atas tombol putih pada gradien */
+  --glass: rgba(255, 255, 255, 0.11);
+  --glass-2: rgba(255, 255, 255, 0.2);
+  --glass-line: rgba(255, 255, 255, 0.16);
+  --glass-shade: rgba(0, 0, 0, 0.18);
+  --on-grad: #ffffff;
+  --on-grad-2: rgba(255, 255, 255, 0.76);
+  --on-grad-3: rgba(255, 255, 255, 0.5);
+  --dot-ok: #4ade80;
+  --dot-warn: #fbbf24;
+  --dot-bad: #fb7185;
+
+  /* Liquid Glass: hanya untuk lapisan yang melayang (tab bar, tombol +, bar ringkas) */
+  --lg-fill: rgba(255, 255, 255, 0.55);
+  --lg-rim-hi: rgba(255, 255, 255, 0.95);
+  --lg-rim-lo: rgba(255, 255, 255, 0.3);
+  --lg-shadow: 0 12px 32px -10px rgba(10, 20, 50, 0.28), 0 2px 6px -2px rgba(10, 20, 50, 0.12);
+  --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+
+  /* Bayangan & scrim */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-float: 0 18px 40px rgba(10, 20, 50, 0.2);
+  --scrim: rgba(8, 14, 30, 0.45);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  /* Palet arang netral; biru hanya di header, sidebar, dan aksen */
+  --background: #0c0f14;
+  --foreground: #e6e9ef;
+  --card: #141820;
+  --surface-2: #1a1f29;
+  --muted-foreground: #9ea6b5;
+  --faint: #6f7788;
+  --border: #252b36;
+  --border-strong: #353d4c;
+
+  --primary: #2f66ee; /* isi tombol dengan teks putih */
+  --primary-accent: #6e9bff; /* teks/ikon/aksen */
+  --primary-ink: #a3beff;
+  --primary-soft: rgba(110, 155, 255, 0.14);
+
+  --ok: #4ade80;
+  --ok-soft: rgba(74, 222, 128, 0.12);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.12);
+  --bad: #f87171;
+  --bad-soft: rgba(248, 113, 113, 0.13);
+
+  --r1: #3987e5;
+  --r2: #d95926;
+  --r3: #199e70;
+  --r4: #c98500;
+  --r5: #d55181;
+  --r6: #a78bfa;
+
+  --grad-hero:
+    radial-gradient(90% 170% at 100% 0%, rgba(90, 130, 255, 0.3), transparent 60%),
+    linear-gradient(118deg, #0b1430 0%, #142a66 60%, #2445a8 100%);
+  --grad-side: linear-gradient(185deg, #0a0f1f 0%, #0f1c42 60%, #172e6c 100%);
+
+  --lg-fill: rgba(30, 35, 46, 0.55);
+  --lg-rim-hi: rgba(255, 255, 255, 0.35);
+  --lg-rim-lo: rgba(255, 255, 255, 0.05);
+  --lg-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.7), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
+  --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.18), inset 0 -1px 1px rgba(255, 255, 255, 0.05);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --scrim: rgba(0, 0, 0, 0.55);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-surface-2: var(--surface-2);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--border-strong);
+  --color-ring: var(--primary-accent);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-accent: var(--primary-accent);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--foreground);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-r1: var(--r1);
+  --color-r2: var(--r2);
+  --color-r3: var(--r3);
+  --color-r4: var(--r4);
+  --color-r5: var(--r5);
+  --color-r6: var(--r6);
+  --color-glass: var(--glass);
+  --color-glass-2: var(--glass-2);
+  --color-glass-line: var(--glass-line);
+  --color-glass-shade: var(--glass-shade);
+  --color-on-grad: var(--on-grad);
+  --color-on-grad-2: var(--on-grad-2);
+  --color-on-grad-3: var(--on-grad-3);
+  --color-grad-ink: var(--grad-ink);
+  --color-dot-ok: var(--dot-ok);
+  --color-dot-warn: var(--dot-warn);
+  --color-dot-bad: var(--dot-bad);
+  --color-scrim: var(--scrim);
+
+  --background-image-grad-hero: var(--grad-hero);
+  --background-image-grad-side: var(--grad-side);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-float: var(--shadow-float);
+
+  /* Kartu 14px, kontrol 8px */
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+
+  --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* Skala teks Opnamix: meta 11–13px, judul baris 13,5px, judul panel 15,5px */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-note: 0.78125rem;
+  --text-note--line-height: 1.125rem;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.125rem;
+  --text-label: 0.84375rem;
+  --text-label--line-height: 1.25rem;
+  --text-panel: 0.96875rem;
+  --text-panel--line-height: 1.3;
+
+  /* Gerak (emil-design-eng): ease-out untuk masuk/keluar, drawer untuk sheet/lensa */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Tata letak: HP < md, iPad md–xl, desktop >= xl */
+  --breakpoint-md: 48rem; /* 768px */
+  --breakpoint-lg: 64rem; /* 1024px */
+  --breakpoint-xl: 73.75rem; /* 1180px */
+}

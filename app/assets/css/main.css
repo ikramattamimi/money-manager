@@ -1,80 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-
-/*
- * Token sementara untuk shadcn-vue. Token desain final (warna, tipografi,
- * material, spring) dibuat di fase 3 T1 dan menggantikan nilai di sini.
- */
-:root {
-  --background: #f2f2f7;
-  --foreground: #000000;
-  --card: #ffffff;
-  --card-foreground: #000000;
-  --popover: #ffffff;
-  --popover-foreground: #000000;
-  --primary: #007aff;
-  --primary-foreground: #ffffff;
-  --secondary: #e5e5ea;
-  --secondary-foreground: #000000;
-  --muted: #e5e5ea;
-  --muted-foreground: #3c3c4399;
-  --accent: #e5e5ea;
-  --accent-foreground: #000000;
-  --destructive: #ff3b30;
-  --border: #c6c6c8;
-  --input: #c6c6c8;
-  --ring: #007aff;
-  --radius: 0.75rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #ffffff;
-    --card: #1c1c1e;
-    --card-foreground: #ffffff;
-    --popover: #1c1c1e;
-    --popover-foreground: #ffffff;
-    --primary: #0a84ff;
-    --primary-foreground: #ffffff;
-    --secondary: #2c2c2e;
-    --secondary-foreground: #ffffff;
-    --muted: #2c2c2e;
-    --muted-foreground: #ebebf599;
-    --accent: #2c2c2e;
-    --accent-foreground: #ffffff;
-    --destructive: #ff453a;
-    --border: #38383a;
-    --input: #38383a;
-    --ring: #0a84ff;
-  }
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
-}
+@import './tokens.css';
+@import './effects.css';
 
 @layer base {
   * {
@@ -87,10 +14,13 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background font-sans text-sm text-foreground antialiased;
+    font-optical-sizing: auto;
     min-height: 100dvh;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
     overscroll-behavior-y: none;
+  }
+
+  button {
+    cursor: pointer;
   }
 }

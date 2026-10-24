@@ -1,0 +1,112 @@
+/*
+ * Efek yang tidak praktis ditulis sebagai utilitas Tailwind: Liquid Glass,
+ * garis pita gradien, umpan balik tekan, dan aturan aksesibilitas gerak.
+ * Aturan pemakaian: .ai/conventions/design.md.
+ */
+@layer components {
+  /* Liquid Glass: HANYA untuk tab bar, tombol +, dan bar judul ringkas */
+  .lg {
+    position: relative;
+    background: var(--lg-fill);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    box-shadow: var(--lg-inner), var(--lg-shadow);
+  }
+  /* Tepi berkilau: cahaya menangkap pinggiran material */
+  .lg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      150deg,
+      var(--lg-rim-hi),
+      var(--lg-rim-lo) 35%,
+      var(--lg-rim-lo) 65%,
+      var(--lg-rim-hi)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+  /* Kilau lembut di atas, seperti lensa */
+  .lg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.3), transparent 60%);
+  }
+  .lg-tint {
+    background: color-mix(in srgb, var(--primary) 88%, transparent);
+    color: #fff;
+  }
+
+  /* Pita gradien kepala halaman: garis vertikal tipis setiap 48px */
+  .grad-stripes::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(90deg, transparent 0 47px, var(--grad-stripe) 47px 48px);
+  }
+
+  /* Tekan: umpan balik instan, hanya transform */
+  .press {
+    transition: transform 160ms var(--ease-out);
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+  .press-icon:active {
+    transform: scale(0.92);
+  }
+
+  /* Muncul bertahap, hanya saat app pertama dibuka */
+  .stagger > * {
+    animation: mm-rise 280ms var(--ease-out) both;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .stagger > *:nth-child(n + 4) {
+    animation-delay: 120ms;
+  }
+}
+
+@keyframes mm-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lg {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .lg-tint {
+    background: var(--primary);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+  }
+  .press:active {
+    transform: none;
+  }
+}

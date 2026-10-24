@@ -9,7 +9,15 @@ export default defineNuxtConfig({
   // (impor, AI) dan di-deploy bersama aset ke satu Cloudflare Worker.
   ssr: false,
 
-  modules: ['@nuxt/eslint', 'shadcn-nuxt', '@vite-pwa/nuxt'],
+  modules: ['@nuxt/eslint', '@nuxt/fonts', 'shadcn-nuxt', '@vite-pwa/nuxt'],
+
+  // DM Sans (teks) dan DM Mono (contoh format ketikan) di-host sendiri
+  fonts: {
+    families: [
+      { name: 'DM Sans', provider: 'google', weights: ['400 700'] },
+      { name: 'DM Mono', provider: 'google', weights: [500] },
+    ],
+  },
 
   css: ['~/assets/css/main.css'],
 
@@ -34,8 +42,8 @@ export default defineNuxtConfig({
         { name: 'mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
         { name: 'apple-mobile-web-app-title', content: 'Money' },
-        { name: 'theme-color', content: '#f2f2f7', media: '(prefers-color-scheme: light)' },
-        { name: 'theme-color', content: '#000000', media: '(prefers-color-scheme: dark)' },
+        // Diperbarui useTheme sesuai tema aktif
+        { name: 'theme-color', content: '#f2f4f9' },
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
@@ -69,8 +77,8 @@ export default defineNuxtConfig({
       scope: '/',
       display: 'standalone',
       orientation: 'portrait',
-      background_color: '#f2f2f7',
-      theme_color: '#f2f2f7',
+      background_color: '#f2f4f9',
+      theme_color: '#f2f4f9',
       icons: [
         { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
