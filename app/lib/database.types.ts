@@ -808,6 +808,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      commit_import: {
+        Args: { p_book_id: string; p_payload: Json }
+        Returns: Json
+      }
       create_invite: {
         Args: {
           p_book_id: string
@@ -833,6 +837,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      import_existing_keys: {
+        Args: { p_book_id: string; p_keys: string[] }
+        Returns: string[]
+      }
       months_overview: {
         Args: { p_book_id: string; p_year: number }
         Returns: {
@@ -842,6 +850,7 @@ export type Database = {
           tx_count: number
         }[]
       }
+      revert_import: { Args: { p_batch_id: string }; Returns: number }
     }
     Enums: {
       account_kind:
