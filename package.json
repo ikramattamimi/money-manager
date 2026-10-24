@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "deploy": "nuxt build && wrangler deploy",
-    "db:types": "supabase gen types typescript --linked --schema public > app/lib/database.types.ts"
+    "db:types": "supabase gen types typescript --project-id setdjlttwahdajvmzkyo --schema public > app/lib/database.types.ts"
   },
   "dependencies": {
     "@lucide/vue": "^1.61.0",

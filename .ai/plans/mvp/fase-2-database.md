@@ -116,3 +116,40 @@ tetap ada setelah app ditutup dan dibuka lagi.
 **What:** Jalankan `pnpm db:types`, commit hasilnya.
 **Files:** `app/lib/database.types.ts`
 **Verify:** `pnpm typecheck` lolos.
+
+## Catatan pelaksanaan (24 Okt 2026)
+
+- **Project Supabase:** `money-manager` (`setdjlttwahdajvmzkyo`, ap-southeast-1).
+  Docker tidak tersedia, jadi migration diterapkan langsung ke project ini
+  lewat Supabase MCP. Nama file di `supabase/migrations/` disamakan dengan
+  versi yang tercatat di `supabase_migrations.schema_migrations`.
+- **Migration:** `baseline`, `rls`, `new_user`, `invites`, ditambah dua
+  perbaikan:
+  - `books_select_creator`: `insert().select()` dari client gagal karena
+    RETURNING dicek policy select sebelum trigger menjadikan pembuat owner.
+    Pembuat buku sekarang selalu bisa membaca baris bukunya.
+  - `books_created_by_idx`: index untuk policy tersebut (saran advisor).
+- **Helper RLS** ada di schema `private` (tidak terekspos API), bukan `public`.
+- **FK `book_members.user_id` dan `transactions.created_by` ke `profiles`**,
+  bukan `auth.users`, supaya nama anggota bisa di-embed lewat PostgREST.
+- **Test:** `supabase/tests/rls_test.sql` berupa SQL biasa dalam satu transaksi
+  yang di-rollback (bukan pgTAP), karena `supabase test db` butuh Docker.
+  Bisa dijalankan di SQL editor. Hasil: semua lolos.
+- **Advisor keamanan:** tinggal `accept_invite` (SECURITY DEFINER yang bisa
+  dipanggil user login). Disengaja: penerima belum jadi anggota buku.
+- **Kategori default** berbahasa Indonesia. Saat impor Realbyte (fase 5),
+  kategori lama user dicocokkan per nama; kategori default yang tidak terpakai
+  bisa diarsipkan dari layar preview.
+- **Email OTP:** template ada di `supabase/templates/otp.html`, tetapi project
+  hosted perlu diatur manual di Dashboard (langkah di bawah).
+
+### Pengaturan manual di Dashboard Supabase
+
+1. **Authentication → Emails → Templates:** untuk *Magic link* dan *Confirm
+   signup*, isi subject `Kode masuk Money Manager: {{ .Token }}` dan body dari
+   `supabase/templates/otp.html`. Template bawaan hanya berisi link, tanpa kode.
+2. **Authentication → Sign In / Providers → Email:** pastikan *Email OTP
+   Length* = 6 (sama dengan `OTP_LENGTH` di `app/features/auth/api.ts`).
+3. **Authentication → Emails → SMTP Settings:** layanan email bawaan Supabase
+   hanya mengirim ke email anggota tim project dan dibatasi beberapa email per
+   jam. Sebelum orang lain ikut memakai app, pasang SMTP sendiri (mis. Resend).

@@ -1,10 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
-// Hanya boleh diimpor dari app/features/*/api.ts
-// (konvensi .ai/conventions/data-fetching.md).
-let client: SupabaseClient | undefined;
+export type Supabase = SupabaseClient<Database>;
 
-export function useSupabase(): SupabaseClient {
+// Hanya boleh diimpor dari app/features/*/api.ts: komponen -> use*.ts -> api.ts
+// (pola data-fetching dari opnamix, lihat .ai/plans/mvp/README.md).
+let client: Supabase | undefined;
+
+export function useSupabase(): Supabase {
   if (client) return client;
 
   const { supabaseUrl, supabaseAnonKey } = useRuntimeConfig().public;
@@ -14,7 +17,7 @@ export function useSupabase(): SupabaseClient {
     );
   }
 
-  client = createClient(supabaseUrl, supabaseAnonKey, {
+  client = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
