@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import {
+  ArrowLeftRight,
   Calendar,
   Delete,
   Hash,
+  History,
   Keyboard,
   PenLine,
   Tag,
   Wallet,
-  ArrowLeftRight,
   X,
+  Zap,
 } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import ChoiceChip from '@/components/data/ChoiceChip.vue';
+import GridPicker, { type GridItem } from '@/components/data/GridPicker.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
 import { useQuickAdd } from '@/features/quick-add/useQuickAdd';
-import type { TxType } from '@/features/quick-add/types';
+import type { QuickTemplate, TxType } from '@/features/quick-add/types';
 import { formatRupiah } from '@/lib/format';
 
 // Form catat transaksi. Satu komponen untuk tiga bentuk: sheet bawah (HP),
@@ -39,10 +42,60 @@ const type = computed({
 });
 
 const accountName = (id: string | null) => qa.source.accounts.value.find((a) => a.id === id)?.name;
-const category = computed(() =>
-  qa.source.categories.value.find((c) => c.id === qa.draft.value.categoryId),
-);
+const categoryOf = (id: string | null) => qa.source.categories.value.find((c) => c.id === id);
+const category = computed(() => categoryOf(qa.draft.value.categoryId));
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', 'del'];
+
+// ---------- grid pilihan (tap chip) ----------
+type Picker = 'account' | 'to' | 'category';
+const picker = ref<Picker | null>(null);
+const PICKER_TITLE: Record<Picker, string> = {
+  account: 'Akun',
+  to: 'Akun tujuan',
+  category: 'Kategori',
+};
+const pickerItems = computed<GridItem[]>(() => {
+  const d = qa.draft.value;
+  const kind = d.type === 'income' ? 'income' : 'expense';
+  const custom = qa.source.pickerItems;
+  if (picker.value === 'category')
+    return custom
+      ? custom.category(kind)
+      : qa.source.categories.value
+          .filter((c) => c.kind === kind)
+          .map((c) => ({ id: c.id, label: c.name, icon: c.icon, tone: c.tone }));
+  const exclude = picker.value === 'to' ? d.accountId : null;
+  return custom
+    ? custom.account(exclude)
+    : qa.source.accounts.value.map((a) => ({
+        id: a.id,
+        label: a.name,
+        disabled: a.id === exclude,
+      }));
+});
+const pickerValue = computed(() => {
+  const d = qa.draft.value;
+  if (picker.value === 'category') return d.categoryId ?? '';
+  return (picker.value === 'to' ? d.toAccountId : d.accountId) ?? '';
+});
+
+function openPicker(which: Picker) {
+  picker.value = picker.value === which ? null : which;
+}
+// Urutan seperti Realbyte: kategori → akun (kalau belum ada) → selesai
+function choose(id: string) {
+  const which = picker.value;
+  if (which === 'category') {
+    qa.setCategory(id);
+    picker.value = qa.draft.value.accountId ? null : 'account';
+  } else if (which === 'account') {
+    qa.setAccount(id);
+    picker.value = qa.draft.value.type === 'transfer' && !qa.draft.value.toAccountId ? 'to' : null;
+  } else {
+    qa.setToAccount(id);
+    picker.value = null;
+  }
+}
 
 function focus() {
   if (qa.mode.value === 'text') input.value?.focus({ preventScroll: true });
@@ -54,16 +107,33 @@ function toggleMode() {
   else input.value?.blur();
 }
 
-function useTemplate(text: string) {
-  qa.mode.value = 'text';
-  qa.setText(text);
-  nextTick(focus);
+/** Satu tap: template bernominal langsung tersimpan; tanpa nominal buka keypad */
+function pickTemplate(tpl: QuickTemplate) {
+  picker.value = null;
+  if (qa.source.useTemplate) {
+    const result = qa.source.useTemplate(tpl.id);
+    if (result === 'needs-amount') {
+      if (tpl.draft) qa.applyDraft(tpl.draft);
+      qa.mode.value = 'keypad';
+      input.value?.blur();
+    } else if (result) {
+      toast.show(`${tpl.label} · ${result.label}`, result.undo);
+      if (!props.inline) emit('saved');
+    }
+    return;
+  }
+  if (tpl.text) {
+    qa.mode.value = 'text';
+    qa.setText(tpl.text);
+    nextTick(focus);
+  }
 }
 
 function save(again = false) {
   const result = qa.save();
   if (!result) return;
   toast.show(`Tersimpan · ${result.label}`, result.undo);
+  picker.value = null;
   if (again || props.inline) {
     // Mode beruntun: kosongkan isian, pertahankan akun dan jenis
     qa.reset(true);
@@ -77,6 +147,7 @@ function save(again = false) {
 function openFull() {
   qa.source.openFull?.({ ...qa.draft.value });
   qa.reset();
+  picker.value = null;
   if (!props.inline) emit('saved');
 }
 
@@ -135,12 +206,14 @@ defineExpose({ focus });
         placeholder="kopi 25rb gopay"
         class="h-11 w-full rounded-[10px] border border-border-strong bg-card px-3 text-base outline-none placeholder:text-faint focus:border-primary-accent focus:ring-3 focus:ring-primary-soft"
         @input="qa.setText(($event.target as HTMLInputElement).value)"
+        @focus="picker = null"
         @keydown.enter.prevent="save()"
       />
       <p class="m-0 mt-1.5 text-xs text-faint">
         Bisa juga: <span class="font-mono">bensin 100rb kemarin</span>,
         <span class="font-mono">bca &gt; gopay 99rb</span>,
-        <span class="font-mono">+ gaji 5jt bca</span>
+        <span class="font-mono">+ gaji 5jt bca</span>,
+        <span class="font-mono">parkir 2rb+3rb senin</span>
       </p>
     </div>
 
@@ -149,30 +222,62 @@ defineExpose({ focus });
         :icon="Wallet"
         :label="accountName(qa.draft.value.accountId) ?? 'Akun'"
         :filled="!!qa.draft.value.accountId"
-        @click="qa.cycleAccount()"
+        :aria-expanded="picker === 'account'"
+        @click="openPicker('account')"
       />
       <ChoiceChip
         v-if="qa.draft.value.type === 'transfer'"
         :icon="ArrowLeftRight"
         :label="accountName(qa.draft.value.toAccountId) ?? 'Ke akun'"
         :filled="!!qa.draft.value.toAccountId"
-        @click="qa.cycleToAccount()"
+        :aria-expanded="picker === 'to'"
+        @click="openPicker('to')"
       />
       <ChoiceChip
         v-else
         :icon="category?.icon ?? Tag"
         :label="category?.name ?? 'Kategori'"
         :filled="!!category"
-        @click="qa.cycleCategory()"
+        :aria-expanded="picker === 'category'"
+        @click="openPicker('category')"
       />
-      <ChoiceChip
-        :icon="Calendar"
-        :label="qa.draft.value.date === 'yesterday' ? 'Kemarin' : 'Hari ini'"
-        filled
-        @click="qa.toggleDate()"
-      />
+      <ChoiceChip :icon="Calendar" :label="qa.when.value" filled @click="qa.toggleDate()" />
       <ChoiceChip v-if="qa.draft.value.note" :icon="PenLine" :label="qa.draft.value.note" filled />
+      <ChoiceChip
+        v-if="qa.suggestedAmount.value"
+        :icon="History"
+        :label="`Biasanya ${formatRupiah(qa.suggestedAmount.value)}`"
+        @click="qa.setAmount(qa.suggestedAmount.value)"
+      />
     </div>
+
+    <section
+      v-if="picker"
+      class="overflow-hidden rounded-xl border"
+      :aria-label="PICKER_TITLE[picker]"
+    >
+      <div class="flex items-center gap-2 border-b bg-surface-2 py-1 pl-3.5 pr-1">
+        <b class="flex-1 text-label">{{ PICKER_TITLE[picker] }}</b>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="press-icon"
+          :aria-label="`Tutup pilihan ${PICKER_TITLE[picker].toLowerCase()}`"
+          @click="picker = null"
+        >
+          <X />
+        </Button>
+      </div>
+      <div class="max-h-[46dvh] overflow-y-auto overscroll-contain">
+        <GridPicker
+          :key="picker + qa.draft.value.type"
+          :items="pickerItems"
+          :model-value="pickerValue"
+          :label="PICKER_TITLE[picker]"
+          @select="choose"
+        />
+      </div>
+    </section>
 
     <div v-if="qa.mode.value === 'keypad'" class="grid grid-cols-3 gap-1.5">
       <button
@@ -212,11 +317,11 @@ defineExpose({ focus });
           :key="tpl.id"
           type="button"
           class="press inline-flex h-8.5 flex-none items-center gap-2 rounded-[10px] border bg-card py-0 pl-1.5 pr-3 text-meta font-semibold"
-          @click="useTemplate(tpl.text)"
+          @click="pickTemplate(tpl)"
         >
           <ToneIcon
-            :icon="qa.source.categories.value.find((c) => c.id === tpl.categoryId)!.icon"
-            :tone="qa.source.categories.value.find((c) => c.id === tpl.categoryId)!.tone"
+            :icon="categoryOf(tpl.categoryId)?.icon ?? Zap"
+            :tone="categoryOf(tpl.categoryId)?.tone ?? 'neutral'"
             size="xs"
           />
           {{ tpl.label }}
