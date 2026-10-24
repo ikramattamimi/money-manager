@@ -64,3 +64,28 @@ kategori, rentang tanggal, dan rentang nominal. Hasil menampilkan total.
 **Files:** `app/pages/search.vue`, `app/features/transactions/*`
 **Verify:** Cari `shopee` di semua waktu menampilkan jumlah dan total yang
 sama dengan query SQL manual.
+
+## Catatan pelaksanaan
+
+Dikerjakan di branch `fase-7-statistik` (dicabang dari `fase-6-input-cepat`).
+
+- **RPC** (migration `stats_rpc`, tes `supabase/tests/stats_test.sql`):
+  `category_breakdown`, `monthly_trend` (bulan kosong tetap muncul, opsional per
+  kategori + subkategori), `budget_status`, `search_transactions` (ILIKE +
+  word similarity di catatan/keterangan, total jumlah/masuk/keluar semua hasil).
+  `month_summary` di spec = `months_overview` dari fase 4.
+- **Cek dengan data Realbyte**: total pengeluaran Okt 2026 Rp2.131.754 sama
+  dengan file; cari `shopee` = 116 transaksi, keluar Rp9.788.959, sama dengan
+  query manual.
+- **Periode**: minggu (mulai Senin), bulan, tahun, rentang; `period.ts` + tes.
+- **Grafik**: batang tren memakai `transform: scaleY` dengan `--ease-spring`;
+  reduced motion = transisi opacity. Komposisi tetap tampil (redup) saat periode
+  baru dimuat (`keepPreviousData`), tanpa berkedip. Tabel tersembunyi untuk
+  pembaca layar.
+- **Budget**: berlaku sejak `start_on` sampai ada baris lebih baru; mengubah
+  nominal = baris baru mulai bulan yang dilihat. Carry over hanya membawa sisa
+  **satu bulan sebelumnya** (tidak menumpuk). Hapus = semua bulan (dua kali tap).
+- Kunci query statistik/budget/pencarian ada di bawah `['transactions']`,
+  jadi ikut dimuat ulang setiap transaksi berubah.
+- Belum dicoba: membuat budget sungguhan dari UI di iPhone (logika sudah dites
+  di SQL).
