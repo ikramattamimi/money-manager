@@ -13,6 +13,7 @@ import MonthPicker from '@/components/layout/MonthPicker.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageHero from '@/components/layout/PageHero.vue';
 import StatChip from '@/components/layout/StatChip.vue';
+import PendingRecurring from '@/components/money/PendingRecurring.vue';
 import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
 import TransactionRow from '@/components/money/TransactionRow.vue';
 import { Button } from '@/components/ui/button';
@@ -211,6 +212,7 @@ function addFirst() {
       class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5"
     >
       <div>
+        <PendingRecurring />
         <Card v-if="error" class="mt-3.5">
           <EmptyState
             :icon="CalendarX"

@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { Trash2, X } from '@lucide/vue';
+import { Trash2, X, Zap } from '@lucide/vue';
 import AmountInput from '@/components/base/AmountInput.vue';
 import FormField from '@/components/base/FormField.vue';
-import GridPicker, { type GridItem } from '@/components/data/GridPicker.vue';
+import GridPicker from '@/components/data/GridPicker.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import { TONE_TEXT } from '@/components/data/tone';
 import { Button } from '@/components/ui/button';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
-import { asTone, categoryIcon } from '@/features/categories/icons';
 import { useCategories } from '@/features/categories/useCategories';
 import { parseQuick } from '@/features/quick-add/parser';
 import { useQuickLists } from '@/features/quick-add/useQuickLists';
+import { useSuggest } from '@/features/quick-add/useSuggest';
 import type { Draft } from '@/features/quick-add/types';
 import type { Transaction, TxInput, TxType } from '@/features/transactions/api';
+import { useTemplateMutations } from '@/features/templates/useTemplates';
 import { useLastChoice } from '@/features/transactions/useLastChoice';
+import { usePickerItems } from '@/features/transactions/usePickerItems';
 import { useTransactionMutations } from '@/features/transactions/useTransactions';
 import { formatRupiah } from '@/lib/format';
 import { fromLocalInput, toLocalInput } from '@/lib/time';
@@ -37,7 +39,7 @@ const props = withDefaults(
 const emit = defineEmits<{ close: [] }>();
 
 const { bookId, canEdit } = useActiveBook();
-const { active: accounts, grouped, byId: accountById } = useAccounts();
+const { active: accounts, byId: accountById } = useAccounts();
 const categories = useCategories();
 const mutations = useTransactionMutations();
 const last = useLastChoice();
@@ -82,8 +84,7 @@ function load() {
     const d = props.draft;
     const type = d?.type ?? 'expense';
     const remembered = last.get(type);
-    const occurred = new Date();
-    if (d?.date === 'yesterday') occurred.setDate(occurred.getDate() - 1);
+    const occurred = d?.occurredAt ? new Date(d.occurredAt) : new Date();
     Object.assign(form, {
       type,
       amount: d?.amount ?? 0,
@@ -117,8 +118,6 @@ const TYPES = [
   { value: 'income', label: 'Pemasukan' },
   { value: 'transfer', label: 'Transfer' },
 ] as const;
-
-const categoryTree = computed(() => (form.type === 'transfer' ? [] : categories.tree(form.type)));
 
 // Akun/kategori yang sudah diarsipkan tidak ada di pilihan. Saat mengedit
 // transaksi lama yang memakainya, tetap tampilkan supaya tidak terhapus diam-diam.
@@ -158,83 +157,70 @@ function openPicker(which: Picker) {
     );
 }
 
-const categoryItems = computed<GridItem[]>(() => {
-  const items: GridItem[] = categoryTree.value.map((p) => {
-    const style = { icon: categoryIcon(p.icon), tone: asTone(p.tone) };
-    return {
-      id: p.id,
-      label: p.name,
-      ...style,
-      // Induk tetap bisa dipilih sendiri lewat sel pertama
-      children: p.children.length
-        ? [
-            { id: p.id, label: p.name, hint: 'umum', ...style },
-            ...p.children.map((c) => ({
-              id: c.id,
-              label: c.name,
-              icon: categoryIcon(c.icon),
-              tone: asTone(c.tone),
-            })),
-          ]
-        : undefined,
-    };
-  });
-  const old = archivedCategory.value;
-  if (old)
-    items.push({
-      id: old.id,
-      label: categories.label(old.id, true),
-      hint: 'diarsipkan',
-      icon: categoryIcon(old.icon),
-      tone: asTone(old.tone),
-    });
-  items.push({ id: '', label: 'Tanpa kategori' });
-  return items;
-});
-
-function accountItems(exclude?: string): GridItem[] {
-  const items: GridItem[] = grouped.value.map((g) => ({
-    id: `group:${g.id}`,
-    label: g.name,
-    children: g.accounts.map((a) => ({ id: a.id, label: a.name, disabled: a.id === exclude })),
-  }));
-  if (archivedAccounts.value.length)
-    items.push({
-      id: 'group:archived',
-      label: 'Diarsipkan',
-      children: archivedAccounts.value.map((a) => ({
-        id: a.id,
-        label: a.name,
-        disabled: a.id === exclude,
-      })),
-    });
-  return items;
-}
+const pickerItems = usePickerItems();
+const categoryItems = computed(() =>
+  form.type === 'transfer' ? [] : pickerItems.categoryItems(form.type, archivedCategory.value),
+);
+const accountItems = (exclude?: string) =>
+  pickerItems.accountItems(exclude, archivedAccounts.value);
 
 // ---------- ketik cepat (halaman HP, transaksi baru) ----------
 // Ketikan seperti "kopi 25rb gopay" mengisi kolom di bawahnya; kolom tetap
 // bisa diubah manual setelahnya.
 const quickLists = useQuickLists();
 const quickText = ref('');
+const quickNote = ref('');
+/** Yang terbaca langsung dari ketikan; saran riwayat tidak menimpanya */
+const quickParsed = reactive({ type: false, account: false, category: false });
+/** Dipilih manual lewat grid setelah mengetik; saran riwayat tidak menimpanya */
+const quickTouched = reactive({ account: false, category: false });
+
 function applyQuick(value: string) {
   quickText.value = value;
   const p = parseQuick(value, {
     accounts: quickLists.accounts.value,
     categories: quickLists.categories.value,
   });
+  quickNote.value = p.note;
+  Object.assign(quickParsed, { type: !!p.type, account: !!p.accountId, category: !!p.categoryId });
   if (p.type) form.type = p.type;
   form.amount = p.amount;
   form.note = p.note ? p.note[0]!.toUpperCase() + p.note.slice(1) : '';
   if (p.accountId) form.accountId = p.accountId;
   if (p.toAccountId) form.toAccountId = p.toAccountId;
   if (p.categoryId) form.categoryId = p.categoryId;
-  if (p.date) {
-    const when = new Date();
-    if (p.date === 'yesterday') when.setDate(when.getDate() - 1);
-    form.occurred = toLocalInput(when);
-    original = { input: form.occurred, iso: when.toISOString() };
+  if (p.occurredAt) {
+    form.occurred = toLocalInput(p.occurredAt);
+    original = { input: form.occurred, iso: p.occurredAt };
   }
 }
+
+// Saran dari riwayat buku (fase 6 T2) untuk catatan yang diketik
+const suggestion = useSuggest(quickNote);
+
+// Teks dari /add?text=... (Shortcut iOS) diisikan sekali ke kolom ketik
+const prefill = useState('tx:prefill', () => '');
+if (props.layout === 'page' && !props.transaction && prefill.value) {
+  const text = prefill.value;
+  prefill.value = '';
+  applyQuick(text);
+}
+// Akun/kategori dimuat belakangan: baca ulang ketikan supaya alias dikenali
+watch([quickLists.accounts, quickLists.categories], () => {
+  if (quickText.value && !quickTouched.account && !quickTouched.category)
+    applyQuick(quickText.value);
+});
+watch(suggestion, (s) => {
+  if (!s || !quickText.value) return;
+  if (s.type === 'income' && !quickParsed.type && form.type === 'expense') form.type = 'income';
+  const category = s.category_id ? categories.byId.value.get(s.category_id) : undefined;
+  if (category && category.kind === form.type && !quickParsed.category && !quickTouched.category)
+    form.categoryId = category.id;
+  if (s.account_id && !quickParsed.account && !quickTouched.account) form.accountId = s.account_id;
+});
+const suggestedAmount = computed(() =>
+  quickText.value && !form.amount && suggestion.value?.amount ? suggestion.value.amount : 0,
+);
 
 // Mengetik di kolom lain menutup grid (keyboard yang ganti muncul)
 function closePickerOnInput(event: FocusEvent) {
@@ -246,9 +232,11 @@ function choose(id: string) {
   const which = picker.value;
   if (which === 'category') {
     form.categoryId = id;
+    quickTouched.category = true;
     picker.value = form.accountId ? null : 'account';
   } else if (which === 'account') {
     form.accountId = id;
+    quickTouched.account = true;
     if (form.toAccountId === id) form.toAccountId = '';
     picker.value = form.type === 'transfer' && !form.toAccountId ? 'to' : null;
   } else if (which === 'to') {
@@ -319,10 +307,15 @@ function save(again = false) {
   );
   if (again) {
     quickText.value = '';
+    quickNote.value = '';
+    Object.assign(quickTouched, { account: false, category: false });
     form.amount = 0;
     form.note = '';
     form.description = '';
-    nextTick(() => document.getElementById('tx-amount')?.focus());
+    // Mode beruntun: kembali ke kolom ketik (halaman HP) atau nominal
+    nextTick(() =>
+      (document.getElementById('tx-quick') ?? document.getElementById('tx-amount'))?.focus(),
+    );
   } else {
     emit('close');
   }
@@ -332,6 +325,28 @@ function remove() {
   if (!props.transaction) return;
   mutations.removeWithUndo(props.transaction, props.transaction.note || 'Transaksi');
   emit('close');
+}
+
+// Simpan isian saat ini sebagai template (fase 6 T4): satu tap di Catat cepat
+const templateMutations = useTemplateMutations();
+function saveAsTemplate() {
+  if (!bookId.value) return;
+  const data = payload();
+  const name = (data.note || categories.label(data.category_id) || 'Transaksi').slice(0, 60);
+  templateMutations.create.mutate(
+    {
+      book_id: bookId.value,
+      name,
+      type: data.type,
+      amount: data.amount > 0 ? data.amount : null,
+      account_id: data.account_id || null,
+      to_account_id: data.to_account_id,
+      category_id: data.category_id,
+      note: data.note,
+      description: data.description,
+    },
+    { onSuccess: () => toast.show(`Template ${name} dibuat`) },
+  );
 }
 </script>
 
@@ -385,6 +400,14 @@ function remove() {
           @input="applyQuick(($event.target as HTMLInputElement).value)"
         />
       </FormField>
+      <button
+        v-if="suggestedAmount"
+        type="button"
+        class="press -mt-2 self-start rounded-lg bg-primary-soft px-2.5 py-1 text-meta font-semibold text-primary-ink"
+        @click="form.amount = suggestedAmount"
+      >
+        Biasanya {{ formatRupiah(suggestedAmount) }} · pakai
+      </button>
 
       <SegmentedControl v-model="form.type" :options="TYPES" label="Jenis transaksi" />
 
@@ -548,6 +571,15 @@ function remove() {
     >
       <Button v-if="editing" type="button" variant="ghost-danger" size="touch" @click="remove">
         <Trash2 />Hapus
+      </Button>
+      <Button
+        v-if="editing && !isAdjustment"
+        type="button"
+        variant="ghost"
+        size="touch"
+        @click="saveAsTemplate"
+      >
+        <Zap />Jadikan template
       </Button>
       <span class="flex-1" />
       <template v-if="!isAdjustment">

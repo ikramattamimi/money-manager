@@ -398,6 +398,38 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_pending: {
+        Row: {
+          book_id: string
+          created_at: string
+          due_on: string
+          id: string
+          rule_id: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          due_on: string
+          id?: string
+          rule_id: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          due_on?: string
+          id?: string
+          rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_pending_rule_id_book_id_fkey"
+            columns: ["rule_id", "book_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id", "book_id"]
+          },
+        ]
+      }
       recurring_rules: {
         Row: {
           account_id: string
@@ -808,6 +840,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      bump_template: { Args: { p_template_id: string }; Returns: number }
       commit_import: {
         Args: { p_book_id: string; p_payload: Json }
         Returns: Json
@@ -850,7 +883,22 @@ export type Database = {
           tx_count: number
         }[]
       }
+      confirm_recurring: {
+        Args: { p_amount?: number; p_pending_id: string }
+        Returns: string
+      }
+      post_due_recurring: { Args: { p_book_id?: string }; Returns: number }
       revert_import: { Args: { p_batch_id: string }; Returns: number }
+      suggest_from_note: {
+        Args: { p_book_id: string; p_note: string }
+        Returns: {
+          account_id: string | null
+          amount: number | null
+          category_id: string | null
+          matches: number
+          type: Database["public"]["Enums"]["transaction_type"] | null
+        }[]
+      }
     }
     Enums: {
       account_kind:

@@ -8,8 +8,11 @@ import {
   Moon,
   Sun,
   Tag,
+  Repeat,
+  Smartphone,
   Upload,
   Wallet,
+  Zap,
 } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
@@ -63,6 +66,31 @@ const SECTION =
         tone="primary"
         :title="book?.name ?? '…'"
         :subtitle="`Buku aktif${role ? ` · ${ROLE_LABEL[role]}` : ''}`"
+      />
+    </Card>
+
+    <div :class="SECTION">Input cepat</div>
+    <Card class="flex flex-col gap-0.5 p-1">
+      <SettingRow
+        :icon="Zap"
+        tone="warn"
+        title="Template"
+        subtitle="Transaksi yang sering dicatat, satu tap"
+        @click="navigateTo('/settings/templates')"
+      />
+      <SettingRow
+        :icon="Repeat"
+        tone="ok"
+        title="Transaksi berulang"
+        subtitle="Langganan, kos, cicilan: tercatat otomatis"
+        @click="navigateTo('/settings/recurring')"
+      />
+      <SettingRow
+        :icon="Smartphone"
+        tone="primary"
+        title="Shortcut iPhone"
+        subtitle="Catat dari layar utama, Back Tap, atau Siri"
+        @click="navigateTo('/settings/shortcuts')"
       />
     </Card>
 
