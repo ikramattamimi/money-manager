@@ -1,0 +1,122 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { useActiveBook } from '@/features/books/useActiveBook';
+import { transactionKeys } from '@/features/transactions/keys';
+import type { TablesInsert, TablesUpdate } from '@/lib/database.types';
+import { accountsApi, type Account, type AccountGroup } from './api';
+import { accountKeys } from './keys';
+import { ACCOUNT_KIND_STYLE } from './style';
+
+export interface AccountGroupView extends AccountGroup {
+  accounts: Account[];
+  sum: number;
+}
+
+export function useAccounts() {
+  const { bookId } = useActiveBook();
+  const enabled = computed(() => !!bookId.value);
+
+  const accounts = useQuery({
+    queryKey: computed(() => accountKeys.list(bookId.value)),
+    queryFn: () => accountsApi.list(bookId.value!),
+    enabled,
+  });
+  const groups = useQuery({
+    queryKey: computed(() => accountKeys.groups(bookId.value)),
+    queryFn: () => accountsApi.groups(bookId.value!),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+
+  const byId = computed(() => new Map((accounts.data.value ?? []).map((a) => [a.id, a])));
+  const active = computed(() => (accounts.data.value ?? []).filter((a) => !a.archived));
+  const groupById = computed(() => new Map((groups.data.value ?? []).map((g) => [g.id, g])));
+
+  /** Grup akun berisi akun aktif, hanya grup yang punya akun */
+  const grouped = computed<AccountGroupView[]>(() =>
+    (groups.data.value ?? [])
+      .map((g) => {
+        const list = active.value.filter((a) => a.group_id === g.id);
+        return { ...g, accounts: list, sum: list.reduce((s, a) => s + a.balance, 0) };
+      })
+      .filter((g) => g.accounts.length > 0),
+  );
+
+  /** Aset, utang, dan bersih dari akun yang `include_in_total` */
+  const totals = computed(() => {
+    let assets = 0;
+    let debts = 0;
+    for (const a of active.value) {
+      if (!a.include_in_total) continue;
+      if (a.balance >= 0) assets += a.balance;
+      else debts += a.balance;
+    }
+    return { assets, debts, net: assets + debts };
+  });
+
+  function style(accountId: string | null | undefined) {
+    const account = accountId ? byId.value.get(accountId) : undefined;
+    const group = account ? groupById.value.get(account.group_id) : undefined;
+    return ACCOUNT_KIND_STYLE[group?.kind ?? 'other'];
+  }
+
+  const name = (id: string | null | undefined) => (id ? (byId.value.get(id)?.name ?? '') : '');
+
+  return { accounts, groups, byId, active, grouped, totals, style, name, groupById };
+}
+
+export function useAccountLedger(accountId: Readonly<Ref<string>>) {
+  return useQuery({
+    queryKey: computed(() => accountKeys.ledger(accountId.value)),
+    queryFn: () => accountsApi.ledger(accountId.value, 200),
+  });
+}
+
+export function useAccountMutations() {
+  const client = useQueryClient();
+  const toast = useToast();
+  const invalidate = () => client.invalidateQueries({ queryKey: accountKeys.all });
+  const onError = (error: Error) => toast.show(error.message);
+
+  return {
+    create: useMutation({
+      mutationFn: (input: TablesInsert<'accounts'>) => accountsApi.create(input),
+      onSuccess: invalidate,
+      onError,
+    }),
+    update: useMutation({
+      mutationFn: ({ id, patch }: { id: string; patch: TablesUpdate<'accounts'> }) =>
+        accountsApi.update(id, patch),
+      onSuccess: invalidate,
+      onError,
+    }),
+    reorder: useMutation({
+      mutationFn: (ids: string[]) => accountsApi.reorder(ids),
+      // Urutan baru langsung terlihat; dikembalikan kalau gagal
+      onMutate: async (ids) => {
+        await client.cancelQueries({ queryKey: accountKeys.all });
+        const saved = client.getQueriesData<Account[]>({ queryKey: [...accountKeys.all, 'list'] });
+        const sortOf = new Map(ids.map((id, sort) => [id, sort]));
+        client.setQueriesData<Account[]>({ queryKey: [...accountKeys.all, 'list'] }, (list) =>
+          list
+            ?.map((a) => (sortOf.has(a.id) ? { ...a, sort: sortOf.get(a.id)! } : a))
+            .sort((a, b) => a.sort - b.sort),
+        );
+        return saved;
+      },
+      onError: (error: Error, _ids, saved) => {
+        saved?.forEach(([key, data]) => client.setQueryData(key, data));
+        onError(error);
+      },
+      onSettled: invalidate,
+    }),
+    adjust: useMutation({
+      mutationFn: ({ id, actual }: { id: string; actual: number }) =>
+        accountsApi.adjust(id, actual),
+      onSuccess: () => {
+        invalidate();
+        client.invalidateQueries({ queryKey: transactionKeys.all });
+      },
+      onError,
+    }),
+  };
+}

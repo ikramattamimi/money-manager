@@ -45,4 +45,6 @@ export interface QuickAddSource {
   templates: Ref<QuickTemplate[]>;
   defaultAccountId: Ref<string | null>;
   save: (draft: Draft) => { undo: () => void; label: string } | null;
+  /** Buka form lengkap dengan isian saat ini (tidak ada di prototipe) */
+  openFull?: (draft: Draft) => void;
 }

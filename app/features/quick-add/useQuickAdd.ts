@@ -41,6 +41,16 @@ export function useQuickAdd() {
   const manual = useState<Draft>('qa:manual', () => blank(source.defaultAccountId.value));
   const draft = useState<Draft>('qa:draft', () => blank(source.defaultAccountId.value));
 
+  // Akun bawaan baru tersedia setelah data akun termuat
+  watch(
+    source.defaultAccountId,
+    (id) => {
+      if (!manual.value.accountId) manual.value.accountId = id;
+      if (!draft.value.accountId) draft.value.accountId = id;
+    },
+    { immediate: true },
+  );
+
   function setText(value: string) {
     text.value = value;
     const p = parseQuick(value, {
@@ -98,7 +108,11 @@ export function useQuickAdd() {
   }
 
   const canSave = computed(
-    () => draft.value.amount > 0 && (draft.value.type !== 'transfer' || !!draft.value.toAccountId),
+    () =>
+      draft.value.amount > 0 &&
+      !!draft.value.accountId &&
+      (draft.value.type !== 'transfer' ||
+        (!!draft.value.toAccountId && draft.value.toAccountId !== draft.value.accountId)),
   );
 
   function reset(keepAccount = false) {
