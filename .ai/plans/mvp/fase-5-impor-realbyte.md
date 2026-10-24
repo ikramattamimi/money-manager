@@ -117,3 +117,53 @@ balik.
 **Files:** `app/features/export/*`
 **Verify:** File hasil ekspor bisa diimpor lagi ke buku kosong, dan totalnya
 sama.
+
+## Catatan pelaksanaan
+
+Dikerjakan di branch `fase-5-impor` (dicabang dari `fase-4-inti`, belum
+di-merge ke `main`).
+
+**Hasil dengan file contoh** (`2026-10-24.xlsx`, dicek dengan parser langsung):
+2.567 transaksi (1.942 pengeluaran, 140 pemasukan, 440 transfer, 45 koreksi
+saldo), 440 pasangan transfer tergabung dan 0 yatim, 0 baris gagal, 43 akun,
+42 kategori. Total pengeluaran per bulan sama persis dengan baris mentah untuk
+27 bulan.
+
+Perbedaan dari rencana dan keputusan:
+
+- **Alur unggah dua kali**: preview dan simpan sama-sama mengunggah file ke
+  server route lalu di-parse ulang (bukan menyimpan hasil parse di server).
+  Server tetap stateless dan file tidak pernah disimpan. Pilihan grup akun dari
+  preview ikut dikirim saat simpan (`kinds`).
+- **Server route memakai token user**: `server/utils/supabase.ts` meneruskan
+  header `Authorization`, jadi RLS dan RPC `SECURITY INVOKER` berlaku sama
+  seperti dari HP. Tidak ada service key di server.
+- **Kunci anti-dobel** = SHA-256 (Web Crypto, jalan di Worker) dari waktu,
+  nominal, jenis (+`-adj` untuk koreksi), akun, akun tujuan, catatan. Baris
+  identik di file yang sama diberi nomor urut supaya tetap masuk semua.
+- **Kategori**: emoji disimpan di kolom `categories.emoji`, ikon dan warna
+  ditebak dari nama (`guessCategoryIcon`), subkategori ikut warna induk.
+  Dicocokkan dengan kategori buku lewat nama (tidak peka huruf besar/kecil).
+  Kategori bawaan buku (bahasa Indonesia) tidak digabung otomatis dengan
+  kategori Realbyte (bahasa Inggris).
+- **Grup akun**: aturan tebakan sesuai spec, kecuali "nama orang → piutang":
+  tidak bisa ditebak dengan aman, jadi akun yang tidak dikenali masuk
+  **Lainnya** (grup dibuat otomatis kalau belum ada) dan bisa diganti di preview.
+- **RPC**: `import_existing_keys` (hitung duplikat di preview, per 1.000
+  kunci), `commit_import` (batch + grup + akun + kategori + transaksi dalam satu
+  transaksi; batch kosong dihapus kalau semua duplikat), `revert_import`.
+  Migration `import_rpc_reentrant` membuat `commit_import` aman dipanggil dua
+  kali dalam satu transaksi database. Tes di `supabase/tests/import_test.sql`.
+- **Batas**: file 5 MB, 20.000 baris. Bukan ekspor Realbyte → pesan jelas.
+- **Saldo awal (T5)**: halaman `/settings/import/balances` membuat koreksi lewat
+  RPC `adjust_balance` fase 4 untuk akun yang diisi dan berbeda.
+- **Batalkan impor (T6)**: memakai dialog konfirmasi (tidak bisa di-undo). Akun
+  dan kategori yang dibuat impor tetap ada.
+- **Ekspor (T7)**: dibuat di client dengan SheetJS (dimuat saat dibutuhkan).
+  Kolom sama dengan ekspor Realbyte; transfer jadi baris Transfer-Out +
+  Transfer-In, biaya transfer jadi baris pengeluaran "Biaya transfer", koreksi
+  jadi Expense/Income Balance. Tes bolak-balik ekspor → parser impor di
+  `app/features/export/realbyteRows.test.ts`.
+- **Belum diuji di iPhone dengan file asli**: preview sudah dicoba di browser
+  dengan file sintetis. Impor file asli dan pemilihan file dari app Files
+  dilakukan user.
