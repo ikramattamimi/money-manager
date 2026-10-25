@@ -46,3 +46,6 @@ export const TONE_FILL: Record<Tone, string> = {
   r5: 'bg-r5',
   r6: 'bg-r6',
 };
+
+/** Warna masuk/keluar di grafik tren, dari palet kategori (biru-oranye tetap terbedakan untuk buta warna) */
+export const TREND_TONE = { income: 'r1', expense: 'r2' } as const satisfies Record<string, Tone>;

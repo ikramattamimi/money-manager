@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { formatRupiah } from '@/lib/format';
+import { TONE_FILL, TREND_TONE } from '@/components/data/tone';
+import { formatRupiah, formatShort } from '@/lib/format';
 
 // Grafik batang per bulan (masuk/keluar). Tinggi batang lewat transform
 // scaleY dengan pegas saat data berganti; reduce motion: cross-fade.
-// Tabel tersembunyi untuk pembaca layar.
+// Nominal ringkas di bawah tiap bulan, bulan aktif ditebalkan. Warna dari
+// palet kategori (TREND_TONE) supaya senada dengan kartu per kategori.
+// Tabel tersembunyi berisi nilai lengkap untuk pembaca layar.
 export interface TrendPoint {
   key: string;
   label: string;
@@ -11,10 +14,17 @@ export interface TrendPoint {
   expense: number;
 }
 const props = withDefaults(
-  defineProps<{ points: TrendPoint[]; label: string; show?: 'both' | 'income' | 'expense' }>(),
-  { show: 'both' },
+  defineProps<{
+    points: TrendPoint[];
+    label: string;
+    show?: 'both' | 'income' | 'expense';
+    /** Bulan yang dipilih; default bulan terakhir */
+    activeKey?: string;
+  }>(),
+  { show: 'both', activeKey: undefined },
 );
 
+const active = computed(() => props.activeKey ?? props.points.at(-1)?.key);
 const max = computed(() =>
   Math.max(
     1,
@@ -28,41 +38,71 @@ const max = computed(() =>
   ),
 );
 const scale = (v: number) => `scaleY(${Math.max(v / max.value, v ? 0.02 : 0)})`;
+const short = (v: number) => (v ? formatShort(v, true) : '0');
 </script>
 
 <template>
   <div>
     <div
-      class="grid h-30 items-end gap-2"
+      class="grid gap-1.5"
       :style="{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }"
       aria-hidden="true"
     >
-      <div
-        v-for="p in points"
-        :key="p.key"
-        class="flex h-full flex-col items-center justify-end gap-1.5"
-      >
-        <div class="flex h-full w-full items-end justify-center gap-[3px]">
+      <div v-for="p in points" :key="p.key" class="flex min-w-0 flex-col items-center gap-1.5">
+        <div class="flex h-28 w-full items-end justify-center gap-[3px]">
           <span
             v-if="show !== 'expense'"
-            class="trend-bar h-full w-2.5 max-w-[40%] rounded-t-[3px] rounded-b-[1px] bg-primary-accent"
+            :class="[
+              'trend-bar h-full w-2.5 max-w-[40%] rounded-t-[3px] rounded-b-[1px]',
+              TONE_FILL[TREND_TONE.income],
+              p.key !== active && 'opacity-70',
+            ]"
             :style="{ transform: scale(p.income) }"
           />
           <span
             v-if="show !== 'income'"
-            class="trend-bar h-full w-2.5 max-w-[40%] rounded-t-[3px] rounded-b-[1px] bg-bad/85"
+            :class="[
+              'trend-bar h-full w-2.5 max-w-[40%] rounded-t-[3px] rounded-b-[1px]',
+              TONE_FILL[TREND_TONE.expense],
+              p.key !== active && 'opacity-70',
+            ]"
             :style="{ transform: scale(p.expense) }"
           />
         </div>
-        <small class="text-2xs text-muted-foreground">{{ p.label }}</small>
+        <small
+          :class="[
+            'text-2xs',
+            p.key === active ? 'font-bold text-foreground' : 'text-muted-foreground',
+          ]"
+          >{{ p.label }}</small
+        >
+        <!-- Nominal ringkas: masuk di atas, keluar di bawah. Teks netral supaya kontras
+             cukup di mode terang; warnanya lewat kotak kecil di depan angka. -->
+        <span
+          :class="[
+            'flex flex-col items-center text-[10px] leading-tight tabular-nums tracking-tight',
+            p.key === active ? 'font-bold text-foreground' : 'font-medium text-muted-foreground',
+          ]"
+        >
+          <span v-if="show !== 'expense'" class="flex items-center gap-[3px]">
+            <i :class="['size-1.5 rounded-[1px]', TONE_FILL[TREND_TONE.income]]" />{{
+              short(p.income)
+            }}
+          </span>
+          <span v-if="show !== 'income'" class="flex items-center gap-[3px]">
+            <i :class="['size-1.5 rounded-[1px]', TONE_FILL[TREND_TONE.expense]]" />{{
+              short(p.expense)
+            }}
+          </span>
+        </span>
       </div>
     </div>
     <div class="mt-2.5 flex gap-3.5 text-xs text-muted-foreground" aria-hidden="true">
       <span v-if="show !== 'expense'" class="flex items-center gap-1.5">
-        <i class="size-2 rounded-sm bg-primary-accent" />Masuk
+        <i :class="['size-2 rounded-sm', TONE_FILL[TREND_TONE.income]]" />Masuk
       </span>
       <span v-if="show !== 'income'" class="flex items-center gap-1.5">
-        <i class="size-2 rounded-sm bg-bad" />Keluar
+        <i :class="['size-2 rounded-sm', TONE_FILL[TREND_TONE.expense]]" />Keluar
       </span>
     </div>
     <table class="sr-only">
@@ -92,7 +132,9 @@ const scale = (v: number) => `scaleY(${Math.max(v / max.value, v ? 0.02 : 0)})`;
 <style scoped>
 .trend-bar {
   transform-origin: bottom;
-  transition: transform 420ms var(--ease-spring);
+  transition:
+    transform 420ms var(--ease-spring),
+    opacity 200ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .trend-bar {
