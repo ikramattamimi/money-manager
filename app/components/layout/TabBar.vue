@@ -49,7 +49,7 @@ function onTap(key: string) {
   <nav
     ref="bar"
     aria-label="Navigasi utama"
-    class="lg fixed bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] left-3 right-[84px] z-40 grid h-15.5 grid-cols-4 rounded-[31px] p-1 md:bottom-auto md:left-1/2 md:right-auto md:top-[calc(env(safe-area-inset-top,0px)+14px)] md:h-12.5 md:w-[460px] md:-translate-x-1/2 md:rounded-[25px] xl:hidden"
+    class="lg fixed bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] left-3 right-3 z-40 grid h-15.5 grid-cols-4 rounded-[31px] p-1 md:bottom-auto md:left-1/2 md:right-auto md:top-[calc(env(safe-area-inset-top,0px)+14px)] md:h-12.5 md:w-[460px] md:-translate-x-1/2 md:rounded-[25px] xl:hidden"
   >
     <span
       :class="[

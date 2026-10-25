@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Tempat toast, dipasang sekali di AppShell. Masuk dari bawah lewat
 // @starting-style (bisa disela), keluar lebih cepat dari masuk.
+// `raised`: tombol + tampil di atas tab bar (HP), toast naik supaya tidak tertutup.
+defineProps<{ raised?: boolean }>();
 const toast = useToast();
 
 function onVisibility() {
@@ -13,7 +15,12 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
 <template>
   <div
-    class="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] z-[70] grid justify-items-center md:bottom-8 xl:left-[232px] [&>*]:col-start-1 [&>*]:row-start-1"
+    :class="[
+      'pointer-events-none fixed inset-x-3 z-[70] grid justify-items-center md:bottom-8 xl:left-[232px] [&>*]:col-start-1 [&>*]:row-start-1',
+      raised
+        ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+152px)]'
+        : 'bottom-[calc(env(safe-area-inset-bottom,0px)+88px)]',
+    ]"
     aria-live="polite"
   >
     <Transition name="toast">
