@@ -31,6 +31,23 @@ export const authApi = {
     return data.session;
   },
 
+  /** Masuk dengan email dan kata sandi (kata sandi diatur dulu di Profil) */
+  async signInWithPassword(email: string, password: string): Promise<Session> {
+    const { data, error } = await useSupabase().auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (error) throw toIndonesian(error);
+    if (!data.session) throw new Error('Gagal masuk. Coba lagi.');
+    return data.session;
+  },
+
+  /** Atur atau ganti kata sandi user yang sedang masuk */
+  async setPassword(password: string): Promise<void> {
+    const { error } = await useSupabase().auth.updateUser({ password });
+    if (error) throw toIndonesian(error);
+  },
+
   async signOut(): Promise<void> {
     const { error } = await useSupabase().auth.signOut();
     if (error) throw toIndonesian(error);
@@ -49,6 +66,12 @@ const MESSAGES: Record<string, string> = {
   email_address_invalid: 'Alamat email tidak valid.',
   validation_failed: 'Alamat email tidak valid.',
   signup_disabled: 'Pendaftaran akun baru sedang ditutup.',
+  invalid_credentials:
+    'Email atau kata sandi salah. Belum pernah mengatur kata sandi? Masuk dengan kode email.',
+  weak_password: 'Kata sandi terlalu lemah. Pakai minimal 8 karakter, campur huruf dan angka.',
+  same_password: 'Kata sandi baru sama dengan yang lama.',
+  email_not_confirmed: 'Email belum dikonfirmasi. Masuk dengan kode email dulu.',
+  reauthentication_needed: 'Masuk ulang dengan kode email dulu, lalu ganti kata sandi.',
 };
 
 function toIndonesian(error: AuthError): Error {

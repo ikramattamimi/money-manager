@@ -1,10 +1,24 @@
 <script setup lang="ts">
-import { ArrowLeft, CircleAlert, FileUp, Mail, RefreshCw, Users, Wallet, Zap } from '@lucide/vue';
+import {
+  ArrowLeft,
+  CircleAlert,
+  Eye,
+  EyeOff,
+  FileUp,
+  LockKeyhole,
+  Mail,
+  RefreshCw,
+  Users,
+  Wallet,
+  Zap,
+} from '@lucide/vue';
+import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { OTP_LENGTH, authApi } from '@/features/auth/api';
 import { safeNext } from '@/features/auth/redirect';
 
-// Masuk dengan kode OTP email (tanpa kata sandi). Tema sama dengan app:
+// Masuk dengan kode OTP email, atau email + kata sandi kalau sudah diatur di
+// Profil. Kode email selalu bisa dipakai (juga untuk lupa kata sandi). Tema sama dengan app:
 // pita gradien seperti kepala halaman, kartu putih, tombol primer.
 // HP: gradien di atas, kartu menumpang di bawahnya. iPad/desktop: dua kolom.
 useHead({ title: 'Masuk · Money Manager' });
@@ -84,6 +98,31 @@ async function changeEmail() {
   emailInput.value?.focus();
 }
 
+// ---------- masuk dengan kata sandi (opsional, diatur di Profil) ----------
+const MODES = [
+  { value: 'code', label: 'Kode email' },
+  { value: 'password', label: 'Kata sandi' },
+] as const;
+const mode = ref<(typeof MODES)[number]['value']>('code');
+const password = ref('');
+const showPassword = ref(false);
+watch(mode, () => (error.value = ''));
+
+async function signInPassword() {
+  if (pending.value || !email.value || !password.value) return;
+  error.value = '';
+  pending.value = true;
+  try {
+    await authApi.signInWithPassword(email.value, password.value);
+    await navigateTo(safeNext(route.query.next), { replace: true });
+  } catch (e) {
+    error.value = (e as Error).message;
+    password.value = '';
+  } finally {
+    pending.value = false;
+  }
+}
+
 /** Sel kode yang sedang diisi (untuk kursor) */
 const activeCell = computed(() => Math.min(code.value.length, OTP_LENGTH - 1));
 
@@ -129,7 +168,7 @@ const FEATURES = [
         </li>
       </ul>
       <p class="m-0 mt-10 hidden text-xs text-on-grad-3 md:block">
-        Data tersimpan aman di akunmu. Masuk tanpa kata sandi.
+        Data tersimpan aman di akunmu. Masuk dengan kode email atau kata sandi.
       </p>
     </section>
 
@@ -146,12 +185,20 @@ const FEATURES = [
             v-if="step === 'email'"
             key="email"
             class="flex flex-col gap-4"
-            @submit.prevent="sendCode"
+            @submit.prevent="mode === 'code' ? sendCode() : signInPassword()"
           >
+            <SegmentedControl v-model="mode" :options="MODES" label="Cara masuk" />
             <div class="flex flex-col gap-1">
-              <h2 class="m-0 text-panel font-bold">Masuk atau daftar</h2>
-              <p class="m-0 text-meta text-muted-foreground">
-                Kami akan mengirim kode {{ OTP_LENGTH }} digit ke email Anda. Kode ini bisa digunakan untuk masuk atau membuat akun baru.
+              <h2 class="m-0 text-panel font-bold">
+                {{ mode === 'code' ? 'Masuk atau daftar' : 'Masuk dengan kata sandi' }}
+              </h2>
+              <p v-if="mode === 'password'" class="m-0 text-meta text-muted-foreground">
+                Kata sandi diatur di Profil setelah masuk dengan kode email. Lupa kata sandi? Pakai
+                Kode email.
+              </p>
+              <p v-else class="m-0 text-meta text-muted-foreground">
+                Kami akan mengirim kode {{ OTP_LENGTH }} digit ke email Anda. Kode ini bisa
+                digunakan untuk masuk atau membuat akun baru.
               </p>
             </div>
             <label class="flex flex-col gap-1.5">
@@ -176,14 +223,46 @@ const FEATURES = [
                 />
               </span>
             </label>
+            <label v-if="mode === 'password'" class="flex flex-col gap-1.5">
+              <span class="text-label font-semibold">Kata sandi</span>
+              <span class="relative">
+                <LockKeyhole
+                  class="pointer-events-none absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  name="password"
+                  autocomplete="current-password"
+                  required
+                  class="field-input h-12! pl-10! pr-11! text-[17px]!"
+                />
+                <button
+                  type="button"
+                  class="press absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
+                  @click="showPassword = !showPassword"
+                >
+                  <component
+                    :is="showPassword ? EyeOff : Eye"
+                    class="size-4.5"
+                    aria-hidden="true"
+                  />
+                </button>
+              </span>
+            </label>
             <Button
               type="submit"
               size="touch"
               class="h-12 text-[16px]"
-              :disabled="pending || !email"
+              :disabled="pending || !email || (mode === 'password' && !password)"
             >
               <RefreshCw v-if="pending" class="animate-spin" />
-              {{ pending ? 'Mengirim kode…' : 'Kirim kode' }}
+              <template v-if="mode === 'code'">{{
+                pending ? 'Mengirim kode…' : 'Kirim kode'
+              }}</template>
+              <template v-else>{{ pending ? 'Memeriksa…' : 'Masuk' }}</template>
             </Button>
           </form>
 

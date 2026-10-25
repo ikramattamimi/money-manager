@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeft, Camera, RefreshCw, Trash2 } from '@lucide/vue';
+import { ArrowLeft, Camera, Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import FormField from '@/components/base/FormField.vue';
 import Avatar from '@/components/data/Avatar.vue';
 import HeaderButton from '@/components/layout/HeaderButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { authApi } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/useAuth';
 import { useProfile, useProfileMutations } from '@/features/profile/useProfile';
 
@@ -45,6 +46,29 @@ function removePhoto() {
   mutations.remove.mutate(undefined, { onSuccess: () => toast.show('Foto profil dihapus') });
 }
 const uploading = computed(() => mutations.upload.isPending.value);
+
+// ---------- kata sandi (opsional, untuk masuk tanpa kode email) ----------
+const password = ref('');
+const confirmPassword = ref('');
+const passwordError = ref('');
+const savingPassword = ref(false);
+const showPassword = ref(false);
+async function savePassword() {
+  passwordError.value = '';
+  if (password.value.length < 8) return (passwordError.value = 'Minimal 8 karakter.');
+  if (password.value !== confirmPassword.value)
+    return (passwordError.value = 'Kedua kata sandi tidak sama.');
+  savingPassword.value = true;
+  try {
+    await authApi.setPassword(password.value);
+    password.value = confirmPassword.value = '';
+    toast.show('Kata sandi disimpan. Sekarang bisa masuk dengan email dan kata sandi.');
+  } catch (e) {
+    passwordError.value = (e as Error).message;
+  } finally {
+    savingPassword.value = false;
+  }
+}
 </script>
 
 <template>
@@ -105,30 +129,92 @@ const uploading = computed(() => mutations.upload.isPending.value);
     </Card>
 
     <Card class="mt-3.5 p-3.5">
-      <form class="flex items-end gap-2" @submit.prevent="saveName">
-        <FormField
-          label="Nama"
-          for="profile-name"
-          class="flex-1"
-          hint="Terlihat oleh anggota buku yang sama."
-        >
+      <!-- Label di atas, input dan tombol satu baris, petunjuk di bawah: tombol sejajar input -->
+      <form class="flex flex-col gap-1.5" @submit.prevent="saveName">
+        <label for="profile-name" class="text-label font-semibold">Nama</label>
+        <div class="flex items-center gap-2">
           <input
             id="profile-name"
             v-model="name"
             type="text"
             maxlength="60"
-            class="field-input"
+            class="field-input min-w-0 flex-1"
             autocomplete="name"
             placeholder="Nama panggilan"
           />
+          <Button
+            type="submit"
+            size="touch"
+            variant="secondary"
+            :disabled="!nameChanged || mutations.rename.isPending.value"
+            >Simpan</Button
+          >
+        </div>
+        <p class="m-0 text-xs text-muted-foreground">Terlihat oleh anggota buku yang sama.</p>
+      </form>
+    </Card>
+
+    <Card class="mt-3.5 p-3.5">
+      <form class="flex flex-col gap-3" @submit.prevent="savePassword">
+        <div class="flex items-start gap-3">
+          <KeyRound class="mt-0.5 size-5 shrink-0 text-primary-accent" aria-hidden="true" />
+          <div class="flex flex-col gap-0.5">
+            <b class="text-label">Kata sandi</b>
+            <p class="m-0 text-xs text-muted-foreground">
+              Opsional. Dengan kata sandi kamu bisa masuk tanpa menunggu kode email. Kode email
+              tetap bisa dipakai kapan saja, termasuk kalau lupa kata sandi.
+            </p>
+          </div>
+        </div>
+        <!-- Kolom email tersembunyi supaya pengelola kata sandi menyimpan pasangan yang benar -->
+        <input
+          type="email"
+          name="email"
+          autocomplete="username"
+          :value="user?.email"
+          class="sr-only"
+          tabindex="-1"
+          aria-hidden="true"
+          readonly
+        />
+        <FormField label="Kata sandi baru" for="profile-password">
+          <div class="relative">
+            <input
+              id="profile-password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="new-password"
+              minlength="8"
+              class="field-input pr-11!"
+            />
+            <button
+              type="button"
+              class="press absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
+              @click="showPassword = !showPassword"
+            >
+              <component :is="showPassword ? EyeOff : Eye" class="size-4.5" aria-hidden="true" />
+            </button>
+          </div>
         </FormField>
+        <FormField label="Ulangi kata sandi" for="profile-password-confirm">
+          <input
+            id="profile-password-confirm"
+            v-model="confirmPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            class="field-input"
+          />
+        </FormField>
+        <p v-if="passwordError" class="m-0 text-meta text-bad" role="alert">{{ passwordError }}</p>
         <Button
           type="submit"
           size="touch"
           variant="secondary"
-          :disabled="!nameChanged || mutations.rename.isPending.value"
-          >Simpan</Button
+          :disabled="savingPassword || !password || !confirmPassword"
         >
+          {{ savingPassword ? 'Menyimpan…' : 'Simpan kata sandi' }}
+        </Button>
       </form>
     </Card>
   </div>
