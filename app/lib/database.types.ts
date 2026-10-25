@@ -878,6 +878,10 @@ export type Database = {
           tx_count: number
         }[]
       }
+      commit_bank_import: {
+        Args: { p_book_id: string; p_payload: Json }
+        Returns: Json
+      }
       commit_import: {
         Args: { p_book_id: string; p_payload: Json }
         Returns: Json
