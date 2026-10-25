@@ -39,6 +39,13 @@ export const accountsApi = {
     if (error) throw new Error('Gagal menyimpan akun.', { cause: error });
   },
 
+  /** Ubah banyak akun sekaligus dengan isian yang sama (pilih banyak) */
+  async updateMany(ids: string[], patch: TablesUpdate<'accounts'>): Promise<void> {
+    if (!ids.length) return;
+    const { error } = await useSupabase().from('accounts').update(patch).in('id', ids);
+    if (error) throw new Error('Gagal mengubah akun.', { cause: error });
+  },
+
   /** Simpan urutan baru: setiap id mendapat sort sesuai posisinya */
   async reorder(ids: string[]): Promise<void> {
     const supabase = useSupabase();

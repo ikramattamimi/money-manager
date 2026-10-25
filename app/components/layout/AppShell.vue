@@ -49,8 +49,8 @@ const active = computed(() => {
 });
 
 // Tombol + hanya di tab Transaksi dan Akun (fase 10 T2)
-// Disembunyikan saat memilih banyak transaksi (bilah aksi massal di tempat yang sama)
-const txSelecting = useState('tx:selecting', () => false);
+// Disembunyikan saat memilih banyak (transaksi, akun): bilah aksi ada di tempat yang sama
+const txSelecting = useState('ui:selecting', () => false);
 const showAdd = computed(
   () =>
     props.canAdd && !txSelecting.value && (route.path === txPath || active.value === 'accounts'),

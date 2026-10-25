@@ -30,6 +30,14 @@ export const categoriesApi = {
       throw new Error(friendly(error.message, 'Gagal menyimpan kategori.'), { cause: error });
   },
 
+  /** Ubah banyak kategori sekaligus dengan isian yang sama (pilih banyak) */
+  async updateMany(ids: string[], patch: TablesUpdate<'categories'>): Promise<void> {
+    if (!ids.length) return;
+    const { error } = await useSupabase().from('categories').update(patch).in('id', ids);
+    if (error)
+      throw new Error(friendly(error.message, 'Gagal mengubah kategori.'), { cause: error });
+  },
+
   /** Simpan urutan baru: setiap id mendapat sort sesuai posisinya */
   async reorder(ids: string[]): Promise<void> {
     const supabase = useSupabase();

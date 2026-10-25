@@ -6,7 +6,8 @@ import { toInput } from './useTransactions';
 
 /** Mode pilih banyak di daftar transaksi, bertahan selama tab dibuka */
 export function useTxSelection() {
-  const selecting = useState('tx:selecting', () => false);
+  // Kunci bersama: AppShell menyembunyikan tombol + selama mode pilih aktif
+  const selecting = useState('ui:selecting', () => false);
   const selected = useState<string[]>('tx:selected', () => []);
   const has = (id: string) => selected.value.includes(id);
   function toggle(id: string) {

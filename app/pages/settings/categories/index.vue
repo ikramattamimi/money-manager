@@ -1,10 +1,25 @@
 <script setup lang="ts">
-import { ArrowDownUp, ArrowLeft, Check, ChevronRight, Plus, Tag } from '@lucide/vue';
+import { useQueryClient } from '@tanstack/vue-query';
+import {
+  Archive,
+  ArrowDownUp,
+  ArrowLeft,
+  ArrowUpToLine,
+  Check,
+  ChevronRight,
+  FolderInput,
+  ListChecks,
+  Plus,
+  Tag,
+  X,
+} from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import Overlay from '@/components/base/Overlay.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
 import ListGroup from '@/components/data/ListGroup.vue';
 import ListRow from '@/components/data/ListRow.vue';
+import SelectCheck from '@/components/data/SelectCheck.vue';
+import SelectionBar from '@/components/data/SelectionBar.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import Skeleton from '@/components/data/Skeleton.vue';
 import SortableList from '@/components/data/SortableList.vue';
@@ -12,8 +27,10 @@ import ToneIcon from '@/components/data/ToneIcon.vue';
 import HeaderButton from '@/components/layout/HeaderButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import CategoryForm from '@/components/money/CategoryForm.vue';
+import { Button } from '@/components/ui/button';
 import { useActiveBook } from '@/features/books/useActiveBook';
-import type { Category, CategoryKind } from '@/features/categories/api';
+import { categoriesApi, type Category, type CategoryKind } from '@/features/categories/api';
+import { categoryKeys } from '@/features/categories/keys';
 import { asTone, categoryIcon } from '@/features/categories/icons';
 import { useCategories, useCategoryMutations } from '@/features/categories/useCategories';
 
@@ -36,6 +53,80 @@ const archived = computed(() =>
   (categories.data.value ?? []).filter((c) => c.kind === kind.value && c.archived),
 );
 const showArchived = ref(false);
+
+// ---------- pilih banyak: jadikan sub, jadikan utama, arsipkan ----------
+const client = useQueryClient();
+const toast = useToast();
+const selecting = ref(false);
+const selected = ref<string[]>([]);
+const visible = computed(() => tree.value.flatMap((p) => [p, ...p.children]));
+const chosen = computed(() => visible.value.filter((c) => selected.value.includes(c.id)));
+function toggle(id: string) {
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter((x) => x !== id)
+    : [...selected.value, id];
+}
+function toggleAll() {
+  selected.value =
+    selected.value.length === visible.value.length ? [] : visible.value.map((c) => c.id);
+}
+function stopSelecting() {
+  selecting.value = false;
+  selected.value = [];
+}
+watch([sorting, kind], () => stopSelecting());
+
+const bulkBusy = ref(false);
+type Field = 'parent_id' | 'archived';
+/** Ubah satu kolom untuk kategori terpilih, dengan Urungkan ke nilai lama */
+async function bulkSet<F extends Field>(
+  list: Category[],
+  field: F,
+  value: Category[F],
+  message: string,
+) {
+  if (!list.length) return;
+  bulkBusy.value = true;
+  try {
+    await categoriesApi.updateMany(
+      list.map((c) => c.id),
+      { [field]: value },
+    );
+    await client.invalidateQueries({ queryKey: categoryKeys.all });
+    stopSelecting();
+    const before = new Map<Category[F], string[]>();
+    for (const c of list) before.set(c[field], [...(before.get(c[field]) ?? []), c.id]);
+    toast.show(`${list.length} kategori ${message}`, () =>
+      Promise.all([...before].map(([v, ids]) => categoriesApi.updateMany(ids, { [field]: v })))
+        .then(() => client.invalidateQueries({ queryKey: categoryKeys.all }))
+        .catch((e: Error) => toast.show(e.message)),
+    );
+  } catch (e) {
+    toast.show((e as Error).message);
+  } finally {
+    bulkBusy.value = false;
+  }
+}
+
+/** Kategori utama yang punya sub tidak bisa jadi sub (hanya 2 level) */
+const hasChildren = (c: Category) => tree.value.some((p) => p.id === c.id && p.children.length);
+const parentPicker = ref(false);
+const parentChoices = computed(() => tree.value.filter((p) => !selected.value.includes(p.id)));
+function makeSubOf(parent: Category) {
+  parentPicker.value = false;
+  const list = chosen.value.filter((c) => !hasChildren(c) && c.id !== parent.id);
+  const skipped = chosen.value.length - list.length;
+  if (skipped) toast.show(`${skipped} kategori yang punya sub tidak dipindah`);
+  bulkSet(list, 'parent_id', parent.id, `jadi sub ${parent.name}`);
+}
+function makeMain() {
+  bulkSet(
+    chosen.value.filter((c) => c.parent_id),
+    'parent_id',
+    null,
+    'jadi kategori utama',
+  );
+}
 
 const formOpen = ref(false);
 const editing = ref<Category | null>(null);
@@ -73,6 +164,24 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
       </template>
       <SegmentedControl v-model="kind" :options="KINDS" label="Jenis kategori" variant="on-grad" />
     </PageHeader>
+
+    <div
+      v-if="canEdit && tree.length && !sorting"
+      class="mt-3 flex items-center justify-between gap-2 px-1"
+    >
+      <span class="text-xs text-muted-foreground">{{
+        selecting ? 'Ketuk kategori untuk memilih' : 'Pindah, jadikan sub, atau arsipkan sekaligus'
+      }}</span>
+      <Button
+        :variant="selecting ? 'default' : 'secondary'"
+        :aria-pressed="selecting"
+        @click="selecting ? stopSelecting() : (selecting = true)"
+      >
+        <component :is="selecting ? Check : ListChecks" />{{
+          selecting ? 'Selesai' : 'Pilih banyak'
+        }}
+      </Button>
+    </div>
 
     <Card v-if="categories.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="6" /></Card>
     <Card v-else-if="!tree.length" class="mt-3.5">
@@ -128,9 +237,13 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
           :as="canEdit ? 'button' : 'div'"
           :title="p.name"
           subtitle="Kategori utama"
-          @click="openForm(p)"
+          :aria-pressed="selecting ? selected.includes(p.id) : undefined"
+          @click="selecting ? toggle(p.id) : openForm(p)"
         >
-          <template #lead><ToneIcon v-bind="styleOf(p)" /></template>
+          <template #lead>
+            <SelectCheck v-if="selecting" :selected="selected.includes(p.id)" />
+            <ToneIcon v-else v-bind="styleOf(p)" />
+          </template>
         </ListRow>
         <ListRow
           v-for="c in p.children"
@@ -139,12 +252,69 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
           :title="c.name"
           :subtitle="`Sub ${p.name}`"
           class="pl-6"
-          @click="openForm(c)"
+          :aria-pressed="selecting ? selected.includes(c.id) : undefined"
+          @click="selecting ? toggle(c.id) : openForm(c)"
         >
-          <template #lead><ToneIcon v-bind="styleOf(c)" size="sm" /></template>
+          <template #lead>
+            <SelectCheck v-if="selecting" :selected="selected.includes(c.id)" size="sm" />
+            <ToneIcon v-else v-bind="styleOf(c)" size="sm" />
+          </template>
         </ListRow>
       </ListGroup>
     </template>
+
+    <SelectionBar
+      v-if="selecting"
+      :count="chosen.length"
+      :total="visible.length"
+      label="Aksi untuk kategori terpilih"
+      @toggle-all="toggleAll"
+      @close="stopSelecting"
+    >
+      <Button :disabled="!chosen.length || bulkBusy" @click="parentPicker = true">
+        <FolderInput />Jadikan sub
+      </Button>
+      <Button
+        variant="secondary"
+        :disabled="!chosen.some((c) => c.parent_id) || bulkBusy"
+        @click="makeMain"
+      >
+        <ArrowUpToLine />Jadikan utama
+      </Button>
+      <Button
+        variant="secondary"
+        :disabled="!chosen.length || bulkBusy"
+        @click="bulkSet(chosen, 'archived', true, 'diarsipkan')"
+      >
+        <Archive />Arsipkan
+      </Button>
+    </SelectionBar>
+
+    <Overlay v-model:open="parentPicker" labelledby="parent-picker-title">
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <h2 id="parent-picker-title" class="m-0 flex-1 text-panel font-bold">
+            Jadikan {{ chosen.length }} kategori sub dari
+          </h2>
+          <Button variant="ghost" size="icon" aria-label="Tutup" @click="parentPicker = false">
+            <X />
+          </Button>
+        </div>
+        <div class="flex max-h-[55dvh] flex-col gap-0.5 overflow-y-auto" data-no-drag>
+          <ListRow
+            v-for="p in parentChoices"
+            :key="p.id"
+            as="button"
+            :title="p.name"
+            :subtitle="p.children.length ? `${p.children.length} sub` : 'Belum ada sub'"
+            class="press hover:bg-surface-2"
+            @click="makeSubOf(p)"
+          >
+            <template #lead><ToneIcon v-bind="styleOf(p)" size="sm" /></template>
+          </ListRow>
+        </div>
+      </div>
+    </Overlay>
 
     <template v-if="archived.length && !sorting">
       <button

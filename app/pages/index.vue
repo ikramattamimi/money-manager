@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarX, Inbox, Plus, Search } from '@lucide/vue';
+import { CalendarX, Check, Inbox, ListChecks, Plus, Search } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import CardHead from '@/components/base/CardHead.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
@@ -301,15 +301,25 @@ function addFirst() {
               >
             </EmptyState>
           </Card>
-          <div v-if="canEdit && list.length" class="mt-2.5 flex justify-end px-1">
+          <div
+            v-if="canEdit && list.length"
+            class="mt-3 flex items-center justify-between gap-2 px-1"
+          >
+            <span class="text-xs text-muted-foreground">{{
+              selection.selecting.value
+                ? 'Ketuk transaksi untuk memilih'
+                : 'Ubah kategori/akun atau hapus sekaligus'
+            }}</span>
             <Button
-              :variant="selection.selecting.value ? 'soft' : 'ghost'"
-              size="sm"
+              :variant="selection.selecting.value ? 'default' : 'secondary'"
+              size="default"
+              :aria-pressed="selection.selecting.value"
               @click="
                 selection.selecting.value ? selection.stop() : (selection.selecting.value = true)
               "
             >
-              {{ selection.selecting.value ? 'Selesai' : 'Pilih' }}
+              <component :is="selection.selecting.value ? Check : ListChecks" />
+              {{ selection.selecting.value ? 'Selesai' : 'Pilih banyak' }}
             </Button>
           </div>
           <ListGroup
