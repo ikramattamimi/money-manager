@@ -840,6 +840,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      book_member_list: {
+        Args: { p_book_id: string }
+        Returns: {
+          display_name: string
+          email: string | null
+          is_me: boolean
+          joined_at: string
+          role: Database["public"]["Enums"]["book_role"]
+          user_id: string
+        }[]
+      }
       budget_status: {
         Args: { p_book_id: string; p_month: number; p_year: number }
         Returns: {
@@ -899,6 +910,17 @@ export type Database = {
       import_existing_keys: {
         Args: { p_book_id: string; p_keys: string[] }
         Returns: string[]
+      }
+      invite_preview: {
+        Args: { p_token: string }
+        Returns: {
+          book_name: string
+          email_hint: string
+          for_me: boolean
+          invited_by_name: string
+          role: Database["public"]["Enums"]["book_role"]
+          status: string
+        }[]
       }
       monthly_trend: {
         Args: {
