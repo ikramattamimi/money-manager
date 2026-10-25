@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {
   BookOpen,
+  Camera,
   Download,
   History,
   Landmark,
+  LockKeyhole,
   LogOut,
   Monitor,
   Moon,
@@ -23,9 +25,12 @@ import type { ThemePreference } from '@/composables/useTheme';
 import { useAuth } from '@/features/auth/useAuth';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
+import { useLock } from '@/features/lock/useLock';
 
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Lainnya · Money Manager' });
+
+const { active: pinActive } = useLock();
 
 const auth = useAuth();
 const { book, role } = useActiveBook();
@@ -125,6 +130,13 @@ const SECTION =
         @click="navigateTo('/settings/import/bank')"
       />
       <SettingRow
+        :icon="Camera"
+        tone="primary"
+        title="Baca foto struk"
+        subtitle="Struk atau screenshot GoPay, ShopeePay, dibaca AI"
+        @click="navigateTo('/settings/import/photo')"
+      />
+      <SettingRow
         :icon="History"
         title="Riwayat impor"
         subtitle="Lihat atau batalkan impor"
@@ -135,6 +147,16 @@ const SECTION =
         title="Ekspor Excel"
         subtitle="Unduh transaksi sebagai .xlsx"
         @click="navigateTo('/settings/export')"
+      />
+    </Card>
+
+    <div :class="SECTION">Keamanan</div>
+    <Card class="flex flex-col gap-0.5 p-1">
+      <SettingRow
+        :icon="LockKeyhole"
+        title="Kunci PIN"
+        :subtitle="pinActive ? 'Aktif di perangkat ini' : 'Minta PIN saat app dibuka'"
+        @click="navigateTo('/settings/lock')"
       />
     </Card>
 
