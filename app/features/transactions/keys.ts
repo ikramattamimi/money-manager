@@ -4,4 +4,5 @@ export const transactionKeys = {
     [...transactionKeys.all, 'month', bookId, year, month, startDay] as const,
   overview: (bookId: string | null, year: number) =>
     [...transactionKeys.all, 'overview', bookId, year] as const,
+  years: (bookId: string | null) => [...transactionKeys.all, 'years', bookId] as const,
 };

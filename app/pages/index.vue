@@ -27,6 +27,7 @@ import { useTxEditor } from '@/features/transactions/useTxEditor';
 import {
   useMonthsOverview,
   useMonthTransactions,
+  useYearsOverview,
   useTransactionMutations,
   useTxHighlight,
 } from '@/features/transactions/useTransactions';
@@ -76,6 +77,11 @@ function shiftMonth(delta: number) {
   year.value = next.year;
   month.value = next.month;
 }
+/** Tampilan Tahunan: panah dan geser pindah tahun, selain itu pindah bulan */
+function shift(delta: number) {
+  if (view.value === 'yearly') year.value += delta;
+  else shiftMonth(delta);
+}
 
 // Geser kepala halaman ke kiri/kanan untuk pindah bulan
 const header = ref<HTMLElement>();
@@ -87,7 +93,7 @@ useSwipe(header, {
   onEnd: ({ delta, elapsedMs }) => {
     const width = header.value?.offsetWidth ?? 1;
     if (shouldCommit(Math.abs(delta), width, elapsedMs, { ratio: 0.25, minFlick: 30 }))
-      shiftMonth(delta < 0 ? 1 : -1);
+      shift(delta < 0 ? 1 : -1);
   },
 });
 
@@ -95,13 +101,42 @@ const VIEWS = [
   { value: 'daily', label: 'Harian' },
   { value: 'calendar', label: 'Kalender' },
   { value: 'monthly', label: 'Bulanan' },
+  { value: 'yearly', label: 'Tahunan' },
 ] as const;
 const view = useState<(typeof VIEWS)[number]['value']>('tx:view', () => 'daily');
 
 // ---------- data ----------
 const { data: txs, isPending, error } = useMonthTransactions(year, month);
 const list = computed(() => txs.value ?? []);
-const summary = computed(() => summarize(list.value));
+const monthSummary = computed(() => summarize(list.value));
+
+// ---------- tahunan ----------
+const isYearly = computed(() => view.value === 'yearly');
+const { data: yearsData } = useYearsOverview(isYearly);
+const years = computed(() =>
+  (yearsData.value ?? []).map((y) => ({ ...y, net: y.income - y.expense })),
+);
+/** Rentang tahun periode kalau awal bulan bukan tanggal 1: "25 Jan 2026 – 24 Jan 2027" */
+const yearHint = (y: number) => {
+  if (monthStartDay.value <= 1) return '';
+  const first = periodDays(y, 1, monthStartDay.value)[0]!;
+  const last = periodDays(y, 12, monthStartDay.value).at(-1)!;
+  const label = (k: string) =>
+    `${Number(k.slice(8))} ${MONTHS_SHORT[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`;
+  return `${label(first)} – ${label(last)}`;
+};
+
+/** Angka kepala halaman: periode bulan, atau tahun saat tampilan Tahunan */
+const summary = computed(() => {
+  if (!isYearly.value) return { ...monthSummary.value, count: list.value.length };
+  const y = years.value.find((r) => r.year === year.value);
+  return {
+    income: y?.income ?? 0,
+    expense: y?.expense ?? 0,
+    net: y?.net ?? 0,
+    count: y?.tx_count ?? 0,
+  };
+});
 const used = computed(() =>
   summary.value.income ? summary.value.expense / summary.value.income : 0,
 );
@@ -210,24 +245,24 @@ function addFirst() {
       <PageHeader title="Transaksi" :summary="`Sisa ${formatShort(summary.net)}`">
         <template #actions>
           <MonthPicker
-            :label="`${MONTHS_SHORT[month - 1]} ${year}`"
-            :hint="rangeHint"
-            @prev="shiftMonth(-1)"
-            @next="shiftMonth(1)"
+            :label="isYearly ? String(year) : `${MONTHS_SHORT[month - 1]} ${year}`"
+            :hint="isYearly ? yearHint(year) : rangeHint"
+            @prev="shift(-1)"
+            @next="shift(1)"
           />
           <HeaderButton label="Cari" @click="navigateTo('/search')"
             ><Search aria-hidden="true"
           /></HeaderButton>
         </template>
         <PageHero
-          :label="`Sisa ${MONTHS_LONG[month - 1]}`"
+          :label="isYearly ? `Sisa ${year}` : `Sisa ${MONTHS_LONG[month - 1]}`"
           :value="formatRupiah(summary.net)"
           :progress="{ label: 'Terpakai dari pemasukan', value: used }"
         />
         <div class="flex flex-wrap gap-1.5">
           <StatChip label="Masuk" :value="formatShort(summary.income)" tone="ok" />
           <StatChip label="Keluar" :value="formatShort(summary.expense)" tone="bad" />
-          <StatChip label="Transaksi" :value="list.length" />
+          <StatChip label="Transaksi" :value="summary.count" />
         </div>
         <SegmentedControl v-model="view" :options="VIEWS" label="Tampilan" variant="on-grad" />
       </PageHeader>
@@ -349,7 +384,7 @@ function addFirst() {
         </template>
 
         <!-- Bulanan -->
-        <template v-else>
+        <template v-else-if="view === 'monthly'">
           <Card v-if="!months.length" class="mt-3.5">
             <EmptyState
               :icon="Inbox"
@@ -380,6 +415,45 @@ function addFirst() {
                   class="grid size-9 place-items-center rounded-[10px] bg-surface-2 text-xs font-bold text-muted-foreground"
                 >
                   {{ MONTHS_SHORT[m.month - 1] }}
+                </span>
+              </template>
+            </ListRow>
+          </Card>
+        </template>
+
+        <!-- Tahunan -->
+        <template v-else>
+          <Card v-if="!years.length" class="mt-3.5">
+            <EmptyState
+              :icon="Inbox"
+              title="Belum ada transaksi"
+              description="Belum ada catatan di buku ini."
+            />
+          </Card>
+          <Card v-else class="mt-3.5 flex flex-col gap-0.5 p-1">
+            <ListRow
+              v-for="y in years"
+              :key="y.year"
+              as="button"
+              :title="String(y.year)"
+              :subtitle="
+                [
+                  yearHint(y.year),
+                  `Masuk ${formatShort(y.income)} · Keluar ${formatShort(y.expense)} · ${y.tx_count} transaksi`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              "
+              :value="(y.net >= 0 ? '+' : '') + formatShort(y.net)"
+              :value-class="y.net >= 0 ? 'text-primary-accent' : 'text-bad'"
+              :class="y.year === year ? 'bg-surface-2' : ''"
+              @click="((year = y.year), (view = 'monthly'))"
+            >
+              <template #lead>
+                <span
+                  class="grid size-9 place-items-center rounded-[10px] bg-surface-2 text-[11px] font-bold tabular-nums text-muted-foreground"
+                >
+                  {{ String(y.year).slice(2) }}
                 </span>
               </template>
             </ListRow>

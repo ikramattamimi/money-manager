@@ -997,6 +997,15 @@ export type Database = {
         Args: { p_amount?: number; p_pending_id: string }
         Returns: string
       }
+      years_overview: {
+        Args: { p_book_id: string }
+        Returns: {
+          expense: number
+          income: number
+          tx_count: number
+          year: number
+        }[]
+      }
       offset_candidates: {
         Args: {
           p_book_id: string

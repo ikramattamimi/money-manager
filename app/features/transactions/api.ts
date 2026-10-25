@@ -17,6 +17,7 @@ export type OffsetCandidate =
   Database['public']['Functions']['offset_candidates']['Returns'][number];
 export type TxType = Transaction['type'];
 export type MonthOverview = Database['public']['Functions']['months_overview']['Returns'][number];
+export type YearOverview = Database['public']['Functions']['years_overview']['Returns'][number];
 
 /** Kolom yang diisi form; id dibuat di client supaya bisa diurungkan seketika */
 export type TxInput = Pick<
@@ -101,6 +102,13 @@ export const transactionsApi = {
       p_year: year,
     });
     if (error) throw new Error('Gagal memuat ringkasan bulanan.', { cause: error });
+    return data;
+  },
+
+  /** Ringkasan per tahun (tampilan Tahunan), terbaru dulu */
+  async yearsOverview(bookId: string): Promise<YearOverview[]> {
+    const { data, error } = await useSupabase().rpc('years_overview', { p_book_id: bookId });
+    if (error) throw new Error('Gagal memuat ringkasan tahunan.', { cause: error });
     return data;
   },
 

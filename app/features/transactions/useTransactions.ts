@@ -50,6 +50,16 @@ export function useMonthsOverview(year: Ref<number>) {
   });
 }
 
+/** Ringkasan semua tahun; dimuat hanya saat tampilan Tahunan dibuka */
+export function useYearsOverview(enabled: Ref<boolean>) {
+  const { bookId } = useActiveBook();
+  return useQuery({
+    queryKey: computed(() => transactionKeys.years(bookId.value)),
+    queryFn: () => transactionsApi.yearsOverview(bookId.value!),
+    enabled: computed(() => !!bookId.value && enabled.value),
+  });
+}
+
 /** Transaksi yang baru disimpan/dipulihkan, untuk disorot di daftar */
 export function useTxHighlight() {
   return useState<string | null>('tx:highlight', () => null);
