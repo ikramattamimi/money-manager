@@ -22,6 +22,8 @@ export interface ReconcileInput {
   holder: string;
   accounts: { id: string; name: string }[];
   existing: ExistingTx[];
+  /** Awalan dedupe_key: 'bk' mutasi bank (default), 'ph' foto struk/screenshot */
+  keyPrefix?: 'bk' | 'ph';
 }
 
 /** Selisih maksimal tanggal mutasi dan tanggal catatan */
@@ -84,7 +86,7 @@ const amountsOf = (t: ExistingTx, direction: 'in' | 'out') =>
 export async function reconcile(input: ReconcileInput): Promise<ReconciledRow[]> {
   const { rows, accountId, existing } = input;
   const used = new Set<string>();
-  const keys = await dedupeKeys(rows, accountId);
+  const keys = await dedupeKeys(rows, accountId, input.keyPrefix ?? 'bk');
   const byKey = new Map(existing.filter((t) => t.dedupeKey).map((t) => [t.dedupeKey!, t]));
 
   // Pasangan paling pasti diproses dulu: mutasi yang pernah diimpor, lalu yang selisihnya kecil
@@ -196,7 +198,7 @@ function pocketAccount(accounts: { id: string; name: string }[], pocket: string)
  * Kunci duplikat per baris mutasi: akun + tanggal + jam + arah + nominal +
  * saldo, ditambah nomor urut kalau ada baris kembar persis.
  */
-async function dedupeKeys(rows: StatementRow[], accountId: string) {
+async function dedupeKeys(rows: StatementRow[], accountId: string, prefix: string) {
   const seen = new Map<string, number>();
   return Promise.all(
     rows.map((r) => {
@@ -205,7 +207,7 @@ async function dedupeKeys(rows: StatementRow[], accountId: string) {
       );
       const n = (seen.get(base) ?? 0) + 1;
       seen.set(base, n);
-      return sha256(n > 1 ? `${base}#${n}` : base).then((h) => `bk:${h}`);
+      return sha256(n > 1 ? `${base}#${n}` : base).then((h) => `${prefix}:${h}`);
     }),
   );
 }

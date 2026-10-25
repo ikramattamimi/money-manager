@@ -58,6 +58,11 @@ export default defineNuxtConfig({
     // kosong = undangan tetap dibuat, link dibagikan manual.
     resendApiKey: '',
     mailFrom: 'Money Manager <noreply@ikrm.dev>',
+    // Baca foto struk/screenshot (fase 11): NUXT_ANTHROPIC_API_KEY sebagai secret
+    // Worker; kosong = fitur nonaktif. Model dan kuota harian per user bisa diganti.
+    anthropicApiKey: '',
+    ocrModel: 'claude-haiku-5-5',
+    ocrDailyLimit: 30,
     public: {
       // Diisi lewat NUXT_PUBLIC_SUPABASE_URL dan NUXT_PUBLIC_SUPABASE_ANON_KEY
       supabaseUrl: '',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, FileSpreadsheet, History, Landmark, Undo2 } from '@lucide/vue';
+import { ArrowLeft, Camera, FileSpreadsheet, History, Landmark, Undo2 } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import Overlay from '@/components/base/Overlay.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
@@ -70,7 +70,13 @@ function confirm() {
       >
         <template #lead
           ><ToneIcon
-            :icon="b.source === 'bank_statement' ? Landmark : FileSpreadsheet"
+            :icon="
+              b.source === 'bank_statement'
+                ? Landmark
+                : b.source === 'photo'
+                  ? Camera
+                  : FileSpreadsheet
+            "
             :tone="b.status === 'reverted' ? 'neutral' : 'ok'"
             size="sm"
         /></template>

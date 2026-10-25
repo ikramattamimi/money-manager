@@ -1,6 +1,7 @@
 // Tipe impor mutasi bank, dipakai server route dan layar pencocokan.
 
-export type BankId = 'seabank' | 'jago';
+/** Sumber baris: parser PDF per bank, atau 'photo' = struk/screenshot yang dibaca AI */
+export type BankId = 'seabank' | 'jago' | 'photo';
 
 /** Satu baris mutasi, bentuk yang sama untuk semua bank */
 export interface StatementRow {
@@ -56,6 +57,8 @@ export interface BankPreview {
   rows: ReconciledRow[];
   totals: { in: number; out: number };
   declared: { in: number; out: number } | null;
+  /** Foto: sisa jatah baca AI hari ini */
+  quotaLeft?: number;
 }
 
 /** Baris yang disimpan dari layar pencocokan */

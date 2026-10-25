@@ -35,19 +35,19 @@ export function useImportFlow() {
   };
 }
 
-/** Impor mutasi bank: unggah PDF → cocokkan → simpan baris yang dipilih */
-export function useBankImport() {
+/** Impor mutasi bank (PDF) atau foto struk/screenshot: unggah → cocokkan → simpan yang dipilih */
+export function useBankImport(source: 'pdf' | 'photo' = 'pdf') {
   const { bookId } = useActiveBook();
   const client = useQueryClient();
 
   return {
     preview: useMutation({
       mutationFn: ({ file, accountId }: { file: File; accountId: string }) =>
-        importApi.bankPreview(file, bookId.value!, accountId),
+        importApi.bankPreview(file, bookId.value!, accountId, source),
     }),
     commit: useMutation({
       mutationFn: ({ filename, rows }: { filename: string; rows: BankCommitRow[] }) =>
-        importApi.bankCommit(bookId.value!, filename, rows),
+        importApi.bankCommit(bookId.value!, filename, rows, source === 'photo' ? 'photo' : 'bank'),
       onSuccess: () =>
         Promise.all(
           [accountKeys.all, transactionKeys.all, importKeys.all].map((queryKey) =>

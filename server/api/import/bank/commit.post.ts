@@ -11,7 +11,7 @@ const rowSchema = z
     categoryId: z.uuid().nullable(),
     note: z.string().max(200),
     description: z.string().max(500),
-    dedupeKey: z.string().regex(/^bk:[0-9a-f]{40}$/),
+    dedupeKey: z.string().regex(/^(bk|ph):[0-9a-f]{40}$/),
   })
   .refine((r) => r.type !== 'transfer' || (r.toAccountId && r.toAccountId !== r.accountId), {
     message: 'Transfer perlu akun tujuan yang berbeda.',
@@ -20,6 +20,8 @@ const rowSchema = z
 const bodySchema = z.object({
   bookId: z.uuid('Buku tidak valid'),
   filename: z.string().max(200).default(''),
+  /** 'photo' = draf dari foto struk/screenshot (fase 11), selain itu mutasi bank */
+  kind: z.enum(['bank', 'photo']).default('bank'),
   rows: z.array(rowSchema).min(1, 'Pilih minimal satu baris untuk disimpan.').max(2000),
 });
 
@@ -38,6 +40,7 @@ export default defineEventHandler(async (event): Promise<BankCommitResult> => {
   const { data, error } = await db.rpc('commit_bank_import', {
     p_book_id: body.data.bookId,
     p_payload: {
+      kind: body.data.kind,
       filename: body.data.filename,
       transactions: body.data.rows.map((r) => ({
         occurred_at: r.occurredAt,

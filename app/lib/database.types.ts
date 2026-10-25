@@ -926,6 +926,8 @@ export type Database = {
           tx_count: number
         }[]
       }
+      ai_refund_quota: { Args: never; Returns: undefined }
+      ai_take_quota: { Args: { p_limit: number }; Returns: number }
       commit_bank_import: {
         Args: { p_book_id: string; p_payload: Json }
         Returns: Json
@@ -1096,7 +1098,7 @@ export type Database = {
       book_role: "owner" | "editor" | "viewer"
       budget_period: "monthly"
       category_kind: "income" | "expense"
-      import_source: "realbyte_xlsx" | "bank_statement"
+      import_source: "realbyte_xlsx" | "bank_statement" | "photo"
       import_status: "committed" | "reverted"
       recurring_frequency: "daily" | "weekly" | "monthly" | "yearly"
       transaction_source:
@@ -1249,7 +1251,7 @@ export const Constants = {
       book_role: ["owner", "editor", "viewer"],
       budget_period: ["monthly"],
       category_kind: ["income", "expense"],
-      import_source: ["realbyte_xlsx", "bank_statement"],
+      import_source: ["realbyte_xlsx", "bank_statement", "photo"],
       import_status: ["committed", "reverted"],
       recurring_frequency: ["daily", "weekly", "monthly", "yearly"],
       transaction_source: [

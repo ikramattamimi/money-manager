@@ -58,19 +58,29 @@ export const importApi = {
   },
 
   /** Unggah PDF mutasi untuk dicocokkan dengan buku; belum ada yang disimpan */
-  async bankPreview(file: File, bookId: string, accountId: string): Promise<BankPreview> {
+  /** `source`: 'pdf' mutasi bank, 'photo' struk/screenshot yang dibaca AI di server */
+  async bankPreview(
+    file: File,
+    bookId: string,
+    accountId: string,
+    source: 'pdf' | 'photo' = 'pdf',
+  ): Promise<BankPreview> {
     const body = new FormData();
     body.append('file', file);
     body.append('bookId', bookId);
     body.append('accountId', accountId);
     try {
-      return await $fetch<BankPreview>('/api/import/bank/preview', {
+      const path = source === 'photo' ? '/api/import/photo/preview' : '/api/import/bank/preview';
+      return await $fetch<BankPreview>(path, {
         method: 'POST',
         body,
         headers: await authHeaders(),
       });
     } catch (error) {
-      throw new Error(serverMessage(error, 'Gagal membaca mutasi.'), { cause: error });
+      throw new Error(
+        serverMessage(error, source === 'photo' ? 'Gagal membaca foto.' : 'Gagal membaca mutasi.'),
+        { cause: error },
+      );
     }
   },
 
@@ -79,11 +89,12 @@ export const importApi = {
     bookId: string,
     filename: string,
     rows: BankCommitRow[],
+    kind: 'bank' | 'photo' = 'bank',
   ): Promise<BankCommitResult> {
     try {
       return await $fetch<BankCommitResult>('/api/import/bank/commit', {
         method: 'POST',
-        body: { bookId, filename, rows },
+        body: { bookId, filename, rows, kind },
         headers: await authHeaders(),
       });
     } catch (error) {
