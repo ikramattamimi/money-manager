@@ -8,13 +8,13 @@ import type { Account } from '@/features/accounts/api';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 
-// Tambah/ubah akun: nama, grup, saldo awal, ikut total aset, catatan.
+// Tambah/ubah akun: nama, grup, saldo awal, total yang diikuti, catatan.
 // Mengarsipkan menyembunyikan akun tanpa menghapus transaksinya.
 const props = defineProps<{ account: Account | null; titleId: string; page?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
 const { bookId } = useActiveBook();
-const { groups, groupById } = useAccounts();
+const { groups, groupById, accountTotals } = useAccounts();
 const mutations = useAccountMutations();
 const toast = useToast();
 
@@ -24,6 +24,7 @@ const form = reactive({
   opening: Math.abs(props.account?.opening_balance ?? 0),
   negative: (props.account?.opening_balance ?? 0) < 0,
   includeInTotal: props.account?.include_in_total ?? true,
+  totalId: props.account ? (props.account.total_id ?? '') : (null as string | null),
   note: props.account?.note ?? '',
   // Kartu kredit (fase 11 T3): tanggal cetak tagihan dan jatuh tempo, 0 = belum diatur
   statementDay: props.account?.statement_day ?? 0,
@@ -48,6 +49,21 @@ watch(
   { immediate: true },
 );
 
+// Akun baru masuk total pertama (biasanya yang paling sering dipakai)
+const hasTotals = computed(() => !!accountTotals.data.value?.length);
+watch(
+  accountTotals.data,
+  (list) => {
+    if (form.totalId === null && list) form.totalId = list[0]?.id ?? '';
+  },
+  { immediate: true },
+);
+
+function manageTotals() {
+  if (!props.page) emit('close');
+  navigateTo('/accounts/totals');
+}
+
 function save() {
   for (const key of Object.keys(errors)) Reflect.deleteProperty(errors, key);
   if (!form.name.trim()) errors.name = 'Isi nama akun.';
@@ -60,7 +76,10 @@ function save() {
     name: form.name.trim(),
     group_id: form.groupId,
     opening_balance: form.negative ? -form.opening : form.opening,
-    include_in_total: form.includeInTotal,
+    // Ada total buatan sendiri: ikut total = masuk salah satunya
+    ...(hasTotals.value
+      ? { total_id: form.totalId || null, include_in_total: !!form.totalId }
+      : { include_in_total: form.includeInTotal }),
     note: form.note.trim(),
     statement_day: isCard.value && form.statementDay ? form.statementDay : null,
     due_day: isCard.value && form.dueDay ? form.dueDay : null,
@@ -178,7 +197,29 @@ function toggleArchive() {
       label="Saldo awal negatif"
       description="Untuk utang atau tagihan kartu kredit."
     />
+    <!-- Belum ada total buatan sendiri: tetap saklar ikut total aset seperti dulu -->
+    <FormField
+      v-if="accountTotals.data.value?.length"
+      label="Masuk total"
+      for="acc-total"
+      hint="Pilih Tidak ikut total untuk akun titipan atau yang bukan milikmu."
+    >
+      <select id="acc-total" v-model="form.totalId" class="field-input">
+        <option v-for="t in accountTotals.data.value" :key="t.id" :value="t.id">
+          {{ t.name }}{{ t.on_transactions ? ' (tampil di Transaksi)' : '' }}
+        </option>
+        <option value="">Tidak ikut total</option>
+      </select>
+      <button
+        type="button"
+        class="press mt-1 self-start rounded-md text-xs font-semibold text-primary-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        @click="manageTotals"
+      >
+        Buat atau ubah total
+      </button>
+    </FormField>
     <Switch
+      v-else
       id="acc-total"
       v-model="form.includeInTotal"
       label="Sertakan di total aset"

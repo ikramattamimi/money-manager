@@ -10,8 +10,10 @@ import {
   EyeOff,
   FolderCog,
   FolderInput,
+  FolderPlus,
   ListChecks,
   Plus,
+  Sigma,
   Wallet,
   X,
 } from '@lucide/vue';
@@ -30,10 +32,12 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PageHero from '@/components/layout/PageHero.vue';
 import StatChip from '@/components/layout/StatChip.vue';
 import AccountForm from '@/components/money/AccountForm.vue';
+import AccountGroupForm from '@/components/money/AccountGroupForm.vue';
+import AccountTotalForm from '@/components/money/AccountTotalForm.vue';
 import { Button } from '@/components/ui/button';
 import { accountsApi, type Account } from '@/features/accounts/api';
 import { accountKeys } from '@/features/accounts/keys';
-import { ACCOUNT_KIND_STYLE } from '@/features/accounts/style';
+import { groupStyle } from '@/features/accounts/style';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { formatRupiah, formatShort } from '@/lib/format';
@@ -42,7 +46,8 @@ definePageMeta({ layout: 'app' });
 useHead({ title: 'Akun · Money Manager' });
 
 const { canEdit, book } = useActiveBook();
-const { accounts, grouped, groups, totals } = useAccounts();
+const { accounts, grouped, groups, totals, totalViews, totalById } = useAccounts();
+const hasTotals = computed(() => totalViews.value.length > 0);
 const mutations = useAccountMutations();
 
 const sorting = ref(false);
@@ -76,7 +81,12 @@ watch(selecting, (on) => (hideAdd.value = on));
 onBeforeUnmount(() => (hideAdd.value = false));
 
 const bulkBusy = ref(false);
-type Field = 'group_id' | 'include_in_total' | 'archived';
+type Field = 'group_id' | 'include_in_total' | 'archived' | 'total_id';
+/** Total akun: ikut total aset = masuk salah satu total */
+const patchFor = <F extends Field>(field: F, value: Account[F]) =>
+  field === 'total_id'
+    ? { total_id: value as string | null, include_in_total: value !== null }
+    : { [field]: value };
 /** Ubah satu kolom untuk semua akun terpilih, dengan Urungkan ke nilai lama */
 async function bulkSet<F extends Field>(field: F, value: Account[F], message: string) {
   const list = chosen.value;
@@ -85,14 +95,14 @@ async function bulkSet<F extends Field>(field: F, value: Account[F], message: st
   try {
     await accountsApi.updateMany(
       list.map((a) => a.id),
-      { [field]: value },
+      patchFor(field, value),
     );
     await client.invalidateQueries({ queryKey: accountKeys.all });
     stopSelecting();
     const before = new Map<Account[F], string[]>();
     for (const a of list) before.set(a[field], [...(before.get(a[field]) ?? []), a.id]);
     toast.show(`${list.length} akun ${message}`, () =>
-      Promise.all([...before].map(([v, ids]) => accountsApi.updateMany(ids, { [field]: v })))
+      Promise.all([...before].map(([v, ids]) => accountsApi.updateMany(ids, patchFor(field, v))))
         .then(() => client.invalidateQueries({ queryKey: accountKeys.all }))
         .catch((e: Error) => toast.show(e.message)),
     );
@@ -103,9 +113,42 @@ async function bulkSet<F extends Field>(field: F, value: Account[F], message: st
   }
 }
 const groupPicker = ref(false);
+const creatingGroup = ref(false);
+watch(groupPicker, (open) => open || (creatingGroup.value = false));
 function moveTo(groupId: string, name: string) {
   groupPicker.value = false;
   bulkSet('group_id', groupId, `dipindah ke ${name}`);
+}
+
+// Total akun: pilih total (atau buat baru) untuk akun terpilih
+const totalPicker = ref(false);
+const creatingTotal = ref(false);
+watch(totalPicker, (open) => open || (creatingTotal.value = false));
+function setTotal(totalId: string | null, name: string) {
+  totalPicker.value = false;
+  bulkSet('total_id', totalId, totalId ? `masuk ${name}` : 'tidak ikut total');
+}
+/** Nama total akun untuk keterangan baris */
+// Nama total hanya perlu ditulis kalau ada lebih dari satu total
+const totalLabel = (a: Account) => {
+  const total = a.total_id ? totalById.value.get(a.total_id) : undefined;
+  if (!total && !a.include_in_total) return 'tidak ikut total';
+  if (!total) return hasTotals.value ? 'tidak ikut total' : '';
+  return totalViews.value.length > 1 ? total.name : '';
+};
+const subtitleOf = (a: Account, group: string) =>
+  [group, totalLabel(a)].filter(Boolean).join(' · ');
+
+// ---------- urutkan grup (mode Urutkan) ----------
+/**
+ * Hanya grup berisi akun yang tampil; grup kosong tetap di posisinya di antara
+ * mereka, jadi urutan baru diselipkan ke urutan semua grup.
+ */
+function reorderGroups(ids: string[]) {
+  const shown = new Set(ids);
+  const next = [...ids];
+  const all = (groups.data.value ?? []).map((g) => (shown.has(g.id) ? next.shift()! : g.id));
+  mutations.reorderGroups.mutate(all);
 }
 
 const formOpen = ref(false);
@@ -147,6 +190,16 @@ function openForm(account: Account | null) {
         <StatChip label="Aset" :value="formatShort(totals.assets)" tone="ok" />
         <StatChip label="Utang" :value="formatShort(totals.debts)" tone="bad" />
       </div>
+      <!-- Total buatan sendiri; ketuk untuk mengelola -->
+      <button
+        type="button"
+        class="press -mt-0.5 flex flex-wrap items-center gap-1.5 self-start rounded-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad"
+        :aria-label="hasTotals ? 'Kelola total akun' : 'Buat total akun, mis. Uang bulanan'"
+        @click="navigateTo('/accounts/totals')"
+      >
+        <StatChip v-for="t in totalViews" :key="t.id" :label="t.name" :value="formatShort(t.sum)" />
+        <StatChip v-if="!hasTotals" label="Total" value="+ Buat" />
+      </button>
     </PageHeader>
 
     <!-- Di luar rantai v-if di bawah supaya tidak memutus v-else daftar akun -->
@@ -168,6 +221,17 @@ function openForm(account: Account | null) {
       </Button>
     </div>
 
+    <!-- Mode Urutkan: urutan grup dulu, lalu urutan akun di dalam tiap grup -->
+    <ListGroup v-if="sorting && grouped.length > 1" label="Urutan grup">
+      <SortableList :items="grouped" label="Urutan grup akun" @reorder="reorderGroups">
+        <template #default="{ item }">
+          <ListRow :title="item.name" :subtitle="`${item.accounts.length} akun`">
+            <template #lead><ToneIcon v-bind="groupStyle(item)" /></template>
+          </ListRow>
+        </template>
+      </SortableList>
+    </ListGroup>
+
     <Card v-if="accounts.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="4" /></Card>
     <Card v-else-if="!grouped.length" class="mt-3.5">
       <EmptyState
@@ -188,7 +252,7 @@ function openForm(account: Account | null) {
         >
           <template #default="{ item }">
             <ListRow :title="item.name" :subtitle="formatRupiah(item.balance)">
-              <template #lead><ToneIcon v-bind="ACCOUNT_KIND_STYLE[g.kind]" /></template>
+              <template #lead><ToneIcon v-bind="groupStyle(g)" /></template>
             </ListRow>
           </template>
         </SortableList>
@@ -198,7 +262,7 @@ function openForm(account: Account | null) {
             :key="a.id"
             as="button"
             :title="a.name"
-            :subtitle="a.include_in_total ? g.name : `${g.name} · tidak ikut total`"
+            :subtitle="subtitleOf(a, g.name)"
             :value="formatRupiah(a.balance)"
             :value-class="a.balance < 0 ? 'text-bad' : ''"
             :aria-pressed="selected.includes(a.id)"
@@ -217,12 +281,12 @@ function openForm(account: Account | null) {
           >
             <ListRow
               :title="a.name"
-              :subtitle="a.include_in_total ? g.name : `${g.name} · tidak ikut total`"
+              :subtitle="subtitleOf(a, g.name)"
               :value="formatRupiah(a.balance)"
               :value-class="a.balance < 0 ? 'text-bad' : ''"
               class="press hover:bg-surface-2"
             >
-              <template #lead><ToneIcon v-bind="ACCOUNT_KIND_STYLE[g.kind]" /></template>
+              <template #lead><ToneIcon v-bind="groupStyle(g)" /></template>
             </ListRow>
           </NuxtLink>
         </template>
@@ -248,20 +312,82 @@ function openForm(account: Account | null) {
         <Archive />Arsipkan
       </Button>
       <Button
+        v-if="hasTotals"
         variant="secondary"
         :disabled="!chosen.length || bulkBusy"
-        @click="bulkSet('include_in_total', true, 'ikut total aset')"
+        @click="totalPicker = true"
       >
-        <Eye />Ikut total
+        <Sigma />Atur total
       </Button>
-      <Button
-        variant="secondary"
-        :disabled="!chosen.length || bulkBusy"
-        @click="bulkSet('include_in_total', false, 'tidak ikut total aset')"
-      >
-        <EyeOff />Tidak ikut total
-      </Button>
+      <template v-else>
+        <Button
+          variant="secondary"
+          :disabled="!chosen.length || bulkBusy"
+          @click="bulkSet('include_in_total', true, 'ikut total aset')"
+        >
+          <Eye />Ikut total
+        </Button>
+        <Button
+          variant="secondary"
+          :disabled="!chosen.length || bulkBusy"
+          @click="bulkSet('include_in_total', false, 'tidak ikut total aset')"
+        >
+          <EyeOff />Tidak ikut total
+        </Button>
+      </template>
     </SelectionBar>
+
+    <Overlay v-model:open="totalPicker" labelledby="total-picker-title">
+      <!-- Total tujuan belum ada: buat di sini, akun langsung dimasukkan -->
+      <AccountTotalForm
+        v-if="creatingTotal"
+        :total="null"
+        title-id="total-picker-title"
+        @created="(t) => setTotal(t.id, t.name)"
+        @close="creatingTotal = false"
+      />
+      <div v-else class="flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <h2 id="total-picker-title" class="m-0 flex-1 text-panel font-bold">
+            Masukkan {{ chosen.length }} akun ke
+          </h2>
+          <Button variant="ghost" size="icon" aria-label="Tutup" @click="totalPicker = false">
+            <X />
+          </Button>
+        </div>
+        <div class="flex max-h-[55dvh] flex-col gap-0.5 overflow-y-auto" data-no-drag>
+          <ListRow
+            as="button"
+            title="Total baru"
+            subtitle="Buat total, lalu masukkan akunnya ke sana"
+            class="press hover:bg-surface-2"
+            @click="creatingTotal = true"
+          >
+            <template #lead><ToneIcon :icon="Plus" tone="primary" size="sm" /></template>
+          </ListRow>
+          <ListRow
+            v-for="t in totalViews"
+            :key="t.id"
+            as="button"
+            :title="t.name"
+            :subtitle="`${t.accounts.length} akun${t.on_transactions ? ' · tampil di Transaksi' : ''}`"
+            class="press hover:bg-surface-2"
+            @click="setTotal(t.id, t.name)"
+          >
+            <template #lead><ToneIcon :icon="Sigma" tone="primary" size="sm" /></template>
+          </ListRow>
+          <ListRow
+            as="button"
+            title="Tidak ikut total"
+            subtitle="Untuk akun titipan atau yang bukan milikmu"
+            class="press hover:bg-surface-2"
+            @click="setTotal(null, '')"
+          >
+            <template #lead><ToneIcon :icon="EyeOff" tone="neutral" size="sm" /></template>
+          </ListRow>
+        </div>
+      </div>
+    </Overlay>
 
     <template v-if="archived.length">
       <button
@@ -293,7 +419,15 @@ function openForm(account: Account | null) {
     </template>
 
     <Overlay v-model:open="groupPicker" labelledby="group-picker-title">
-      <div class="flex flex-col gap-3">
+      <!-- Grup tujuan belum ada: buat di sini, akun langsung dipindah ke grup baru -->
+      <AccountGroupForm
+        v-if="creatingGroup"
+        :group="null"
+        title-id="group-picker-title"
+        @created="(g) => moveTo(g.id, g.name)"
+        @close="creatingGroup = false"
+      />
+      <div v-else class="flex flex-col gap-3">
         <div class="flex items-center gap-2">
           <h2 id="group-picker-title" class="m-0 flex-1 text-panel font-bold">
             Pindahkan {{ chosen.length }} akun ke
@@ -304,15 +438,24 @@ function openForm(account: Account | null) {
         </div>
         <div class="flex max-h-[55dvh] flex-col gap-0.5 overflow-y-auto" data-no-drag>
           <ListRow
+            as="button"
+            title="Grup baru"
+            subtitle="Buat grup, lalu pindahkan akunnya ke sana"
+            class="press hover:bg-surface-2"
+            @click="creatingGroup = true"
+          >
+            <template #lead><ToneIcon :icon="FolderPlus" tone="primary" size="sm" /></template>
+          </ListRow>
+          <ListRow
             v-for="g in groups.data.value"
             :key="g.id"
             as="button"
             :title="g.name"
-            :subtitle="ACCOUNT_KIND_STYLE[g.kind].label"
+            :subtitle="groupStyle(g).label"
             class="press hover:bg-surface-2"
             @click="moveTo(g.id, g.name)"
           >
-            <template #lead><ToneIcon v-bind="ACCOUNT_KIND_STYLE[g.kind]" size="sm" /></template>
+            <template #lead><ToneIcon v-bind="groupStyle(g)" size="sm" /></template>
           </ListRow>
         </div>
       </div>

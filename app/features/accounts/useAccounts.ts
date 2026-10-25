@@ -2,11 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { transactionKeys } from '@/features/transactions/keys';
 import type { TablesInsert, TablesUpdate } from '@/lib/database.types';
-import { accountsApi, type Account, type AccountGroup } from './api';
+import { accountsApi, type Account, type AccountGroup, type AccountTotal } from './api';
 import { accountKeys } from './keys';
-import { ACCOUNT_KIND_STYLE } from './style';
+import { groupStyle } from './style';
 
 export interface AccountGroupView extends AccountGroup {
+  accounts: Account[];
+  sum: number;
+}
+
+export interface AccountTotalView extends AccountTotal {
   accounts: Account[];
   sum: number;
 }
@@ -23,6 +28,12 @@ export function useAccounts() {
   const groups = useQuery({
     queryKey: computed(() => accountKeys.groups(bookId.value)),
     queryFn: () => accountsApi.groups(bookId.value!),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+  const accountTotals = useQuery({
+    queryKey: computed(() => accountKeys.totals(bookId.value)),
+    queryFn: () => accountsApi.totals(bookId.value!),
     enabled,
     staleTime: 5 * 60_000,
   });
@@ -53,15 +64,40 @@ export function useAccounts() {
     return { assets, debts, net: assets + debts };
   });
 
+  /** Total buatan sendiri beserta akun aktif dan saldonya, urut seperti diatur */
+  const totalViews = computed<AccountTotalView[]>(() =>
+    (accountTotals.data.value ?? []).map((t) => {
+      const list = active.value.filter((a) => a.total_id === t.id);
+      return { ...t, accounts: list, sum: list.reduce((s, a) => s + a.balance, 0) };
+    }),
+  );
+  const totalById = computed(() => new Map(totalViews.value.map((t) => [t.id, t])));
+  /** Total yang tampil di halaman Transaksi; null = semua akun */
+  const transactionsTotal = computed(() => totalViews.value.find((t) => t.on_transactions) ?? null);
+
   function style(accountId: string | null | undefined) {
     const account = accountId ? byId.value.get(accountId) : undefined;
     const group = account ? groupById.value.get(account.group_id) : undefined;
-    return ACCOUNT_KIND_STYLE[group?.kind ?? 'other'];
+    return groupStyle(group);
   }
 
   const name = (id: string | null | undefined) => (id ? (byId.value.get(id)?.name ?? '') : '');
 
-  return { accounts, groups, byId, active, grouped, totals, style, name, groupById };
+  return {
+    accounts,
+    groups,
+    accountTotals,
+    byId,
+    active,
+    grouped,
+    totals,
+    totalViews,
+    totalById,
+    transactionsTotal,
+    style,
+    name,
+    groupById,
+  };
 }
 
 export function useAccountLedger(accountId: Readonly<Ref<string>>) {
@@ -145,6 +181,34 @@ export function useAccountMutations() {
         onError(error);
       },
       onSettled: invalidate,
+    }),
+    createTotal: useMutation({
+      mutationFn: (input: TablesInsert<'account_totals'>) => accountsApi.createTotal(input),
+      onSuccess: invalidate,
+      onError,
+    }),
+    updateTotal: useMutation({
+      mutationFn: ({ id, patch }: { id: string; patch: TablesUpdate<'account_totals'> }) =>
+        accountsApi.updateTotal(id, patch),
+      onSuccess: invalidate,
+      onError,
+    }),
+    deleteTotal: useMutation({
+      mutationFn: ({ id, bookId }: { id: string; bookId: string }) =>
+        accountsApi.deleteTotal(id, bookId),
+      onSuccess: invalidate,
+      onError,
+    }),
+    setTransactionsTotal: useMutation({
+      mutationFn: ({ bookId, id }: { bookId: string; id: string | null }) =>
+        accountsApi.setTransactionsTotal(bookId, id),
+      onSuccess: invalidate,
+      onError,
+    }),
+    reorderTotals: useMutation({
+      mutationFn: (ids: string[]) => accountsApi.reorderTotals(ids),
+      onSuccess: invalidate,
+      onError,
     }),
     adjust: useMutation({
       mutationFn: ({ id, actual }: { id: string; actual: number }) =>

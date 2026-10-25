@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarX, Check, Inbox, ListChecks, Plus, Search } from '@lucide/vue';
+import { CalendarX, Check, Inbox, Layers, ListChecks, Plus, Search, Sigma } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import CardHead from '@/components/base/CardHead.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
@@ -18,6 +18,7 @@ import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
 import BulkTxBar from '@/components/money/BulkTxBar.vue';
 import TransactionRow from '@/components/money/TransactionRow.vue';
 import { Button } from '@/components/ui/button';
+import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
@@ -111,14 +112,43 @@ const view = useState<(typeof VIEWS)[number]['value']>('tx:view', () => 'daily')
 watch([view, year, month], () => selection.stop());
 onBeforeUnmount(() => selection.stop());
 
+// ---------- cakupan: total yang tampil di Transaksi (mis. Uang bulanan) atau semua ----------
+// Ada total bertanda "tampil di Transaksi": transaksi dan ringkasan hanya dari
+// akunnya (transfer ikut kalau salah satu sisinya ada di sana). Bisa dilihat
+// semua akun lewat tombol di kepala halaman; pilihan bertahan saat pindah tab.
+const { accounts, transactionsTotal } = useAccounts();
+const showAll = useState('tx:all-accounts', () => false);
+// Total di Transaksi diganti/dihapus: mulai lagi dari total itu
+watch(
+  () => transactionsTotal.value?.id,
+  (id, old) => old !== undefined && id !== old && (showAll.value = false),
+);
+const scope = computed(() => (showAll.value ? null : transactionsTotal.value));
+const scopeId = computed(() => scope.value?.id ?? null);
+const scopeIds = computed(() =>
+  scope.value
+    ? new Set(
+        (accounts.data.value ?? []).filter((a) => a.total_id === scope.value!.id).map((a) => a.id),
+      )
+    : null,
+);
+
 // ---------- data ----------
 const { data: txs, isPending, error } = useMonthTransactions(year, month);
-const list = computed(() => txs.value ?? []);
+const list = computed(() => {
+  const all = txs.value ?? [];
+  const ids = scopeIds.value;
+  if (!ids) return all;
+  return all.filter(
+    (t) => ids.has(t.account_id) || (!!t.to_account_id && ids.has(t.to_account_id)),
+  );
+});
+watch(scopeId, () => selection.stop());
 const monthSummary = computed(() => summarize(list.value));
 
 // ---------- tahunan ----------
 const isYearly = computed(() => view.value === 'yearly');
-const { data: yearsData } = useYearsOverview(isYearly);
+const { data: yearsData } = useYearsOverview(isYearly, scopeId);
 const years = computed(() =>
   (yearsData.value ?? []).map((y) => ({ ...y, net: y.income - y.expense })),
 );
@@ -190,7 +220,7 @@ const selectedList = computed(() =>
 const isFuture = (key: string) => key > todayKey;
 
 // ---------- bulanan ----------
-const { data: overview } = useMonthsOverview(year);
+const { data: overview } = useMonthsOverview(year, scopeId);
 const months = computed(() =>
   (overview.value ?? [])
     .slice()
@@ -269,6 +299,24 @@ function addFirst() {
           <StatChip label="Masuk" :value="formatShort(summary.income)" tone="ok" />
           <StatChip label="Keluar" :value="formatShort(summary.expense)" tone="bad" />
           <StatChip label="Transaksi" :value="summary.count" />
+        </div>
+        <!-- Total yang tampil di Transaksi: saldonya, dan tombol lihat semua akun -->
+        <div v-if="transactionsTotal" class="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            class="press inline-flex h-6.5 items-center gap-1.5 rounded-full border border-glass-line bg-glass px-2.5 text-xs text-on-grad-2 hover:bg-glass-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad [&_svg]:size-3.5"
+            :aria-pressed="!showAll"
+            @click="showAll = !showAll"
+          >
+            <component :is="showAll ? Layers : Sigma" aria-hidden="true" />
+            {{ showAll ? 'Semua akun' : transactionsTotal.name }}
+            <span class="text-on-grad-2/80">· ganti</span>
+          </button>
+          <StatChip
+            v-if="!showAll"
+            :label="`Saldo ${transactionsTotal.name}`"
+            :value="formatShort(transactionsTotal.sum)"
+          />
         </div>
         <SegmentedControl v-model="view" :options="VIEWS" label="Tampilan" variant="on-grad" />
       </PageHeader>

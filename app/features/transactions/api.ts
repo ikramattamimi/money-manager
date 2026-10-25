@@ -96,18 +96,26 @@ export const transactionsApi = {
     return withLinks(data as unknown as Parameters<typeof withLinks>[0]);
   },
 
-  async monthsOverview(bookId: string, year: number): Promise<MonthOverview[]> {
+  async monthsOverview(
+    bookId: string,
+    year: number,
+    totalId: string | null = null,
+  ): Promise<MonthOverview[]> {
     const { data, error } = await useSupabase().rpc('months_overview', {
       p_book_id: bookId,
       p_year: year,
+      ...(totalId ? { p_total_id: totalId } : {}),
     });
     if (error) throw new Error('Gagal memuat ringkasan bulanan.', { cause: error });
     return data;
   },
 
   /** Ringkasan per tahun (tampilan Tahunan), terbaru dulu */
-  async yearsOverview(bookId: string): Promise<YearOverview[]> {
-    const { data, error } = await useSupabase().rpc('years_overview', { p_book_id: bookId });
+  async yearsOverview(bookId: string, totalId: string | null = null): Promise<YearOverview[]> {
+    const { data, error } = await useSupabase().rpc('years_overview', {
+      p_book_id: bookId,
+      ...(totalId ? { p_total_id: totalId } : {}),
+    });
     if (error) throw new Error('Gagal memuat ringkasan tahunan.', { cause: error });
     return data;
   },

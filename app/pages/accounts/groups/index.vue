@@ -12,7 +12,7 @@ import HeaderButton from '@/components/layout/HeaderButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import AccountGroupForm from '@/components/money/AccountGroupForm.vue';
 import type { AccountGroup } from '@/features/accounts/api';
-import { ACCOUNT_KIND_STYLE } from '@/features/accounts/style';
+import { groupStyle } from '@/features/accounts/style';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 
@@ -32,7 +32,7 @@ function subtitle(g: AccountGroup) {
   const all = (accounts.data.value ?? []).filter((a) => a.group_id === g.id);
   const active = all.filter((a) => !a.archived).length;
   const archived = all.length - active;
-  const kind = ACCOUNT_KIND_STYLE[g.kind].label;
+  const kind = groupStyle(g).label;
   if (!accounts.data.value) return kind;
   if (!all.length) return `${kind} · kosong`;
   return `${kind} · ${active} akun${archived ? `, ${archived} diarsipkan` : ''}`;
@@ -86,7 +86,7 @@ function openForm(group: AccountGroup | null) {
       >
         <template #default="{ item }">
           <ListRow :title="item.name">
-            <template #lead><ToneIcon v-bind="ACCOUNT_KIND_STYLE[item.kind]" /></template>
+            <template #lead><ToneIcon v-bind="groupStyle(item)" /></template>
           </ListRow>
         </template>
       </SortableList>
@@ -102,7 +102,7 @@ function openForm(group: AccountGroup | null) {
         :class="canEdit ? 'press hover:bg-surface-2' : ''"
         @click="openForm(g)"
       >
-        <template #lead><ToneIcon v-bind="ACCOUNT_KIND_STYLE[g.kind]" /></template>
+        <template #lead><ToneIcon v-bind="groupStyle(g)" /></template>
       </ListRow>
     </ListGroup>
 

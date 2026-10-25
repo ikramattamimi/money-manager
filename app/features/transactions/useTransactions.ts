@@ -41,21 +41,22 @@ export function useMonthTransactions(year: Ref<number>, month: Ref<number>) {
   return query;
 }
 
-export function useMonthsOverview(year: Ref<number>) {
+/** `totalId`: hanya akun di total itu (total yang tampil di Transaksi); null = semua */
+export function useMonthsOverview(year: Ref<number>, totalId: Ref<string | null>) {
   const { bookId } = useActiveBook();
   return useQuery({
-    queryKey: computed(() => transactionKeys.overview(bookId.value, year.value)),
-    queryFn: () => transactionsApi.monthsOverview(bookId.value!, year.value),
+    queryKey: computed(() => transactionKeys.overview(bookId.value, year.value, totalId.value)),
+    queryFn: () => transactionsApi.monthsOverview(bookId.value!, year.value, totalId.value),
     enabled: computed(() => !!bookId.value),
   });
 }
 
 /** Ringkasan semua tahun; dimuat hanya saat tampilan Tahunan dibuka */
-export function useYearsOverview(enabled: Ref<boolean>) {
+export function useYearsOverview(enabled: Ref<boolean>, totalId: Ref<string | null>) {
   const { bookId } = useActiveBook();
   return useQuery({
-    queryKey: computed(() => transactionKeys.years(bookId.value)),
-    queryFn: () => transactionsApi.yearsOverview(bookId.value!),
+    queryKey: computed(() => transactionKeys.years(bookId.value, totalId.value)),
+    queryFn: () => transactionsApi.yearsOverview(bookId.value!, totalId.value),
     enabled: computed(() => !!bookId.value && enabled.value),
   });
 }

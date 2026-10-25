@@ -9,7 +9,7 @@ import ToneIcon from '@/components/data/ToneIcon.vue';
 import HeaderButton from '@/components/layout/HeaderButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { Button } from '@/components/ui/button';
-import { ACCOUNT_KIND_STYLE } from '@/features/accounts/style';
+import { groupStyle } from '@/features/accounts/style';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { formatRupiah } from '@/lib/format';
@@ -105,7 +105,7 @@ async function save() {
         :subtitle="`Tercatat ${formatRupiah(a.balance)}`"
         class="items-center"
       >
-        <template #lead><ToneIcon v-bind="ACCOUNT_KIND_STYLE[g.kind]" size="sm" /></template>
+        <template #lead><ToneIcon v-bind="groupStyle(g)" size="sm" /></template>
         <template #end>
           <div class="flex items-center gap-1">
             <button

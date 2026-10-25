@@ -18,9 +18,53 @@ export type Database = {
         Row: {
           book_id: string
           created_at: string
+          icon: string | null
           id: string
           kind: Database["public"]["Enums"]["account_kind"]
           name: string
+          sort: number
+          tone: string | null
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["account_kind"]
+          name: string
+          sort?: number
+          tone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["account_kind"]
+          name?: string
+          sort?: number
+          tone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_groups_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_totals: {
+        Row: {
+          book_id: string
+          created_at: string
+          id: string
+          name: string
+          on_transactions: boolean
           sort: number
           updated_at: string
         }
@@ -28,8 +72,8 @@ export type Database = {
           book_id: string
           created_at?: string
           id?: string
-          kind?: Database["public"]["Enums"]["account_kind"]
           name: string
+          on_transactions?: boolean
           sort?: number
           updated_at?: string
         }
@@ -37,14 +81,14 @@ export type Database = {
           book_id?: string
           created_at?: string
           id?: string
-          kind?: Database["public"]["Enums"]["account_kind"]
           name?: string
+          on_transactions?: boolean
           sort?: number
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "account_groups_book_id_fkey"
+            foreignKeyName: "account_totals_book_id_fkey"
             columns: ["book_id"]
             isOneToOne: false
             referencedRelation: "books"
@@ -66,6 +110,7 @@ export type Database = {
           opening_balance: number
           sort: number
           statement_day: number | null
+          total_id: string | null
           updated_at: string
         }
         Insert: {
@@ -81,6 +126,7 @@ export type Database = {
           opening_balance?: number
           sort?: number
           statement_day?: number | null
+          total_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -96,6 +142,7 @@ export type Database = {
           opening_balance?: number
           sort?: number
           statement_day?: number | null
+          total_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -991,7 +1038,7 @@ export type Database = {
         Returns: { expense: number; income: number; month: number; year: number }[]
       }
       months_overview: {
-        Args: { p_book_id: string; p_year: number }
+        Args: { p_book_id: string; p_total_id?: string; p_year: number }
         Returns: {
           expense: number
           income: number
@@ -1004,7 +1051,7 @@ export type Database = {
         Returns: string
       }
       years_overview: {
-        Args: { p_book_id: string }
+        Args: { p_book_id: string; p_total_id?: string }
         Returns: {
           expense: number
           income: number

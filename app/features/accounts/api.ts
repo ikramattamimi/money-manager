@@ -2,6 +2,7 @@ import type { Database, Tables, TablesInsert, TablesUpdate } from '@/lib/databas
 import { useSupabase } from '@/lib/supabase';
 
 export type AccountGroup = Tables<'account_groups'>;
+export type AccountTotal = Tables<'account_totals'>;
 export type Account = Tables<'accounts'> & { balance: number };
 export type LedgerRow = Database['public']['Functions']['account_ledger']['Returns'][number];
 
@@ -51,6 +52,71 @@ export const accountsApi = {
     );
     const failed = results.find((r) => r.error);
     if (failed?.error) throw new Error('Gagal menyimpan urutan grup.', { cause: failed.error });
+  },
+
+  async totals(bookId: string): Promise<AccountTotal[]> {
+    const { data, error } = await useSupabase()
+      .from('account_totals')
+      .select('*')
+      .eq('book_id', bookId)
+      .order('sort')
+      .order('created_at');
+    if (error) throw new Error('Gagal memuat total akun.', { cause: error });
+    return data;
+  },
+
+  async createTotal(input: TablesInsert<'account_totals'>): Promise<AccountTotal> {
+    const { data, error } = await useSupabase()
+      .from('account_totals')
+      .insert(input)
+      .select()
+      .single();
+    if (error) throw new Error('Gagal menambah total.', { cause: error });
+    return data;
+  },
+
+  async updateTotal(id: string, patch: TablesUpdate<'account_totals'>): Promise<void> {
+    const { error } = await useSupabase().from('account_totals').update(patch).eq('id', id);
+    if (error) throw new Error('Gagal menyimpan total.', { cause: error });
+  },
+
+  /** Akun di total ini jadi tidak ikut total (bukan ikut terhapus) */
+  async deleteTotal(id: string, bookId: string): Promise<void> {
+    const supabase = useSupabase();
+    const accounts = await supabase
+      .from('accounts')
+      .update({ include_in_total: false })
+      .eq('book_id', bookId)
+      .eq('total_id', id);
+    if (accounts.error) throw new Error('Gagal menghapus total.', { cause: accounts.error });
+    const { error } = await supabase.from('account_totals').delete().eq('id', id);
+    if (error) throw new Error('Gagal menghapus total.', { cause: error });
+  },
+
+  /** Jadikan satu total yang tampil di halaman Transaksi (null = semua akun) */
+  async setTransactionsTotal(bookId: string, id: string | null): Promise<void> {
+    const supabase = useSupabase();
+    const off = await supabase
+      .from('account_totals')
+      .update({ on_transactions: false })
+      .eq('book_id', bookId)
+      .eq('on_transactions', true);
+    if (off.error) throw new Error('Gagal mengatur total.', { cause: off.error });
+    if (!id) return;
+    const { error } = await supabase
+      .from('account_totals')
+      .update({ on_transactions: true })
+      .eq('id', id);
+    if (error) throw new Error('Gagal mengatur total.', { cause: error });
+  },
+
+  async reorderTotals(ids: string[]): Promise<void> {
+    const supabase = useSupabase();
+    const results = await Promise.all(
+      ids.map((id, sort) => supabase.from('account_totals').update({ sort }).eq('id', id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw new Error('Gagal menyimpan urutan total.', { cause: failed.error });
   },
 
   /** Akun beserta saldonya (dari view account_balances, dihitung di database) */
