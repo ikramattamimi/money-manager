@@ -210,3 +210,45 @@ pemasukan dan pengeluaran. Periode kosong menampilkan keadaan kosong, bukan
 - Reimburse bulan November untuk berobat bulan Oktober menurunkan statistik
   Oktober, bukan November.
 - Kaitan yang melebihi nominal ditolak database walau dipanggil langsung lewat API.
+
+## Catatan pelaksanaan
+
+Dikerjakan di branch `fase-10-penyempurnaan` (dicabang dari `fase-8-impor-bank`).
+Urutan: T1 → T6 → T2 → T3 → T4 → T5, supaya RPC baru (T3, T5) langsung memakai
+periode bulan dan nominal bersih.
+
+- **T1 Tanggal awal bulan**: `books.month_start_day`, fungsi
+  `private.period_start/period_key/book_start_day`, dan `periodRange/periodOf/
+  periodDays/periodRangeLabel` di `app/lib/time.ts` (aturan sama, dites di dua
+  sisi). `months_overview`, `monthly_trend`, `budget_status` memakai periode;
+  `category_breakdown` dan pencarian menerima rentang dari client. Kunci query
+  bulan berisi `startDay`, dan menyimpan pengaturan memuat ulang semua data
+  transaksi/statistik. Kalender di tab Transaksi menampilkan tanggal periode
+  (bisa lintas dua bulan, tanggal 1 bulan berikutnya diberi nama bulannya).
+  `MonthPicker` punya `hint` untuk rentang tanggal. Pengaturan di halaman buku
+  (pemilik saja, RLS). Dicek: dengan awal 25, periode September di UI, query
+  langsung, dan RPC sama-sama Rp3.268.396 / 68 transaksi; pengaturan buku user
+  dikembalikan ke 1 setelah dicek. Tes: `supabase/tests/period_test.sql`.
+- **T6 Kaitkan transaksi**: tabel `transaction_offsets` (RLS seperti
+  `transactions`), trigger penjaga (jenis, buku, batas nominal; nominal/jenis
+  transaksi yang sudah dikaitkan tidak bisa diubah melewati kaitannya), RPC
+  `set_income_offsets` dan `offset_candidates`. `private.offsets_by_tx` dipakai
+  semua RPC statistik. Di client, baris transaksi membawa `linked` (embed dua
+  FK) dan `netAmount` dipakai ringkasan bulan, kalender, dan pengeluaran
+  teratas; detail akun tetap nominal asli. `LinkSection` di form: pemasukan
+  memilih pengeluaran + nominal, pengeluaran menampilkan pengganti, lepas
+  kaitan, dan "Tandai sudah diganti". Hapus lalu urungkan memasang lagi kaitan.
+  Dicek di browser dengan transaksi uji (dihapus lagi): pengeluaran Oktober turun
+  Rp100.000, pemasukan tetap 0, UI = database. Tes: `supabase/tests/offsets_test.sql`.
+- **T2 Tombol +**: di atas tab bar (HP), kanan bawah (iPad), hanya di `/` dan
+  `/accounts…`; tab bar kembali selebar layar; toast dan padding bawah naik saat
+  tombol tampil.
+- **T3 Tahunan**: RPC `years_overview`; total tiap tahun = jumlah 12 bulannya
+  (dicek untuk 2024–2026 di data user).
+- **T4 Grafik**: `TREND_TONE` (r1 biru masuk, r2 oranye keluar) di `tone.ts`;
+  angka ringkas di bawah tiap bulan dengan teks netral + penanda warna supaya
+  kontras cukup di mode terang.
+- **T5 Ringkasan**: RPC `period_insight` (angka mentah), kalimat di
+  `app/features/stats/insight.ts` (+ tes). Periode berjalan memakai "sejauh ini"
+  saat dibanding periode sebelumnya yang penuh, plus proyeksi akhir periode.
+  Status budget hanya untuk periode bulan.
