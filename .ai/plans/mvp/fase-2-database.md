@@ -31,7 +31,7 @@ ada di migration.
 
 ### Out of Scope
 - UI undangan dan pindah buku (fase 9). Tabel dan RPC-nya sudah dibuat di sini
-- Tabel lampiran foto (fase 10)
+- Tabel lampiran foto (fase 11)
 
 ## Current State
 - Relevant files:

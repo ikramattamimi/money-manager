@@ -1,7 +1,7 @@
-# Fase 10: Fitur Lanjutan
+# Fase 11: Fitur Lanjutan
 
 ## Why
-Setelah fase 1-9, fitur Realbyte yang sering dipakai sudah ada. Fase ini
+Setelah fase 1-10, fitur Realbyte yang sering dipakai sudah ada. Fase ini
 berisi sisa fitur Realbyte dan input dari foto. Foto struk atau screenshot
 riwayat dibutuhkan untuk e-wallet yang tidak punya ekspor mutasi (GoPay,
 ShopeePay).

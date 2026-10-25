@@ -30,7 +30,7 @@ disimpan sekaligus.
 
 ### Out of Scope
 - Sinkronisasi otomatis dengan bank (API open banking)
-- Riwayat GoPay/ShopeePay yang tidak punya fitur ekspor (fase 10, lewat
+- Riwayat GoPay/ShopeePay yang tidak punya fitur ekspor (fase 11, lewat
   screenshot + AI)
 
 ## Current State

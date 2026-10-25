@@ -49,7 +49,8 @@ Tiap fase punya spec sendiri dengan format `.ai/templates/spec.md`.
 | 7 | [fase-7-statistik-budget.md](fase-7-statistik-budget.md) | Statistik, budget, pencarian & filter | Fitur Realbyte belum lengkap |
 | 8 | [fase-8-impor-bank.md](fase-8-impor-bank.md) | Impor mutasi bank + pencocokan | Mengejar transaksi yang tertinggal tetap manual |
 | 9 | [fase-9-berbagi-buku.md](fase-9-berbagi-buku.md) | Undangan, peran, pindah buku | Belum bisa dipakai bersama orang lain |
-| 10 | [fase-10-lanjutan.md](fase-10-lanjutan.md) | Foto struk (AI), PIN, kartu kredit, cicilan | Rendah, nilai tambah |
+| 10 | [fase-10-penyempurnaan.md](fase-10-penyempurnaan.md) | Tanggal awal bulan, tombol + per tab, tampilan tahunan, angka grafik, ringkasan insight, kaitkan transaksi (reimburse/utang) | Budget dan statistik terbelah bagi yang gajian bukan tanggal 1 |
+| 11 | [fase-11-lanjutan.md](fase-11-lanjutan.md) | Foto struk (AI), PIN, kartu kredit, cicilan | Rendah, nilai tambah |
 
 ## Urutan dan ketergantungan
 
@@ -58,7 +59,8 @@ Fase 1 ──┬──> Fase 2 ──┬──> Fase 4 ──> Fase 5 ──> Fa
          │             │       │                     │
          └──> Fase 3 ──┘       │                     └──> Fase 8
                                └──> Fase 9 (kapan saja setelah 4)
-                                                     Fase 10 (setelah 6)
+                                                     Fase 10 (setelah 7 dan 9)
+                                                     Fase 11 (setelah 6)
 ```
 
 - **Fase 2 dan 3 independen** setelah fase 1 dan bisa jalan paralel. Fase 3
@@ -80,7 +82,7 @@ Pekerjaan boleh paralel kalau file yang disentuh tidak sama. Konflik di
 | C | **Fase 4** T1 (akun) ∥ T2 (kategori), lalu T3-T6 (transaksi & tampilan) | T3 butuh akun dan kategori |
 | D | **Fase 5** ∥ **Fase 9** | Folder fitur berbeda (`features/import` vs `features/books`) |
 | E | **Fase 6** T1-T2 (quick-add) ∥ T3-T4 (template, berulang) ∥ **Fase 7** | Fase 7 hanya membaca transaksi |
-| F | **Fase 8**, lalu **Fase 10** | |
+| F | **Fase 8**, lalu **Fase 10**, lalu **Fase 11** | Fase 10 menyentuh RPC per bulan dari fase 4 dan 7 |
 
 ## Aturan kerja untuk semua fase
 

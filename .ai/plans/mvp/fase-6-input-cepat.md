@@ -27,11 +27,11 @@ bensin), dan polanya sudah terlihat dari data Realbyte.
   app dibuka
 
 ### Must Not
-- Memanggil AI untuk quick-add di fase ini (fase 10)
+- Memanggil AI untuk quick-add di fase ini (fase 11)
 - Menyimpan transaksi tanpa nominal yang jelas
 
 ### Out of Scope
-- Foto struk (fase 10)
+- Foto struk (fase 11)
 - Mutasi bank (fase 8)
 
 ## Current State
