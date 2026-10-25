@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   BookOpen,
+  ChevronRight,
   Camera,
   Download,
   History,
@@ -26,11 +27,14 @@ import { useAuth } from '@/features/auth/useAuth';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useLock } from '@/features/lock/useLock';
+import { useProfile } from '@/features/profile/useProfile';
+import Avatar from '@/components/data/Avatar.vue';
 
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Lainnya · Money Manager' });
 
 const { active: pinActive } = useLock();
+const profile = useProfile();
 
 const auth = useAuth();
 const { book, role } = useActiveBook();
@@ -64,6 +68,23 @@ const SECTION =
 <template>
   <div class="mx-auto md:max-w-[620px]">
     <PageHeader title="Lainnya" />
+
+    <Card class="mt-3.5 p-1">
+      <button
+        type="button"
+        class="press flex w-full items-center gap-3 rounded-[10px] px-2.5 py-2.5 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        @click="navigateTo('/settings/profile')"
+      >
+        <Avatar :name="profile.displayName.value" :url="profile.avatarUrl.value" size="lg" />
+        <span class="flex min-w-0 flex-1 flex-col">
+          <b class="truncate text-label font-semibold">{{ profile.displayName.value }}</b>
+          <small class="truncate text-xs text-muted-foreground"
+            >{{ auth.user.value?.email }} · ubah profil</small
+          >
+        </span>
+        <ChevronRight class="size-4 text-faint" aria-hidden="true" />
+      </button>
+    </Card>
 
     <div :class="SECTION">Buku</div>
     <Card class="flex flex-col gap-0.5 p-1">

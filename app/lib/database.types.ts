@@ -382,18 +382,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           display_name: string
           id: string
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string
           id: string
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string
           id?: string
@@ -891,6 +894,7 @@ export type Database = {
       book_member_list: {
         Args: { p_book_id: string }
         Returns: {
+          avatar_url: string | null
           display_name: string
           email: string | null
           is_me: boolean

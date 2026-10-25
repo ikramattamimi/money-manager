@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 import { LogOut, Monitor, Moon, Plus, Sun, Wallet } from '@lucide/vue';
+import Avatar from '@/components/data/Avatar.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import { NAV_ITEMS, navHref } from '@/lib/navigation';
 import type { ThemePreference } from '@/composables/useTheme';
@@ -20,6 +21,7 @@ defineProps<{
   active: string;
   bookName: string;
   userName: string;
+  userAvatar?: string | null;
   userRole: string;
   extras?: SidebarExtra[];
   canAdd?: boolean;
@@ -122,15 +124,22 @@ const ITEM =
       <div
         class="grid h-11 grid-cols-[2.75rem_1fr_auto] items-center rounded-xl border border-glass-line bg-glass"
       >
-        <span
-          class="grid size-7.5 place-items-center justify-self-center rounded-full bg-on-grad text-xs font-bold text-grad-ink"
+        <NuxtLink
+          to="/settings/profile"
+          class="col-span-2 grid grid-cols-[2.75rem_1fr] items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad"
+          aria-label="Buka profil"
         >
-          {{ userName.slice(0, 2).toUpperCase() }}
-        </span>
-        <span class="flex min-w-0 flex-col leading-tight">
-          <b class="truncate text-meta">{{ userName }}</b>
-          <small class="truncate text-xs text-on-grad-2">{{ userRole }}</small>
-        </span>
+          <Avatar
+            :name="userName"
+            :url="userAvatar"
+            size="sm"
+            class="justify-self-center bg-on-grad text-grad-ink"
+          />
+          <span class="flex min-w-0 flex-col leading-tight">
+            <b class="truncate text-meta">{{ userName }}</b>
+            <small class="truncate text-xs text-on-grad-2">{{ userRole }}</small>
+          </span>
+        </NuxtLink>
         <button
           type="button"
           aria-label="Keluar"

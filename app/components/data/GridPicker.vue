@@ -53,8 +53,7 @@ function tap(item: GridItem) {
   if (hasChildren(item)) {
     touched = true;
     expanded.value = expanded.value === item.id ? null : item.id;
-  }
-  else emit('select', item.id);
+  } else emit('select', item.id);
 }
 
 const isSelected = (item: GridItem) =>

@@ -5,6 +5,7 @@ import TransactionEditor from '@/components/money/TransactionEditor.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useAuth } from '@/features/auth/useAuth';
 import { useActiveBook } from '@/features/books/useActiveBook';
+import { useProfile } from '@/features/profile/useProfile';
 import { provideQuickAddSource } from '@/features/quick-add/useQuickAdd';
 import { useQuickLists } from '@/features/quick-add/useQuickLists';
 import { useSuggest } from '@/features/quick-add/useSuggest';
@@ -28,7 +29,7 @@ const last = useLastChoice();
 const editor = useTxEditor();
 
 const ROLE_LABEL = { owner: 'Pemilik', editor: 'Editor', viewer: 'Hanya lihat' } as const;
-const userName = computed(() => auth.user.value?.email?.split('@')[0] ?? '');
+const { displayName: userName, avatarUrl: userAvatar } = useProfile();
 
 const { accounts: quickAccounts, categories: quickCategories } = useQuickLists();
 const pickerItems = usePickerItems();
@@ -127,6 +128,7 @@ async function logout() {
     base=""
     :book-name="book?.name ?? '…'"
     :user-name="userName"
+    :user-avatar="userAvatar"
     :user-role="role ? ROLE_LABEL[role] : ''"
     :extras="extras"
     :can-add="canEdit"

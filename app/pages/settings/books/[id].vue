@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ArrowLeft, BookOpen, Copy, LogOut, Mail, Share2, Trash2, UserRound, X } from '@lucide/vue';
+import { ArrowLeft, BookOpen, Copy, LogOut, Mail, Share2, Trash2, X } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import CardHead from '@/components/base/CardHead.vue';
 import FormField from '@/components/base/FormField.vue';
 import Overlay from '@/components/base/Overlay.vue';
+import Avatar from '@/components/data/Avatar.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
 import ListGroup from '@/components/data/ListGroup.vue';
 import ListRow from '@/components/data/ListRow.vue';
@@ -270,12 +271,7 @@ function deleteBook() {
           :subtitle="m.email ?? ROLE_LABEL[m.role]"
           class="flex-wrap"
         >
-          <template #lead
-            ><ToneIcon
-              :icon="UserRound"
-              :tone="m.role === 'owner' ? 'primary' : 'neutral'"
-              size="sm"
-          /></template>
+          <template #lead><Avatar :name="m.display_name" :url="m.avatar_url" /></template>
           <template #end>
             <div class="flex items-center gap-1">
               <select

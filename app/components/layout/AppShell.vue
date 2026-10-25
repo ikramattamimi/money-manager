@@ -21,6 +21,7 @@ const props = withDefaults(
     base: string;
     bookName: string;
     userName: string;
+    userAvatar?: string | null;
     userRole: string;
     extras?: SidebarExtra[];
     /** false untuk peran viewer: tanpa tombol tambah, panel catat, dan pintasan N */
@@ -28,7 +29,7 @@ const props = withDefaults(
     /** Ada = tombol + di HP membuka ini (halaman form penuh), bukan sheet catat cepat */
     phoneAdd?: () => void;
   }>(),
-  { extras: undefined, canAdd: true, phoneAdd: undefined },
+  { extras: undefined, canAdd: true, phoneAdd: undefined, userAvatar: null },
 );
 const emit = defineEmits<{ logout: [] }>();
 
@@ -93,6 +94,7 @@ watch(lg, (wide) => {
     :active="active"
     :book-name="bookName"
     :user-name="userName"
+    :user-avatar="userAvatar"
     :user-role="userRole"
     :extras="extras"
     :can-add="canAdd"
