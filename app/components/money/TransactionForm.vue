@@ -3,6 +3,7 @@ import { Trash2, X, Zap } from '@lucide/vue';
 import AmountInput from '@/components/base/AmountInput.vue';
 import FormField from '@/components/base/FormField.vue';
 import GridPicker from '@/components/data/GridPicker.vue';
+import LinkSection from '@/components/money/LinkSection.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import { TONE_TEXT } from '@/components/data/tone';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,13 @@ import { useCategories } from '@/features/categories/useCategories';
 import { parseQuick } from '@/features/quick-add/parser';
 import { useQuickLists } from '@/features/quick-add/useQuickLists';
 import { useSuggest } from '@/features/quick-add/useSuggest';
-import type { Draft } from '@/features/quick-add/types';
+import type { Draft, DraftLink } from '@/features/quick-add/types';
 import type { Transaction, TxInput, TxType } from '@/features/transactions/api';
 import { useTemplateMutations } from '@/features/templates/useTemplates';
 import { useLastChoice } from '@/features/transactions/useLastChoice';
 import { usePickerItems } from '@/features/transactions/usePickerItems';
 import { useTransactionMutations } from '@/features/transactions/useTransactions';
+import { useTxEditor } from '@/features/transactions/useTxEditor';
 import { formatRupiah } from '@/lib/format';
 import { fromLocalInput, toLocalInput } from '@/lib/time';
 import { uuid } from '@/lib/uuid';
@@ -61,6 +63,12 @@ const form = reactive({
 });
 const errors = reactive<Record<string, string>>({});
 
+// Kaitan reimburse/utang (fase 10 T6): pemasukan → pengeluaran yang digantinya
+const links = ref<DraftLink[]>([]);
+const linkPayload = (list: { expenseId: string; amount: number }[]) =>
+  JSON.stringify(list.map((l) => ({ expenseId: l.expenseId, amount: l.amount })));
+let initialLinks = '[]';
+
 // Kolom tanggal hanya sampai menit. Kalau tidak diubah, pakai waktu asli
 // (dengan detik) supaya urutan transaksi di menit yang sama tidak bergeser.
 let original = { input: '', iso: '' };
@@ -80,6 +88,17 @@ function load() {
       description: tx.description,
     });
     original = { input: form.occurred, iso: tx.occurred_at };
+    links.value =
+      tx.type === 'income'
+        ? (tx.linked ?? []).map((l) => ({
+            expenseId: l.id,
+            note: l.note || 'Pengeluaran',
+            occurredAt: l.occurredAt,
+            amount: l.amount,
+            max: null,
+          }))
+        : [];
+    initialLinks = linkPayload(links.value);
   } else {
     const d = props.draft;
     const type = d?.type ?? 'expense';
@@ -97,6 +116,8 @@ function load() {
       description: '',
     });
     original = { input: form.occurred, iso: occurred.toISOString() };
+    links.value = d?.links ? d.links.map((l) => ({ ...l })) : [];
+    initialLinks = '[]';
   }
   for (const key of Object.keys(errors)) Reflect.deleteProperty(errors, key);
 }
@@ -261,6 +282,13 @@ function validate() {
       errors.toAccountId = 'Akun tujuan harus berbeda dari akun asal.';
   }
   if (!form.occurred) errors.occurred = 'Isi tanggal dan jam.';
+  if (form.type === 'income' && links.value.length) {
+    const total = links.value.reduce((s, l) => s + l.amount, 0);
+    if (links.value.some((l) => l.amount <= 0)) errors.links = 'Isi nominal tiap kaitan.';
+    else if (links.value.some((l) => l.max !== null && l.amount > l.max))
+      errors.links = 'Nominal kaitan melebihi sisa pengeluarannya.';
+    else if (total > form.amount) errors.links = 'Total kaitan melebihi nominal pemasukan.';
+  }
   return Object.keys(errors).length === 0;
 }
 
@@ -288,8 +316,19 @@ function save(again = false) {
     categoryId: form.categoryId || null,
   });
 
+  const nextLinks = form.type === 'income' ? links.value : [];
+  const linksChanged = linkPayload(nextLinks) !== initialLinks;
+
   if (props.transaction) {
-    mutations.update.mutate({ before: props.transaction, patch: data });
+    const before = props.transaction;
+    const update = () => mutations.update.mutateAsync({ before, patch: data });
+    const relink = () =>
+      linksChanged ? mutations.saveLinks(before.id, nextLinks) : Promise.resolve();
+    // Nominal turun atau jenis berubah: kaitan disesuaikan dulu supaya database tidak menolak
+    const linksFirst = data.amount < before.amount || data.type !== before.type;
+    (linksFirst ? relink().then(update) : update().then(relink)).catch(() => {
+      // Pesan galat sudah ditampilkan lewat toast
+    });
     toast.show('Perubahan disimpan');
     emit('close');
     return;
@@ -301,7 +340,14 @@ function save(again = false) {
     book_id: bookId.value,
     source: 'manual',
   };
-  mutations.create.mutate(input);
+  if (nextLinks.length)
+    mutations.create
+      .mutateAsync(input)
+      .then(() => mutations.saveLinks(input.id!, nextLinks))
+      .catch(() => {
+        // Pesan galat sudah ditampilkan lewat toast
+      });
+  else mutations.create.mutate(input);
   toast.show(`Tersimpan · ${formatRupiah(input.amount)}`, () =>
     mutations.remove.mutate({ ...input, fee: input.fee ?? 0 } as Transaction),
   );
@@ -312,6 +358,7 @@ function save(again = false) {
     form.amount = 0;
     form.note = '';
     form.description = '';
+    links.value = [];
     // Mode beruntun: kembali ke kolom ketik (halaman HP) atau nominal
     nextTick(() =>
       (document.getElementById('tx-quick') ?? document.getElementById('tx-amount'))?.focus(),
@@ -319,6 +366,26 @@ function save(again = false) {
   } else {
     emit('close');
   }
+}
+
+// Pengeluaran ini diganti: buka form pemasukan baru yang sudah terkait
+const editor = useTxEditor();
+function recordReimbursement(remaining: number) {
+  const tx = props.transaction;
+  if (!tx) return;
+  const note = tx.note || categories.label(tx.category_id) || 'pengeluaran';
+  editor.create({
+    type: 'income',
+    amount: remaining,
+    accountId: tx.account_id,
+    toAccountId: null,
+    categoryId: null,
+    note: `Ganti ${note}`,
+    occurredAt: null,
+    links: [
+      { expenseId: tx.id, note, occurredAt: tx.occurred_at, amount: remaining, max: remaining },
+    ],
+  });
 }
 
 function remove() {
@@ -563,6 +630,24 @@ function saveAsTemplate() {
           autocomplete="off"
         />
       </FormField>
+
+      <LinkSection
+        v-if="form.type === 'income'"
+        v-model:links="links"
+        kind="income"
+        :transaction="transaction"
+        :amount="form.amount"
+        :error="errors.links"
+        @fill-amount="(total) => (form.amount = total)"
+      />
+      <LinkSection
+        v-else-if="form.type === 'expense' && transaction?.type === 'expense'"
+        v-model:links="links"
+        kind="expense"
+        :transaction="transaction"
+        :amount="form.amount"
+        @reimburse="recordReimbursement"
+      />
     </template>
 
     <div

@@ -5,7 +5,7 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import type { TablesUpdate } from '@/lib/database.types';
 import { addMonths, periodOf } from '@/lib/time';
 import { uuid } from '@/lib/uuid';
-import { transactionsApi, type Transaction, type TxInput } from './api';
+import { offsetsApi, transactionsApi, type Transaction, type TxInput } from './api';
 import { balanceEffects } from './effects';
 import { transactionKeys } from './keys';
 
@@ -203,10 +203,27 @@ export function useTransactionMutations() {
   /** Hapus dengan toast Urungkan (memasukkan ulang baris yang sama, id sama) */
   function removeWithUndo(tx: Transaction, label: string) {
     remove.mutate(tx);
-    toast.show(`${label} dihapus`, () => create.mutate(toInput(tx)));
+    toast.show(`${label} dihapus`, () =>
+      create
+        .mutateAsync(toInput(tx))
+        .then(() => (tx.linked?.length ? offsetsApi.restore(tx, tx.linked) : undefined))
+        .then(settle)
+        .catch((error: Error) => toast.show(error.message)),
+    );
   }
 
-  return { create, update, remove, removeWithUndo };
+  /** Simpan kaitan sebuah pemasukan (setelah transaksinya tersimpan), lalu muat ulang total */
+  function saveLinks(incomeId: string, links: { expenseId: string; amount: number }[]) {
+    return offsetsApi
+      .setForIncome(incomeId, links)
+      .then(settle)
+      .catch((error: Error) => {
+        toast.show(error.message);
+        throw error;
+      });
+  }
+
+  return { create, update, remove, removeWithUndo, saveLinks };
 }
 
 export function toInput(tx: Transaction): TxInput {

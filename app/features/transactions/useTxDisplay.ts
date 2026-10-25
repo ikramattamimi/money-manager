@@ -6,6 +6,7 @@ import { useCategories } from '@/features/categories/useCategories';
 import { formatRupiah } from '@/lib/format';
 import { formatTime } from '@/lib/time';
 import type { Transaction } from './api';
+import { netAmount } from './effects';
 
 const SIGN = { income: '+', expense: '−', transfer: '' } as const;
 
@@ -32,11 +33,26 @@ export function useTxDisplay() {
             name: categories.label(t.category_id) || 'Tanpa kategori',
           };
 
+    // Kaitan reimburse/utang: tampilkan nominal bersih, yang asli dicoret. Di detail
+    // akun tetap nominal asli, karena uangnya memang keluar/masuk dari akun itu.
+    const linked =
+      !perspectiveAccountId && t.type !== 'transfer' && !t.is_adjustment ? (t.linked ?? []) : [];
+    const net = linked.length ? netAmount(t) : t.amount;
+    const linkNote = !linked.length
+      ? ''
+      : t.type === 'expense'
+        ? net > 0
+          ? 'sebagian diganti'
+          : 'diganti'
+        : `mengganti ${linked.map((l) => l.note || 'pengeluaran').join(', ')}`;
+
     const subtitle =
       t.type === 'transfer'
         ? `${accounts.name(t.account_id)} → ${accounts.name(t.to_account_id)}` +
           (t.fee ? ` · biaya ${formatRupiah(t.fee)}` : '')
-        : `${t.is_adjustment ? 'Koreksi saldo' : style.name} · ${accounts.name(t.account_id)}`;
+        : t.type === 'income' && linkNote
+          ? `${linkNote} · ${accounts.name(t.account_id)}`
+          : `${t.is_adjustment ? 'Koreksi saldo' : style.name} · ${accounts.name(t.account_id)}`;
 
     // Di detail akun, transfer dilihat dari sisi akun itu: keluar merah, masuk biru
     let kind: 'income' | 'expense' | 'transfer' = t.is_adjustment ? 'transfer' : t.type;
@@ -52,9 +68,14 @@ export function useTxDisplay() {
       tone: style.tone,
       title: t.note || style.name,
       subtitle,
-      amount: sign + formatRupiah(t.amount),
+      amount: sign + formatRupiah(net),
+      was: linked.length ? formatRupiah(t.amount) : undefined,
       kind,
-      meta: [formatTime(t.occurred_at), t.created_by ? otherNames.value.get(t.created_by) : '']
+      meta: [
+        formatTime(t.occurred_at),
+        t.type === 'expense' ? linkNote : '',
+        t.created_by ? otherNames.value.get(t.created_by) : '',
+      ]
         .filter(Boolean)
         .join(' · '),
     };

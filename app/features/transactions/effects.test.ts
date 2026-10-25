@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balanceEffects, summarize } from './effects';
+import { balanceEffects, netAmount, summarize } from './effects';
 
 describe('balanceEffects', () => {
   it('transfer mengurangi asal termasuk biaya dan menambah tujuan', () => {
@@ -37,5 +37,17 @@ describe('summarize', () => {
         { type: 'transfer', amount: 100, is_adjustment: false },
       ]),
     ).toEqual({ income: 5000, expense: 2000, net: 3000 });
+  });
+
+  it('bagian yang dikaitkan tidak dihitung, sisanya tetap', () => {
+    const link = (amount: number) => [{ id: 'x', note: '', occurredAt: '', amount }];
+    expect(netAmount({ type: 'expense', amount: 100000, linked: link(60000) })).toBe(40000);
+    expect(
+      summarize([
+        { type: 'expense', amount: 100000, is_adjustment: false, linked: link(100000) },
+        { type: 'income', amount: 100000, is_adjustment: false, linked: link(100000) },
+        { type: 'income', amount: 50000, is_adjustment: false, linked: link(40000) },
+      ]),
+    ).toEqual({ income: 10000, expense: 0, net: 10000 });
   });
 });

@@ -40,6 +40,18 @@ export interface Draft {
   note: string;
   /** ISO UTC; null = sekarang (saat disimpan) */
   occurredAt: string | null;
+  /** Pemasukan baru yang langsung mengganti pengeluaran ("Tandai sudah diganti") */
+  links?: DraftLink[];
+}
+
+/** Kaitan ke pengeluaran yang diganti, di form pemasukan */
+export interface DraftLink {
+  expenseId: string;
+  note: string;
+  occurredAt: string;
+  amount: number;
+  /** Batas atas: sisa pengeluaran yang belum diganti (termasuk kaitan ini); null = tidak dimuat, dicek database */
+  max: number | null;
 }
 
 /** Saran dari riwayat buku untuk catatan yang diketik (fase 6 T2) */

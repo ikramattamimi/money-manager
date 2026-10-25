@@ -15,6 +15,8 @@ const props = defineProps<{
   amount: string;
   kind: 'income' | 'expense' | 'transfer';
   meta?: string;
+  /** Nominal asli yang dicoret kalau sebagian/seluruhnya diganti (fase 10 T6) */
+  was?: string;
   deletable?: boolean;
 }>();
 const emit = defineEmits<{ delete: []; select: [] }>();
@@ -98,6 +100,7 @@ defineExpose({ flash });
           <b :class="['whitespace-nowrap text-label font-bold tabular-nums', AMOUNT_CLASS[kind]]">{{
             amount
           }}</b>
+          <s v-if="was" class="text-2xs tabular-nums text-faint">{{ was }}</s>
           <small v-if="meta" class="mt-px text-2xs tabular-nums text-faint">{{ meta }}</small>
         </span>
       </div>

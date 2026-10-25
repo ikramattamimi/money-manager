@@ -18,14 +18,25 @@ export function balanceEffects(tx: BalanceInput): Map<string, number> {
   return effects;
 }
 
+/**
+ * Nominal yang dihitung di ringkasan: dikurangi bagian yang dikaitkan
+ * (pengeluaran yang sudah diganti, pemasukan yang menjadi penggantinya).
+ */
+export function netAmount(t: Pick<Transaction, 'type' | 'amount' | 'linked'>): number {
+  if (t.type === 'transfer') return t.amount;
+  return t.amount - (t.linked ?? []).reduce((s, l) => s + l.amount, 0);
+}
+
 /** Ringkasan satu bulan; koreksi saldo tidak dihitung sebagai masuk/keluar */
-export function summarize(list: Pick<Transaction, 'type' | 'amount' | 'is_adjustment'>[]) {
+export function summarize(
+  list: Pick<Transaction, 'type' | 'amount' | 'is_adjustment' | 'linked'>[],
+) {
   let income = 0;
   let expense = 0;
   for (const t of list) {
     if (t.is_adjustment) continue;
-    if (t.type === 'income') income += t.amount;
-    if (t.type === 'expense') expense += t.amount;
+    if (t.type === 'income') income += netAmount(t);
+    if (t.type === 'expense') expense += netAmount(t);
   }
   return { income, expense, net: income - expense };
 }

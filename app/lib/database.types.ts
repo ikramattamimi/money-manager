@@ -645,6 +645,51 @@ export type Database = {
           },
         ]
       }
+      transaction_offsets: {
+        Row: {
+          amount: number
+          book_id: string
+          created_at: string
+          created_by: string | null
+          expense_id: string
+          id: string
+          income_id: string
+        }
+        Insert: {
+          amount: number
+          book_id: string
+          created_at?: string
+          created_by?: string | null
+          expense_id: string
+          id?: string
+          income_id: string
+        }
+        Update: {
+          amount?: number
+          book_id?: string
+          created_at?: string
+          created_by?: string | null
+          expense_id?: string
+          id?: string
+          income_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_offsets_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_offsets_income_id_fkey"
+            columns: ["income_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string
@@ -952,6 +997,23 @@ export type Database = {
         Args: { p_amount?: number; p_pending_id: string }
         Returns: string
       }
+      offset_candidates: {
+        Args: {
+          p_book_id: string
+          p_income_id?: string
+          p_limit?: number
+          p_query?: string
+        }
+        Returns: {
+          account_id: string
+          amount: number
+          category_id: string | null
+          id: string
+          note: string
+          occurred_at: string
+          remaining: number
+        }[]
+      }
       post_due_recurring: { Args: { p_book_id?: string }; Returns: number }
       revert_import: { Args: { p_batch_id: string }; Returns: number }
       search_transactions: {
@@ -974,6 +1036,10 @@ export type Database = {
           total_expense: number
           total_income: number
         }[]
+      }
+      set_income_offsets: {
+        Args: { p_income_id: string; p_links: Json }
+        Returns: number
       }
       suggest_from_note: {
         Args: { p_book_id: string; p_note: string }

@@ -21,7 +21,7 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import type { Transaction } from '@/features/transactions/api';
-import { summarize } from '@/features/transactions/effects';
+import { netAmount, summarize } from '@/features/transactions/effects';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 import {
@@ -138,8 +138,8 @@ const daySums = computed(() => {
   for (const t of list.value) {
     if (t.is_adjustment) continue;
     const s = (sums[dayKey(t.occurred_at)] ??= { income: 0, expense: 0 });
-    if (t.type === 'income') s.income += t.amount;
-    if (t.type === 'expense') s.expense += t.amount;
+    if (t.type === 'income') s.income += netAmount(t);
+    if (t.type === 'expense') s.expense += netAmount(t);
   }
   return sums;
 });
@@ -165,9 +165,10 @@ const topCats = computed(() => {
     // Gabungkan subkategori ke induknya
     const c = categories.byId.value.get(t.category_id);
     const key = c?.parent_id ?? t.category_id;
-    by.set(key, (by.get(key) ?? 0) + t.amount);
+    by.set(key, (by.get(key) ?? 0) + netAmount(t));
   }
   return [...by.entries()]
+    .filter(([, value]) => value > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([id, value]) => ({
