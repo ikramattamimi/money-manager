@@ -2,7 +2,11 @@
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 
 // Pemilih bulan kaca di kepala halaman: ‹ Okt 2026 ›
-const props = defineProps<{ label: string; canNext?: boolean }>();
+// canNext default true: prop boolean yang tidak diisi dibaca Vue sebagai false,
+// jadi tanpa default panah berikutnya selalu mati di halaman yang tidak mengisinya.
+const props = withDefaults(defineProps<{ label: string; canNext?: boolean }>(), {
+  canNext: true,
+});
 const emit = defineEmits<{ prev: []; next: [] }>();
 </script>
 
@@ -30,7 +34,7 @@ const emit = defineEmits<{ prev: []; next: [] }>();
       type="button"
       class="press press-icon grid size-7.5 place-items-center rounded-[7px] hover:bg-glass-2 disabled:opacity-40 [&_svg]:size-4"
       aria-label="Bulan berikutnya"
-      :disabled="props.canNext === false"
+      :disabled="!props.canNext"
       @click="emit('next')"
     >
       <ChevronRight aria-hidden="true" />
