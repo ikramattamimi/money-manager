@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { WalletIcon } from '@lucide/vue';
+import { ArrowLeft, CircleAlert, FileUp, Mail, RefreshCw, Users, Wallet, Zap } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import { OTP_LENGTH, authApi } from '@/features/auth/api';
 import { safeNext } from '@/features/auth/redirect';
 
-// Tampilan sementara memakai token fase 1. Dirapikan dengan komponen fase 3
-// saat fase 4 dikerjakan.
+// Masuk dengan kode OTP email (tanpa kata sandi). Tema sama dengan app:
+// pita gradien seperti kepala halaman, kartu putih, tombol primer.
+// HP: gradien di atas, kartu menumpang di bawahnya. iPad/desktop: dua kolom.
 useHead({ title: 'Masuk · Money Manager' });
 
 const route = useRoute();
@@ -18,9 +19,12 @@ const pending = ref(false);
 const error = ref('');
 const resendIn = ref(0);
 const codeInput = ref<HTMLInputElement>();
+const emailInput = ref<HTMLInputElement>();
+const codeFocused = ref(false);
 
 let timer: ReturnType<typeof setInterval> | undefined;
 onBeforeUnmount(() => clearInterval(timer));
+onMounted(() => emailInput.value?.focus({ preventScroll: true }));
 
 function startCooldown() {
   resendIn.value = RESEND_SECONDS;
@@ -72,92 +76,237 @@ function onCodeInput(event: Event) {
   if (digits.length === OTP_LENGTH) verify();
 }
 
-function changeEmail() {
+async function changeEmail() {
   step.value = 'email';
   error.value = '';
   code.value = '';
+  await nextTick();
+  emailInput.value?.focus();
 }
+
+/** Sel kode yang sedang diisi (untuk kursor) */
+const activeCell = computed(() => Math.min(code.value.length, OTP_LENGTH - 1));
+
+const FEATURES = [
+  { icon: Zap, text: 'Catat cepat: ketik "kopi 25rb gopay", langsung tersimpan' },
+  { icon: FileUp, text: 'Impor dari Realbyte, mutasi bank PDF, dan foto struk' },
+  { icon: Users, text: 'Buku bersama keluarga atau pasangan' },
+];
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-8 px-4 py-10">
-    <header class="flex flex-col items-center gap-3 text-center">
-      <WalletIcon class="size-12 text-primary" aria-hidden="true" />
-      <h1 class="text-3xl font-bold tracking-tight">Money Manager</h1>
-      <p v-if="step === 'email'" class="text-muted-foreground">
-        Masukkan email. Kami kirim kode {{ OTP_LENGTH }} digit untuk masuk, tanpa password.
-      </p>
-      <p v-else class="text-muted-foreground">
-        Kode dikirim ke <strong class="text-foreground">{{ email }}</strong
-        >. Cek juga folder spam.
-      </p>
-    </header>
-
-    <form v-if="step === 'email'" class="flex flex-col gap-4" @submit.prevent="sendCode">
-      <label class="flex flex-col gap-2">
-        <span class="text-sm font-medium">Email</span>
-        <input
-          v-model="email"
-          type="email"
-          name="email"
-          inputmode="email"
-          autocomplete="email"
-          autocapitalize="off"
-          spellcheck="false"
-          required
-          placeholder="nama@email.com"
-          class="h-12 rounded-xl border border-input bg-card px-4 text-[17px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        />
-      </label>
-      <Button type="submit" size="lg" class="h-12 text-[17px]" :disabled="pending || !email">
-        {{ pending ? 'Mengirim…' : 'Kirim kode' }}
-      </Button>
-    </form>
-
-    <form v-else class="flex flex-col gap-4" @submit.prevent="verify">
-      <label class="flex flex-col gap-2">
-        <span class="text-sm font-medium">Kode masuk</span>
-        <input
-          ref="codeInput"
-          :value="code"
-          type="text"
-          name="code"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          :maxlength="OTP_LENGTH + 2"
-          required
-          :placeholder="'•'.repeat(OTP_LENGTH)"
-          class="h-14 rounded-xl border border-input bg-card px-4 text-center text-3xl font-semibold tracking-[0.4em] tabular-nums outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          @input="onCodeInput"
-        />
-      </label>
-      <Button
-        type="submit"
-        size="lg"
-        class="h-12 text-[17px]"
-        :disabled="pending || code.length !== OTP_LENGTH"
-      >
-        {{ pending ? 'Memeriksa…' : 'Masuk' }}
-      </Button>
-      <div class="flex items-center justify-between text-sm">
-        <button type="button" class="text-primary" @click="changeEmail">Ganti email</button>
-        <button
-          type="button"
-          class="text-primary disabled:text-muted-foreground"
-          :disabled="resendIn > 0 || pending"
-          @click="sendCode"
-        >
-          {{ resendIn > 0 ? `Kirim ulang (${resendIn})` : 'Kirim ulang kode' }}
-        </button>
-      </div>
-    </form>
-
-    <p
-      v-if="error"
-      role="alert"
-      class="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive"
+  <main
+    class="min-h-dvh bg-background md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6 md:p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
+  >
+    <!-- Pita gradien merek: atas di HP, kolom kiri di layar lebar -->
+    <section
+      class="grad-stripes relative overflow-hidden bg-grad-hero px-6 pb-16 pt-[calc(env(safe-area-inset-top,0px)+40px)] text-on-grad md:flex md:flex-col md:justify-between md:rounded-[24px] md:px-10 md:pb-10 md:pt-10 [&>*]:relative [&>*]:z-[1]"
     >
-      {{ error }}
-    </p>
+      <div class="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
+        <span
+          class="grid size-14 place-items-center rounded-[18px] bg-on-grad text-grad-ink shadow-float md:size-12 md:rounded-2xl"
+        >
+          <Wallet class="size-7 md:size-6" aria-hidden="true" />
+        </span>
+        <div class="flex flex-col gap-1">
+          <h1 class="m-0 text-[26px] font-bold leading-tight tracking-tight md:text-[34px]">
+            Money Manager
+          </h1>
+          <p class="m-0 max-w-[30ch] text-[15px] text-on-grad-2 md:text-base">
+            Catat keuangan tanpa ribet, dari HP atau laptop.
+          </p>
+        </div>
+      </div>
+
+      <ul class="m-0 mt-10 hidden list-none flex-col gap-3.5 p-0 md:flex">
+        <li v-for="f in FEATURES" :key="f.text" class="flex items-center gap-3 text-[15px]">
+          <span
+            class="grid size-9 shrink-0 place-items-center rounded-xl border border-glass-line bg-glass"
+          >
+            <component :is="f.icon" class="size-4.5" aria-hidden="true" />
+          </span>
+          {{ f.text }}
+        </li>
+      </ul>
+      <p class="m-0 mt-10 hidden text-xs text-on-grad-3 md:block">
+        Data tersimpan aman di akunmu. Masuk tanpa kata sandi.
+      </p>
+    </section>
+
+    <!-- Kartu masuk -->
+    <section
+      class="relative z-[2] -mt-8 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+24px)] md:mt-0 md:flex md:items-center md:justify-center md:px-0 md:pb-0"
+    >
+      <div
+        class="mx-auto w-full max-w-[400px] rounded-[22px] border bg-card p-5 shadow-card md:p-7"
+      >
+        <Transition name="step" mode="out-in">
+          <!-- Langkah 1: email -->
+          <form
+            v-if="step === 'email'"
+            key="email"
+            class="flex flex-col gap-4"
+            @submit.prevent="sendCode"
+          >
+            <div class="flex flex-col gap-1">
+              <h2 class="m-0 text-panel font-bold">Masuk atau daftar</h2>
+              <p class="m-0 text-meta text-muted-foreground">
+                Kami kirim kode {{ OTP_LENGTH }} digit ke email. Belum punya akun? Kode yang sama
+                sekalian mendaftarkanmu.
+              </p>
+            </div>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-label font-semibold">Email</span>
+              <span class="relative">
+                <Mail
+                  class="pointer-events-none absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  ref="emailInput"
+                  v-model="email"
+                  type="email"
+                  name="email"
+                  inputmode="email"
+                  autocomplete="email"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  required
+                  placeholder="nama@email.com"
+                  class="field-input h-12! pl-10! text-[17px]!"
+                />
+              </span>
+            </label>
+            <Button
+              type="submit"
+              size="touch"
+              class="h-12 text-[16px]"
+              :disabled="pending || !email"
+            >
+              <RefreshCw v-if="pending" class="animate-spin" />
+              {{ pending ? 'Mengirim kode…' : 'Kirim kode' }}
+            </Button>
+          </form>
+
+          <!-- Langkah 2: kode -->
+          <form v-else key="code" class="flex flex-col gap-4" @submit.prevent="verify">
+            <div class="flex items-start gap-2">
+              <button
+                type="button"
+                class="press press-icon -ml-1.5 grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Ganti email"
+                @click="changeEmail"
+              >
+                <ArrowLeft class="size-4.5" aria-hidden="true" />
+              </button>
+              <div class="flex min-w-0 flex-col gap-1">
+                <h2 class="m-0 text-panel font-bold">Masukkan kode</h2>
+                <p class="m-0 text-meta text-muted-foreground">
+                  Dikirim ke <b class="break-all text-foreground">{{ email }}</b
+                  >. Cek juga folder spam.
+                </p>
+              </div>
+            </div>
+
+            <!-- Satu input asli (autofill kode iOS tetap jalan), digambar sebagai sel -->
+            <label class="relative block" @click="codeInput?.focus()">
+              <span class="sr-only">Kode masuk {{ OTP_LENGTH }} digit</span>
+              <span
+                class="grid gap-1.5"
+                :style="{ gridTemplateColumns: `repeat(${OTP_LENGTH}, minmax(0, 1fr))` }"
+                aria-hidden="true"
+              >
+                <span
+                  v-for="i in OTP_LENGTH"
+                  :key="i"
+                  :class="[
+                    'grid h-12 place-items-center rounded-[10px] border bg-surface-2 text-[22px] font-bold tabular-nums transition-[border-color,box-shadow] duration-150',
+                    codeFocused && i - 1 === activeCell && !pending
+                      ? 'border-primary-accent ring-3 ring-primary-soft'
+                      : code[i - 1]
+                        ? 'border-input'
+                        : 'border-border',
+                  ]"
+                >
+                  {{ code[i - 1] ?? '' }}
+                </span>
+              </span>
+              <input
+                ref="codeInput"
+                :value="code"
+                type="text"
+                name="code"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                :maxlength="OTP_LENGTH + 2"
+                required
+                class="absolute inset-0 h-full w-full cursor-text opacity-0"
+                @input="onCodeInput"
+                @focus="codeFocused = true"
+                @blur="codeFocused = false"
+              />
+            </label>
+
+            <Button
+              type="submit"
+              size="touch"
+              class="h-12 text-[16px]"
+              :disabled="pending || code.length !== OTP_LENGTH"
+            >
+              <RefreshCw v-if="pending" class="animate-spin" />
+              {{ pending ? 'Memeriksa…' : 'Masuk' }}
+            </Button>
+            <p class="m-0 text-center text-meta text-muted-foreground">
+              Tidak menerima kode?
+              <button
+                type="button"
+                class="font-semibold text-primary-ink underline-offset-4 hover:underline disabled:font-normal disabled:text-muted-foreground disabled:no-underline"
+                :disabled="resendIn > 0 || pending"
+                @click="sendCode"
+              >
+                {{ resendIn > 0 ? `Kirim ulang dalam ${resendIn} dtk` : 'Kirim ulang' }}
+              </button>
+            </p>
+          </form>
+        </Transition>
+
+        <p
+          v-if="error"
+          role="alert"
+          class="mt-4 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2.5 text-meta text-bad"
+        >
+          <CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
+          {{ error }}
+        </p>
+      </div>
+    </section>
   </main>
 </template>
+
+<style scoped>
+/* Ganti langkah: geser sedikit + pudar, keluar lebih cepat dari masuk */
+.step-enter-active {
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+.step-leave-active {
+  transition:
+    opacity 120ms ease-in,
+    transform 120ms ease-in;
+}
+.step-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+.step-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-enter-from,
+  .step-leave-to {
+    transform: none;
+  }
+}
+</style>
