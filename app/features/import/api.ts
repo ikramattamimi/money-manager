@@ -1,3 +1,4 @@
+import type { BankCommitResult, BankCommitRow, BankPreview } from '#shared/types/bank';
 import type { AccountKind, ImportPreview, ImportResult } from '#shared/types/import';
 import type { Tables } from '@/lib/database.types';
 import { useSupabase } from '@/lib/supabase';
@@ -28,6 +29,11 @@ async function upload<T>(
   }) as Promise<T>;
 }
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await useSupabase().auth.getSession();
+  return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+}
+
 export const importApi = {
   /** Unggah file Realbyte untuk dilihat dulu; belum ada yang disimpan */
   async preview(file: File, bookId: string): Promise<ImportPreview> {
@@ -48,6 +54,40 @@ export const importApi = {
       return await upload<ImportResult>('/api/import/realbyte/commit', file, bookId, kinds);
     } catch (error) {
       throw new Error(serverMessage(error, 'Gagal menyimpan impor.'), { cause: error });
+    }
+  },
+
+  /** Unggah PDF mutasi untuk dicocokkan dengan buku; belum ada yang disimpan */
+  async bankPreview(file: File, bookId: string, accountId: string): Promise<BankPreview> {
+    const body = new FormData();
+    body.append('file', file);
+    body.append('bookId', bookId);
+    body.append('accountId', accountId);
+    try {
+      return await $fetch<BankPreview>('/api/import/bank/preview', {
+        method: 'POST',
+        body,
+        headers: await authHeaders(),
+      });
+    } catch (error) {
+      throw new Error(serverMessage(error, 'Gagal membaca mutasi.'), { cause: error });
+    }
+  },
+
+  /** Simpan baris mutasi yang dipilih */
+  async bankCommit(
+    bookId: string,
+    filename: string,
+    rows: BankCommitRow[],
+  ): Promise<BankCommitResult> {
+    try {
+      return await $fetch<BankCommitResult>('/api/import/bank/commit', {
+        method: 'POST',
+        body: { bookId, filename, rows },
+        headers: await authHeaders(),
+      });
+    } catch (error) {
+      throw new Error(serverMessage(error, 'Gagal menyimpan mutasi.'), { cause: error });
     }
   },
 

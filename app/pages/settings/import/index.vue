@@ -181,6 +181,9 @@ const showErrors = ref(false);
       <p v-if="!canEdit" class="m-0 text-xs text-muted-foreground">
         Peranmu di buku ini hanya melihat, jadi tidak bisa mengimpor.
       </p>
+      <Button variant="link" @click="navigateTo('/settings/import/bank')">
+        Punya mutasi PDF dari bank? Impor mutasi bank
+      </Button>
     </Card>
 
     <!-- ---------- 2. preview ---------- -->

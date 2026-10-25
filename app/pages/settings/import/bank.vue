@@ -1,0 +1,572 @@
+<script setup lang="ts">
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  CircleAlert,
+  CircleCheck,
+  CircleHelp,
+  FileText,
+  History,
+  RefreshCw,
+  Tag,
+  Upload,
+  X,
+} from '@lucide/vue';
+import type { BankCommitResult, ReconciledRow, ReconcileStatus } from '#shared/types/bank';
+import Card from '@/components/base/Card.vue';
+import CardHead from '@/components/base/CardHead.vue';
+import Overlay from '@/components/base/Overlay.vue';
+import GridPicker from '@/components/data/GridPicker.vue';
+import ListGroup from '@/components/data/ListGroup.vue';
+import SegmentedControl from '@/components/data/SegmentedControl.vue';
+import ToneIcon from '@/components/data/ToneIcon.vue';
+import HeaderButton from '@/components/layout/HeaderButton.vue';
+import PageHeader from '@/components/layout/PageHeader.vue';
+import BankRow from '@/components/money/BankRow.vue';
+import { Button } from '@/components/ui/button';
+import { useAccounts } from '@/features/accounts/useAccounts';
+import { useActiveBook } from '@/features/books/useActiveBook';
+import { useCategories } from '@/features/categories/useCategories';
+import {
+  initialChoice,
+  needsAccount,
+  toCommitRow,
+  type BankChoice,
+} from '@/features/import/bankRows';
+import { useBankImport } from '@/features/import/useImport';
+import { usePickerItems } from '@/features/transactions/usePickerItems';
+import { formatRupiah } from '@/lib/format';
+import { MONTHS_SHORT } from '@/lib/time';
+
+// Impor mutasi bank: pilih akun → unggah PDF → cocokkan → simpan yang baru.
+// File hanya dibaca di server selama permintaan; tidak disimpan.
+definePageMeta({ layout: 'app' });
+useHead({ title: 'Impor mutasi bank · Money Manager' });
+
+const { bookId, canEdit } = useActiveBook();
+const accounts = useAccounts();
+const categories = useCategories();
+const pickerItems = usePickerItems();
+const flow = useBankImport();
+
+// ---------- 1. akun & file ----------
+const LAST_ACCOUNT = 'mm-bank-account';
+const accountId = ref('');
+// Akun terakhir per buku, dipasang begitu daftar akun termuat
+watch(
+  [bookId, () => accounts.byId.value],
+  ([book, byId]) => {
+    if (accountId.value && byId.has(accountId.value)) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAST_ACCOUNT) ?? '{}')[book ?? ''];
+      accountId.value = saved && byId.get(saved) && !byId.get(saved)!.archived ? saved : '';
+    } catch {
+      // Penyimpanan browser tidak tersedia: mulai tanpa pilihan
+    }
+  },
+  { immediate: true },
+);
+watch(accountId, (id) => {
+  if (!id) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(LAST_ACCOUNT) ?? '{}');
+    localStorage.setItem(LAST_ACCOUNT, JSON.stringify({ ...all, [bookId.value ?? '']: id }));
+  } catch {
+    // abaikan
+  }
+});
+
+const result = ref<BankCommitResult | null>(null);
+const preview = computed(() => flow.preview.data.value ?? null);
+const step = computed(() =>
+  result.value
+    ? 'done'
+    : flow.commit.isPending.value
+      ? 'saving'
+      : preview.value
+        ? 'review'
+        : 'pick',
+);
+
+const input = ref<HTMLInputElement>();
+function choose(event: Event) {
+  const picked = (event.target as HTMLInputElement).files?.[0];
+  (event.target as HTMLInputElement).value = '';
+  if (!picked || !accountId.value) return;
+  result.value = null;
+  flow.commit.reset();
+  flow.preview.mutate(
+    { file: picked, accountId: accountId.value },
+    {
+      onSuccess: (p) => {
+        choices.value = Object.fromEntries(p.rows.map((r) => [r.dedupeKey, initialChoice(r)]));
+        tab.value = p.rows.some((r) => r.status === 'baru') ? 'baru' : (firstTab(p.rows) ?? 'baru');
+      },
+    },
+  );
+}
+
+function startOver() {
+  result.value = null;
+  selecting.value = false;
+  selected.value = new Set();
+  flow.preview.reset();
+  flow.commit.reset();
+}
+
+// ---------- 2. pencocokan ----------
+const choices = ref<Record<string, BankChoice>>({});
+const choice = (r: ReconciledRow) => choices.value[r.dedupeKey]!;
+
+const TAB_ORDER: ReconcileStatus[] = ['baru', 'transfer', 'ragu', 'tercatat'];
+const TAB_LABEL: Record<ReconcileStatus, string> = {
+  baru: 'Baru',
+  transfer: 'Transfer',
+  ragu: 'Ragu',
+  tercatat: 'Tercatat',
+};
+const tab = ref<ReconcileStatus>('baru');
+const byStatus = computed(() => {
+  const map = new Map<ReconcileStatus, ReconciledRow[]>(TAB_ORDER.map((s) => [s, []]));
+  for (const r of preview.value?.rows ?? []) map.get(r.status)!.push(r);
+  return map;
+});
+const firstTab = (rows: ReconciledRow[]) => TAB_ORDER.find((s) => rows.some((r) => r.status === s));
+const tabs = computed(() =>
+  TAB_ORDER.filter((s) => byStatus.value.get(s)!.length).map((s) => ({
+    value: s,
+    label: `${TAB_LABEL[s]} ${byStatus.value.get(s)!.length}`,
+  })),
+);
+const TAB_HINT: Record<ReconcileStatus, string> = {
+  baru: 'Belum ada di buku. Ketuk untuk ganti kategori, geser ke kiri untuk melewati.',
+  transfer: 'Perpindahan ke/dari akunmu sendiri, dicatat sebagai transfer.',
+  ragu: 'Mirip catatan yang sudah ada di tanggal berbeda. Pakai hanya kalau memang belum tercatat.',
+  tercatat: 'Sudah ada di buku, tidak disimpan lagi.',
+};
+
+/** Hari dikelompokkan: "Sab, 3 Okt" */
+const dayLabel = (ymd: string) => {
+  const [y, m, d] = ymd.split('-').map(Number) as [number, number, number];
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return `${['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][weekday]}, ${d} ${MONTHS_SHORT[m - 1]}`;
+};
+const days = computed(() => {
+  const groups = new Map<string, ReconciledRow[]>();
+  for (const r of byStatus.value.get(tab.value) ?? []) {
+    const list = groups.get(r.date) ?? [];
+    list.push(r);
+    groups.set(r.date, list);
+  }
+  return [...groups.entries()];
+});
+
+function rowView(r: ReconciledRow) {
+  const c = choice(r);
+  const time = r.time ? ` · ${r.time}` : '';
+  if (r.status === 'tercatat')
+    return {
+      icon: CircleCheck,
+      tone: 'ok' as const,
+      subtitle: `Sudah tercatat${time}`,
+      warn: false,
+    };
+  if (c.transfer) {
+    const other = accounts.name(c.counterAccountId);
+    return {
+      icon: ArrowLeftRight,
+      tone: 'neutral' as const,
+      subtitle: other
+        ? `${r.direction === 'out' ? 'Ke' : 'Dari'} ${other}${time}`
+        : 'Pilih akun lawan transfer',
+      warn: !other,
+    };
+  }
+  const style = categories.style(c.categoryId);
+  const label = categories.label(c.categoryId, true);
+  return {
+    icon: c.categoryId ? style.icon : r.status === 'ragu' ? CircleHelp : Tag,
+    tone: c.categoryId ? style.tone : ('neutral' as const),
+    subtitle: `${label || 'Tanpa kategori'}${time}`,
+    warn: false,
+  };
+}
+
+// Pilih banyak: ubah kategori sekaligus
+const selecting = ref(false);
+const selected = ref(new Set<string>());
+function toggleSelecting() {
+  selecting.value = !selecting.value;
+  selected.value = new Set();
+}
+function tapRow(r: ReconciledRow) {
+  if (!selecting.value) return openPicker([r]);
+  const next = new Set(selected.value);
+  if (next.has(r.dedupeKey)) next.delete(r.dedupeKey);
+  else next.add(r.dedupeKey);
+  selected.value = next;
+}
+function toggleInclude(r: ReconciledRow) {
+  const c = choice(r);
+  c.include = !c.include;
+}
+
+// ---------- sheet pilihan kategori / akun ----------
+const pickerOpen = ref(false);
+const pickerRows = ref<ReconciledRow[]>([]);
+const pickerMode = ref<'category' | 'account'>('category');
+const pickerDirection = computed(() => pickerRows.value[0]?.direction ?? 'out');
+const pickerTitle = computed(() =>
+  pickerRows.value.length > 1
+    ? `${pickerMode.value === 'category' ? 'Kategori' : 'Akun lawan'} untuk ${pickerRows.value.length} baris`
+    : (pickerRows.value[0]?.note ?? ''),
+);
+
+function openPicker(rows: ReconciledRow[]) {
+  if (!rows.length) return;
+  pickerRows.value = rows;
+  pickerMode.value = rows.every((r) => choice(r).transfer) ? 'account' : 'category';
+  pickerOpen.value = true;
+}
+
+function pickSelected() {
+  const rows = (preview.value?.rows ?? []).filter((r) => selected.value.has(r.dedupeKey));
+  // Kategori hanya untuk satu arah sekaligus; ambil arah yang paling banyak
+  const outs = rows.filter((r) => r.direction === 'out');
+  const ins = rows.filter((r) => r.direction === 'in');
+  openPicker(outs.length >= ins.length ? outs : ins);
+}
+
+const pickerCategoryItems = computed(() =>
+  pickerItems.categoryItems(pickerDirection.value === 'in' ? 'income' : 'expense'),
+);
+const pickerAccountItems = computed(() => pickerItems.accountItems(accountId.value));
+const pickerValue = computed(() => {
+  const c = pickerRows.value.length === 1 ? choice(pickerRows.value[0]!) : null;
+  if (!c) return '__none__';
+  return pickerMode.value === 'category' ? (c.categoryId ?? '') : (c.counterAccountId ?? '');
+});
+
+function pick(id: string) {
+  for (const r of pickerRows.value) {
+    const c = choice(r);
+    if (pickerMode.value === 'category') {
+      c.transfer = false;
+      c.categoryId = id || null;
+    } else {
+      c.transfer = true;
+      c.counterAccountId = id;
+    }
+    c.include = true;
+  }
+  pickerOpen.value = false;
+  selecting.value = false;
+  selected.value = new Set();
+}
+
+// ---------- simpan ----------
+const included = computed(() =>
+  (preview.value?.rows ?? []).filter((r) => r.status !== 'tercatat' && choice(r).include),
+);
+const missingAccount = computed(() => included.value.filter((r) => needsAccount(choice(r))).length);
+
+function save() {
+  const p = preview.value;
+  if (!p || missingAccount.value) return;
+  flow.commit.mutate(
+    {
+      filename: p.filename,
+      rows: included.value.map((r) => toCommitRow(r, choice(r), accountId.value)),
+    },
+    { onSuccess: (r) => (result.value = r) },
+  );
+}
+
+// ---------- ringkasan ----------
+const n = (value: number) => value.toLocaleString('id-ID');
+const rp = (value: number) => formatRupiah(value).replace(/^-/, '');
+const BANK_LABEL = { seabank: 'SeaBank', jago: 'Jago' } as const;
+const periodLabel = computed(() => {
+  const p = preview.value?.period;
+  if (!p) return '';
+  const short = (ymd: string) => {
+    const [y, m, d] = ymd.split('-').map(Number) as [number, number, number];
+    return `${d} ${MONTHS_SHORT[m - 1]} ${y}`;
+  };
+  return `${short(p.from)} – ${short(p.to)}`;
+});
+/** Total hasil baca sama dengan total di file: tanda tidak ada baris yang hilang */
+const totalsMatch = computed(() => {
+  const p = preview.value;
+  return p?.declared ? p.declared.in === p.totals.in && p.declared.out === p.totals.out : null;
+});
+const lastBalance = computed(() => {
+  const rows = preview.value?.rows ?? [];
+  const last = [...rows].reverse().find((r) => r.balance != null);
+  return last?.balance ?? null;
+});
+const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.balance ?? null);
+</script>
+
+<template>
+  <div class="mx-auto md:max-w-[720px]">
+    <PageHeader title="Impor mutasi bank">
+      <template #actions>
+        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
+          <ArrowLeft aria-hidden="true" />
+        </HeaderButton>
+        <HeaderButton @click="navigateTo('/settings/import/history')">
+          <History aria-hidden="true" />Riwayat
+        </HeaderButton>
+      </template>
+    </PageHeader>
+
+    <input
+      ref="input"
+      type="file"
+      accept=".pdf,application/pdf"
+      class="sr-only"
+      tabindex="-1"
+      aria-hidden="true"
+      @change="choose"
+    />
+
+    <!-- ---------- 1. akun & file ---------- -->
+    <template v-if="step === 'pick'">
+      <Card class="mt-3.5 flex flex-col gap-3 px-3.5 py-4">
+        <div class="flex items-start gap-3">
+          <ToneIcon :icon="FileText" tone="primary" size="sm" />
+          <p class="m-0 text-meta text-muted-foreground">
+            Unduh mutasi PDF dari aplikasi bank (rekening koran SeaBank atau riwayat Kantong Jago),
+            lalu pilih di sini. Yang sudah tercatat dikenali, yang belum tinggal disimpan. Kata
+            sandi internet banking tidak pernah diminta.
+          </p>
+        </div>
+      </Card>
+
+      <ListGroup label="Mutasi ini untuk akun" :aside="accounts.name(accountId) || 'belum dipilih'">
+        <div class="overflow-hidden rounded-[10px]">
+          <GridPicker
+            :items="pickerItems.accountItems()"
+            :model-value="accountId"
+            label="Pilih akun mutasi"
+            @select="(id) => (accountId = id)"
+          />
+        </div>
+      </ListGroup>
+
+      <p
+        v-if="flow.preview.error.value"
+        class="mt-3 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2 text-meta text-bad"
+        role="alert"
+      >
+        <CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
+        {{ flow.preview.error.value.message }}
+      </p>
+      <div class="mt-4 flex flex-col items-stretch gap-2">
+        <Button
+          size="touch"
+          :disabled="!canEdit || !accountId || flow.preview.isPending.value"
+          @click="input?.click()"
+        >
+          <component
+            :is="flow.preview.isPending.value ? RefreshCw : Upload"
+            :class="flow.preview.isPending.value && 'animate-spin'"
+          />
+          {{ flow.preview.isPending.value ? 'Membaca mutasi…' : 'Pilih file PDF' }}
+        </Button>
+        <p v-if="!canEdit" class="m-0 text-center text-xs text-muted-foreground">
+          Peranmu di buku ini hanya melihat, jadi tidak bisa mengimpor.
+        </p>
+      </div>
+    </template>
+
+    <!-- ---------- 2. pencocokan ---------- -->
+    <template v-else-if="step === 'review' && preview">
+      <Card class="mt-3.5">
+        <CardHead :title="`${BANK_LABEL[preview.bank]} → ${accounts.name(accountId)}`">
+          <Button variant="ghost" size="default" @click="startOver">Ganti file</Button>
+        </CardHead>
+        <div class="flex flex-col gap-1.5 px-3.5 pb-3.5 text-meta">
+          <p class="m-0 text-muted-foreground">
+            {{ n(preview.rows.length) }} transaksi<template v-if="periodLabel">
+              · {{ periodLabel }}</template
+            >
+          </p>
+          <p class="m-0 tabular-nums">
+            Masuk <b class="text-primary-accent">{{ rp(preview.totals.in) }}</b> · Keluar
+            <b class="text-bad">{{ rp(preview.totals.out) }}</b>
+            <span v-if="totalsMatch" class="ml-1 text-ok">· cocok dengan file</span>
+            <span v-else-if="totalsMatch === false" class="ml-1 text-warn"
+              >· beda dengan total di file, periksa lagi</span
+            >
+          </p>
+          <p v-if="lastBalance != null && appBalance != null" class="m-0 text-muted-foreground">
+            Saldo akhir di file {{ rp(lastBalance) }} · di aplikasi {{ rp(appBalance) }}
+          </p>
+        </div>
+      </Card>
+
+      <SegmentedControl
+        v-if="tabs.length > 1"
+        v-model="tab"
+        :options="tabs"
+        label="Status mutasi"
+        class="mt-3.5"
+        @update:model-value="selecting = false"
+      />
+      <div class="mt-2.5 flex items-start gap-2 px-1">
+        <p class="m-0 flex-1 text-xs text-muted-foreground">{{ TAB_HINT[tab] }}</p>
+        <Button
+          v-if="tab !== 'tercatat'"
+          :variant="selecting ? 'soft' : 'ghost'"
+          size="sm"
+          @click="toggleSelecting"
+        >
+          {{ selecting ? 'Selesai' : 'Pilih' }}
+        </Button>
+      </div>
+
+      <ListGroup
+        v-for="[day, rows] in days"
+        :key="tab + day"
+        :label="dayLabel(day)"
+        :aside="`${rows.length}`"
+      >
+        <BankRow
+          v-for="r in rows"
+          :key="r.dedupeKey"
+          v-bind="rowView(r)"
+          :title="r.note || r.counterparty"
+          :amount="rp(r.amount)"
+          :direction="r.direction"
+          :included="r.status === 'tercatat' || choice(r).include"
+          :readonly="r.status === 'tercatat'"
+          :selecting="selecting"
+          :selected="selected.has(r.dedupeKey)"
+          @open="tapRow(r)"
+          @toggle="toggleInclude(r)"
+        />
+      </ListGroup>
+
+      <!-- Bilah simpan menempel di bawah -->
+      <div
+        class="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mt-5 flex flex-wrap items-center gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card md:bottom-4"
+      >
+        <template v-if="selecting">
+          <span class="flex-1 text-meta">{{ selected.size }} dipilih</span>
+          <Button size="touch" :disabled="!selected.size" @click="pickSelected">
+            <Tag />Ubah kategori
+          </Button>
+        </template>
+        <template v-else>
+          <span class="flex-1 text-meta">
+            <template v-if="missingAccount">
+              <span class="text-warn">{{ missingAccount }} transfer belum ada akun lawannya</span>
+            </template>
+            <template v-else-if="included.length">
+              <b class="tabular-nums">{{ n(included.length) }}</b> akan disimpan
+            </template>
+            <template v-else>Tidak ada yang dipilih</template>
+          </span>
+          <Button
+            size="touch"
+            :disabled="!included.length || !!missingAccount || !canEdit"
+            @click="save"
+          >
+            Simpan {{ included.length ? n(included.length) : '' }}
+          </Button>
+        </template>
+      </div>
+      <p
+        v-if="flow.commit.error.value"
+        class="mt-3 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2 text-meta text-bad"
+        role="alert"
+      >
+        <CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
+        {{ flow.commit.error.value.message }}
+      </p>
+    </template>
+
+    <!-- ---------- 3. menyimpan ---------- -->
+    <Card
+      v-else-if="step === 'saving'"
+      class="mt-3.5 flex flex-col items-center gap-3 px-5 py-10 text-center"
+      aria-live="polite"
+    >
+      <RefreshCw class="size-6 animate-spin text-primary-accent" aria-hidden="true" />
+      <b class="text-panel">Menyimpan {{ n(included.length) }} transaksi…</b>
+    </Card>
+
+    <!-- ---------- 4. hasil ---------- -->
+    <template v-else-if="step === 'done' && result">
+      <Card
+        class="mt-3.5 flex flex-col items-center gap-3 px-5 py-8 text-center"
+        aria-live="polite"
+      >
+        <ToneIcon :icon="CircleCheck" tone="ok" />
+        <b class="text-panel">
+          {{
+            result.inserted
+              ? `${n(result.inserted)} transaksi disimpan`
+              : 'Tidak ada transaksi baru'
+          }}
+        </b>
+        <p class="m-0 text-meta text-muted-foreground">
+          Bisa dibatalkan dari Riwayat impor.<template v-if="result.duplicates">
+            {{ n(result.duplicates) }} sudah pernah diimpor, dilewati.</template
+          >
+        </p>
+      </Card>
+      <div class="mt-3.5 flex flex-wrap justify-center gap-2">
+        <Button variant="secondary" size="touch" @click="navigateTo('/')">Lihat transaksi</Button>
+        <Button variant="ghost" size="touch" @click="startOver">Impor mutasi lain</Button>
+      </div>
+    </template>
+
+    <Overlay v-model:open="pickerOpen" labelledby="bank-picker-title">
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <h2 id="bank-picker-title" class="m-0 min-w-0 flex-1 truncate text-panel font-bold">
+            {{ pickerTitle }}
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="press-icon"
+            aria-label="Tutup pilihan"
+            @click="pickerOpen = false"
+          >
+            <X />
+          </Button>
+        </div>
+        <SegmentedControl
+          v-model="pickerMode"
+          :options="[
+            { value: 'category', label: pickerDirection === 'in' ? 'Pemasukan' : 'Pengeluaran' },
+            { value: 'account', label: 'Transfer' },
+          ]"
+          label="Jenis transaksi"
+        />
+        <div class="max-h-[55dvh] overflow-y-auto overscroll-contain rounded-[10px]" data-no-drag>
+          <GridPicker
+            v-if="pickerMode === 'category'"
+            :key="`cat-${pickerDirection}`"
+            :items="pickerCategoryItems"
+            :model-value="pickerValue"
+            label="Pilih kategori"
+            @select="pick"
+          />
+          <GridPicker
+            v-else
+            key="acc"
+            :items="pickerAccountItems"
+            :model-value="pickerValue"
+            :label="pickerDirection === 'out' ? 'Transfer ke akun' : 'Transfer dari akun'"
+            @select="pick"
+          />
+        </div>
+      </div>
+    </Overlay>
+  </div>
+</template>

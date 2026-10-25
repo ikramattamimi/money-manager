@@ -3,6 +3,7 @@ import {
   BookOpen,
   Download,
   History,
+  Landmark,
   LogOut,
   Monitor,
   Moon,
@@ -115,6 +116,13 @@ const SECTION =
         title="Impor dari Realbyte"
         subtitle="File .xlsx ekspor Money Manager"
         @click="navigateTo('/settings/import')"
+      />
+      <SettingRow
+        :icon="Landmark"
+        tone="primary"
+        title="Impor mutasi bank"
+        subtitle="PDF SeaBank atau Jago, dicocokkan otomatis"
+        @click="navigateTo('/settings/import/bank')"
       />
       <SettingRow
         :icon="History"

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import type { BankCommitRow } from '#shared/types/bank';
 import type { AccountKind } from '#shared/types/import';
 import { accountKeys } from '@/features/accounts/keys';
 import { useActiveBook } from '@/features/books/useActiveBook';
@@ -30,6 +31,29 @@ export function useImportFlow() {
       mutationFn: ({ file, kinds }: { file: File; kinds: Record<string, AccountKind> }) =>
         importApi.commit(file, bookId.value!, kinds),
       onSuccess: invalidate,
+    }),
+  };
+}
+
+/** Impor mutasi bank: unggah PDF → cocokkan → simpan baris yang dipilih */
+export function useBankImport() {
+  const { bookId } = useActiveBook();
+  const client = useQueryClient();
+
+  return {
+    preview: useMutation({
+      mutationFn: ({ file, accountId }: { file: File; accountId: string }) =>
+        importApi.bankPreview(file, bookId.value!, accountId),
+    }),
+    commit: useMutation({
+      mutationFn: ({ filename, rows }: { filename: string; rows: BankCommitRow[] }) =>
+        importApi.bankCommit(bookId.value!, filename, rows),
+      onSuccess: () =>
+        Promise.all(
+          [accountKeys.all, transactionKeys.all, importKeys.all].map((queryKey) =>
+            client.invalidateQueries({ queryKey }),
+          ),
+        ),
     }),
   };
 }
