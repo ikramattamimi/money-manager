@@ -4,8 +4,26 @@ import { useSupabase } from '@/lib/supabase';
 type Fn = Database['public']['Functions'];
 export type BreakdownRow = Fn['category_breakdown']['Returns'][number];
 export type TrendRow = Fn['monthly_trend']['Returns'][number];
+export type InsightRow = Fn['period_insight']['Returns'][number];
 
 export const statsApi = {
+  /** Angka mentah kartu Ringkasan: periode [from, to) dan periode sebelumnya */
+  async insight(
+    bookId: string,
+    current: { from: string; to: string },
+    previous: { from: string; to: string },
+  ): Promise<InsightRow | null> {
+    const { data, error } = await useSupabase().rpc('period_insight', {
+      p_book_id: bookId,
+      p_from: current.from,
+      p_to: current.to,
+      p_prev_from: previous.from,
+      p_prev_to: previous.to,
+    });
+    if (error) throw new Error('Gagal memuat ringkasan.', { cause: error });
+    return data[0] ?? null;
+  },
+
   /** Total per kategori (dengan induknya) untuk [from, to) */
   async breakdown(
     bookId: string,

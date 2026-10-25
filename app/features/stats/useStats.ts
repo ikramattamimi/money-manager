@@ -4,7 +4,7 @@ import { keepWithinBook, useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { transactionKeys } from '@/features/transactions/keys';
 import { statsApi } from './api';
-import { periodBounds, todayWib, type Period } from './period';
+import { periodBounds, shiftPeriod, todayWib, type Period } from './period';
 
 export const statsKeys = {
   // Di bawah kunci transaksi: setiap transaksi berubah, statistik ikut dimuat ulang
@@ -13,6 +13,8 @@ export const statsKeys = {
     [...statsKeys.all, 'breakdown', bookId, from, to, type] as const,
   trend: (bookId: string | null, y: number, m: number, n: number, c: string | null) =>
     [...statsKeys.all, 'trend', bookId, y, m, n, c] as const,
+  insight: (bookId: string | null, from: string, to: string) =>
+    [...statsKeys.all, 'insight', bookId, from, to] as const,
 };
 
 /** Periode statistik yang dipilih, bertahan saat pindah tab */
@@ -118,4 +120,20 @@ export function useTrend(months = 6, categoryId: Ref<string | null> = ref(null))
     enabled: computed(() => !!bookId.value),
     placeholderData: keepWithinBook(bookId),
   });
+}
+
+/** Angka kartu Ringkasan untuk periode terpilih, dibanding periode sebelumnya */
+export function useInsight() {
+  const { bookId } = useActiveBook();
+  const { period, bounds, monthStartDay } = useStatsPeriod();
+  const previous = computed(() =>
+    periodBounds(shiftPeriod(period.value, -1, monthStartDay.value), monthStartDay.value),
+  );
+  const query = useQuery({
+    queryKey: computed(() => statsKeys.insight(bookId.value, bounds.value.from, bounds.value.to)),
+    queryFn: () => statsApi.insight(bookId.value!, bounds.value, previous.value),
+    enabled: computed(() => !!bookId.value),
+    placeholderData: keepWithinBook(bookId),
+  });
+  return { query, bounds, previous, period };
 }

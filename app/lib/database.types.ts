@@ -1023,6 +1023,27 @@ export type Database = {
           remaining: number
         }[]
       }
+      period_insight: {
+        Args: {
+          p_book_id: string
+          p_from: string
+          p_prev_from: string
+          p_prev_to: string
+          p_to: string
+        }
+        Returns: {
+          expense: number
+          expense_days: number
+          income: number
+          peak_day: string | null
+          peak_expense: number | null
+          prev_expense: number
+          prev_income: number
+          rise_category_id: string | null
+          rise_now: number | null
+          rise_prev: number | null
+        }[]
+      }
       post_due_recurring: { Args: { p_book_id?: string }; Returns: number }
       revert_import: { Args: { p_batch_id: string }; Returns: number }
       search_transactions: {

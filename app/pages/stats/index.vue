@@ -4,6 +4,7 @@ import Card from '@/components/base/Card.vue';
 import CardHead from '@/components/base/CardHead.vue';
 import CompositionBar from '@/components/charts/CompositionBar.vue';
 import TrendBars from '@/components/charts/TrendBars.vue';
+import InsightCard from '@/components/money/InsightCard.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
 import SegmentedControl from '@/components/data/SegmentedControl.vue';
 import Skeleton from '@/components/data/Skeleton.vue';
@@ -64,6 +65,8 @@ function openCategory(id: string) {
     <PeriodKindPicker class="mt-3.5" />
 
     <div class="mt-3.5 grid gap-3.5 md:grid-cols-2 md:items-start">
+      <InsightCard class="md:col-span-2" />
+
       <Card class="p-3.5">
         <div class="mb-3 flex items-baseline justify-between gap-3">
           <span class="text-panel font-bold">
