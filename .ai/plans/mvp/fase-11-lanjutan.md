@@ -66,3 +66,44 @@ Tampilan tagihan per periode, dan pembayaran tagihan sebagai transfer.
 **Files:** `app/features/recurring/*`
 **Verify:** Cicilan 3 bulan Rp300.000 membuat 3 transaksi Rp100.000 lalu
 berhenti.
+
+## Catatan pelaksanaan
+
+Dikerjakan di branch `fase-11-lanjutan` (dicabang dari `main` setelah fase 4–10
+digabung).
+
+- **T1 Baca foto**: `@anthropic-ai/sdk` + `client.messages.parse` dengan
+  `zodOutputFormat` (`server/utils/ocr.ts`), model `claude-haiku-5-5` sesuai spec
+  (ganti lewat `NUXT_OCR_MODEL`). Satu skema untuk struk (satu transaksi) dan
+  screenshot riwayat (banyak baris); hasilnya divalidasi lagi (`toStatementRows`:
+  tanggal salah/masa depan, nominal nol, jam tidak valid dibuang) lalu masuk
+  alur pencocokan yang sama dengan mutasi bank (`server/utils/bankPreview.ts`,
+  dipakai PDF dan foto; dedupe_key `ph:`). Kuota harian per user di database
+  (`ai_usage`, `ai_take_quota`, `ai_refund_quota`; default 30, `NUXT_OCR_DAILY_LIMIT`),
+  dikembalikan kalau panggilan AI gagal. Foto dikecilkan di HP
+  (`app/lib/imageCompression.ts`, sisi terpanjang 1600 px, JPEG) dan baru
+  dikirim setelah tombol **Baca dengan AI**; tidak disimpan. Simpan lewat
+  `commit_bank_import` dengan `kind: 'photo'` (batch `photo`, transaksi `ocr`),
+  jadi bisa dibatalkan dari Riwayat impor. Layar `/settings/import/photo` memakai
+  komponen yang sama dengan impor mutasi (`StatementImport.vue`).
+  **Belum dicoba dengan Claude sungguhan**: `NUXT_ANTHROPIC_API_KEY` belum diisi;
+  tanpa kunci, route menjawab 503 dengan pesan yang jelas.
+  Lampiran foto ke transaksi belum dibuat (opsional di spec).
+- **T2 Kunci PIN**: hash PBKDF2-SHA256 (Web Crypto, 120.000 iterasi, garam acak)
+  di `localStorage` per perangkat dan per user (`app/features/lock/*`). Terkunci
+  saat app dibuka dan saat kembali dari latar belakang ≥ batas waktu (langsung,
+  1, 5, 15 menit). Layar kunci keypad menutupi semua halaman (`app.vue`); 5 kali
+  salah → hanya bisa masuk ulang dengan kode email; Lupa PIN = keluar + hapus PIN.
+  Pengaturan di `/settings/lock`. Butuh HTTPS (Web Crypto); di alamat LAN http
+  pengaturan menjelaskan hal itu.
+- **T3 Kartu kredit**: kolom `statement_day`/`due_day` sudah ada sejak fase 2,
+  kini diisi di form akun grup Kartu Kredit. `app/features/accounts/billing.ts`
+  menghitung periode (transaksi setelah tanggal cetak masuk tagihan bulan
+  berikutnya; tanggal 29–31 jatuh ke hari terakhir), utang saat cetak dihitung
+  mundur dari saldo sekarang, pembayaran sejak cetak, sisa, dan status
+  (lunas/belum/lewat jatuh tempo). Kartu tagihan di detail akun, tombol Bayar
+  tagihan membuka transfer ke kartu dengan nominal sisa.
+- **T4 Cicilan**: tanpa perubahan database. Mode **Cicilan** di form transaksi
+  berulang (pengeluaran baru): total ÷ bulan, aturan bulanan dengan `end_on` di
+  cicilan terakhir (`app/features/recurring/installment.ts`), sehingga
+  `post_due_recurring` berhenti sendiri. Selisih pembulatan ditampilkan.
