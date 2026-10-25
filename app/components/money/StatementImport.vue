@@ -104,6 +104,15 @@ watch(photo, (file, _old, onCleanup) => {
 const compressing = ref(false);
 const busy = computed(() => compressing.value || flow.preview.isPending.value);
 
+// Tombol tetap bisa diketuk tanpa akun: tunjukkan apa yang kurang, jangan diam saja
+const needAccount = ref(false);
+const accountGrid = ref<HTMLElement>();
+function withAccount(run: () => void) {
+  if (accountId.value) return run();
+  needAccount.value = true;
+  accountGrid.value?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 function choose(event: Event) {
   const picked = (event.target as HTMLInputElement).files?.[0];
   (event.target as HTMLInputElement).value = '';
@@ -385,8 +394,15 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
       <ListGroup
         :label="isPhoto ? 'Transaksi di foto ini dari akun' : 'Mutasi ini untuk akun'"
         :aside="accounts.name(accountId) || 'belum dipilih'"
+        :aside-class="needAccount && !accountId ? 'text-bad font-semibold' : ''"
       >
-        <div class="overflow-hidden rounded-[10px]">
+        <div
+          ref="accountGrid"
+          :class="[
+            'overflow-hidden rounded-[10px]',
+            needAccount && !accountId && 'ring-2 ring-bad/60',
+          ]"
+        >
           <GridPicker
             :items="pickerItems.accountItems()"
             :model-value="accountId"
@@ -418,11 +434,18 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
         <Button variant="ghost" size="default" @click="input?.click()">Ganti</Button>
       </Card>
       <div class="mt-4 flex flex-col items-stretch gap-2">
+        <p
+          v-if="needAccount && !accountId"
+          class="m-0 text-center text-meta font-medium text-bad"
+          role="alert"
+        >
+          Pilih dulu akunnya di atas: ketuk grup, lalu akun.
+        </p>
         <Button
           v-if="isPhoto && photo"
           size="touch"
-          :disabled="!canEdit || !accountId || busy"
-          @click="readPhoto"
+          :disabled="!canEdit || busy"
+          @click="withAccount(readPhoto)"
         >
           <component :is="busy ? RefreshCw : Sparkles" :class="busy && 'animate-spin'" />
           {{ busy ? 'Membaca foto…' : 'Baca dengan AI' }}
@@ -430,8 +453,8 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
         <Button
           v-else
           size="touch"
-          :disabled="!canEdit || !accountId || busy"
-          @click="input?.click()"
+          :disabled="!canEdit || busy"
+          @click="withAccount(() => input?.click())"
         >
           <component
             :is="busy ? RefreshCw : isPhoto ? Camera : Upload"

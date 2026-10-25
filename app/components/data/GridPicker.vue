@@ -31,6 +31,15 @@ function initialExpanded() {
   return holder?.id ?? props.items.find(hasChildren)?.id ?? null;
 }
 const expanded = ref<string | null>(initialExpanded());
+// Isi grid sering datang setelah dipasang (data akun/kategori masih dimuat):
+// buka induk awal begitu isinya ada, selama user belum membuka/menutup sendiri
+let touched = false;
+watch(
+  () => props.items,
+  () => {
+    if (!touched && expanded.value === null) expanded.value = initialExpanded();
+  },
+);
 
 const rows = computed(() => {
   const out: GridItem[][] = [];
@@ -41,7 +50,10 @@ const rows = computed(() => {
 
 function tap(item: GridItem) {
   if (item.disabled) return;
-  if (hasChildren(item)) expanded.value = expanded.value === item.id ? null : item.id;
+  if (hasChildren(item)) {
+    touched = true;
+    expanded.value = expanded.value === item.id ? null : item.id;
+  }
   else emit('select', item.id);
 }
 
