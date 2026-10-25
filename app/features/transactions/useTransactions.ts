@@ -3,32 +3,35 @@ import { accountKeys } from '@/features/accounts/keys';
 import type { Account } from '@/features/accounts/api';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import type { TablesUpdate } from '@/lib/database.types';
-import { addMonths, jakartaParts } from '@/lib/time';
+import { addMonths, periodOf } from '@/lib/time';
 import { uuid } from '@/lib/uuid';
 import { transactionsApi, type Transaction, type TxInput } from './api';
 import { balanceEffects } from './effects';
 import { transactionKeys } from './keys';
 
-/** Transaksi satu bulan (WIB). Bulan sebelah di-prefetch supaya pindah bulan terasa langsung. */
+/** Transaksi satu periode bulan (WIB). Periode sebelah di-prefetch supaya pindah bulan terasa langsung. */
 export function useMonthTransactions(year: Ref<number>, month: Ref<number>) {
-  const { bookId } = useActiveBook();
+  const { bookId, monthStartDay } = useActiveBook();
   const client = useQueryClient();
 
   const query = useQuery({
-    queryKey: computed(() => transactionKeys.month(bookId.value, year.value, month.value)),
-    queryFn: () => transactionsApi.listMonth(bookId.value!, year.value, month.value),
+    queryKey: computed(() =>
+      transactionKeys.month(bookId.value, year.value, month.value, monthStartDay.value),
+    ),
+    queryFn: () =>
+      transactionsApi.listMonth(bookId.value!, year.value, month.value, monthStartDay.value),
     enabled: computed(() => !!bookId.value),
   });
 
   watch(
-    [bookId, year, month],
-    ([book, y, m]) => {
+    [bookId, year, month, monthStartDay],
+    ([book, y, m, day]) => {
       if (!book) return;
       for (const delta of [-1, 1]) {
         const n = addMonths(y, m, delta);
         client.prefetchQuery({
-          queryKey: transactionKeys.month(book, n.year, n.month),
-          queryFn: () => transactionsApi.listMonth(book, n.year, n.month),
+          queryKey: transactionKeys.month(book, n.year, n.month, day),
+          queryFn: () => transactionsApi.listMonth(book, n.year, n.month, day),
         });
       }
     },
@@ -59,9 +62,9 @@ export function useTxHighlight() {
 
 type Snapshot = [readonly unknown[], unknown][];
 
-function monthKeyOf(bookId: string, occurredAt: string) {
-  const p = jakartaParts(occurredAt);
-  return transactionKeys.month(bookId, p.year, p.month);
+function monthKeyOf(bookId: string, occurredAt: string, startDay: number) {
+  const p = periodOf(occurredAt, startDay);
+  return transactionKeys.month(bookId, p.year, p.month, startDay);
 }
 
 async function snapshot(client: QueryClient): Promise<Snapshot> {
@@ -124,6 +127,7 @@ export function useTransactionMutations() {
   const client = useQueryClient();
   const toast = useToast();
   const highlight = useTxHighlight();
+  const { monthStartDay } = useActiveBook();
 
   const settle = () => {
     client.invalidateQueries({ queryKey: transactionKeys.all });
@@ -139,8 +143,10 @@ export function useTransactionMutations() {
     onMutate: async (input) => {
       const saved = await snapshot(client);
       const row = toRow(input);
-      client.setQueryData<Transaction[]>(monthKeyOf(input.book_id, row.occurred_at), (list) =>
-        list ? [row, ...list].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)) : list,
+      client.setQueryData<Transaction[]>(
+        monthKeyOf(input.book_id, row.occurred_at, monthStartDay.value),
+        (list) =>
+          list ? [row, ...list].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)) : list,
       );
       shiftBalances(client, input.book_id, row, 1);
       highlight.value = row.id;
@@ -157,15 +163,18 @@ export function useTransactionMutations() {
       const saved = await snapshot(client);
       const after = { ...before, ...patch } as Transaction;
       // Hapus dari bulan lama, masukkan ke bulan baru (bisa berbeda kalau tanggal berubah)
-      client.setQueryData<Transaction[]>(monthKeyOf(before.book_id, before.occurred_at), (list) =>
-        list?.filter((t) => t.id !== before.id),
+      client.setQueryData<Transaction[]>(
+        monthKeyOf(before.book_id, before.occurred_at, monthStartDay.value),
+        (list) => list?.filter((t) => t.id !== before.id),
       );
-      client.setQueryData<Transaction[]>(monthKeyOf(before.book_id, after.occurred_at), (list) =>
-        list
-          ? [after, ...list.filter((t) => t.id !== before.id)].sort((a, b) =>
-              b.occurred_at.localeCompare(a.occurred_at),
-            )
-          : list,
+      client.setQueryData<Transaction[]>(
+        monthKeyOf(before.book_id, after.occurred_at, monthStartDay.value),
+        (list) =>
+          list
+            ? [after, ...list.filter((t) => t.id !== before.id)].sort((a, b) =>
+                b.occurred_at.localeCompare(a.occurred_at),
+              )
+            : list,
       );
       shiftBalances(client, before.book_id, before, -1);
       shiftBalances(client, before.book_id, after, 1);
@@ -180,8 +189,9 @@ export function useTransactionMutations() {
     mutationFn: (tx: Transaction) => transactionsApi.remove(tx.id),
     onMutate: async (tx) => {
       const saved = await snapshot(client);
-      client.setQueryData<Transaction[]>(monthKeyOf(tx.book_id, tx.occurred_at), (list) =>
-        list?.filter((t) => t.id !== tx.id),
+      client.setQueryData<Transaction[]>(
+        monthKeyOf(tx.book_id, tx.occurred_at, monthStartDay.value),
+        (list) => list?.filter((t) => t.id !== tx.id),
       );
       shiftBalances(client, tx.book_id, tx, -1);
       return saved;

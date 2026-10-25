@@ -18,20 +18,22 @@ import { useBudgetMonth } from '@/features/budgets/useBudgetMonth';
 import { useBudgetStatus, type BudgetView } from '@/features/budgets/useBudgets';
 import { useCategories } from '@/features/categories/useCategories';
 import { formatRupiah, formatShort } from '@/lib/format';
-import { jakartaParts, MONTHS_LONG, MONTHS_SHORT } from '@/lib/time';
+import { dayKey, MONTHS_LONG, MONTHS_SHORT, periodOf, periodRangeLabel } from '@/lib/time';
 
 // Budget bulanan: total dan per kategori, dengan progres aman / hampir habis /
 // lewat. Nominal yang diubah berlaku mulai bulan yang sedang dilihat.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Budget · Money Manager' });
 
-const { canEdit } = useActiveBook();
+const { canEdit, monthStartDay } = useActiveBook();
 const { year, month, shift, key } = useBudgetMonth();
 const { query, views } = useBudgetStatus(year, month);
 const categories = useCategories();
 
-const today = jakartaParts(new Date());
-const isCurrent = computed(() => year.value === today.year && month.value === today.month);
+const today = computed(() => periodOf(dayKey(new Date()), monthStartDay.value));
+const isCurrent = computed(
+  () => year.value === today.value.year && month.value === today.value.month,
+);
 
 const totals = computed(() => {
   const total = views.value.find((v) => !v.category_id);
@@ -76,6 +78,7 @@ function openForm(budget: BudgetView | null) {
         </HeaderButton>
         <MonthPicker
           :label="`${MONTHS_SHORT[month - 1]} ${year}`"
+          :hint="periodRangeLabel(year, month, monthStartDay)"
           :can-next="!isCurrent"
           @prev="shift(-1)"
           @next="shift(1)"

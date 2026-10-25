@@ -1,6 +1,6 @@
 import type { Database, Tables, TablesInsert, TablesUpdate } from '@/lib/database.types';
 import { useSupabase } from '@/lib/supabase';
-import { monthRange } from '@/lib/time';
+import { periodRange } from '@/lib/time';
 
 export type Transaction = Tables<'transactions'>;
 export type TxType = Transaction['type'];
@@ -28,8 +28,13 @@ export type TxInput = Pick<
 const MONTH_LIMIT = 1000;
 
 export const transactionsApi = {
-  async listMonth(bookId: string, year: number, month: number): Promise<Transaction[]> {
-    const { from, to } = monthRange(year, month);
+  async listMonth(
+    bookId: string,
+    year: number,
+    month: number,
+    startDay: number,
+  ): Promise<Transaction[]> {
+    const { from, to } = periodRange(year, month, startDay);
     const { data, error } = await useSupabase()
       .from('transactions')
       .select('*')

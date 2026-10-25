@@ -4,14 +4,16 @@ import { hasNext, shiftPeriod } from '@/features/stats/period';
 import { useStatsPeriod } from '@/features/stats/useStats';
 
 // ‹ Oktober 2026 › untuk periode statistik (minggu/bulan/tahun/rentang)
-const { period, bounds } = useStatsPeriod();
-const shift = (delta: number) => (period.value = shiftPeriod(period.value, delta));
+const { period, bounds, monthStartDay } = useStatsPeriod();
+const shift = (delta: number) =>
+  (period.value = shiftPeriod(period.value, delta, monthStartDay.value));
 </script>
 
 <template>
   <MonthPicker
     :label="bounds.label"
-    :can-next="hasNext(period)"
+    :hint="bounds.range"
+    :can-next="hasNext(period, new Date(), monthStartDay)"
     @prev="shift(-1)"
     @next="shift(1)"
   />

@@ -1,4 +1,14 @@
-import { fromLocalInput, jakartaParts, MONTHS_LONG, MONTHS_SHORT } from '@/lib/time';
+import {
+  addMonths,
+  fromLocalInput,
+  jakartaParts,
+  MONTHS_LONG,
+  MONTHS_SHORT,
+  periodOf,
+  periodRange,
+  periodRangeLabel,
+  periodStartDate,
+} from '@/lib/time';
 
 export type PeriodKind = 'week' | 'month' | 'year' | 'range';
 
@@ -17,7 +27,9 @@ export interface PeriodBounds {
   from: string;
   to: string;
   label: string;
-  /** Bulan terakhir periode, untuk ujung grafik tren */
+  /** Rentang tanggal periode bulan kalau awal bulan bukan tanggal 1 ("25 Okt – 24 Nov") */
+  range?: string;
+  /** Periode bulan terakhir, untuk ujung grafik tren dan budget */
   endYear: number;
   endMonth: number;
 }
@@ -47,51 +59,57 @@ function short(s: string, withYear: boolean) {
   return withYear ? `${base} ${d.getUTCFullYear()}` : base;
 }
 
-export function periodBounds(p: Period): PeriodBounds {
+/**
+ * Batas periode. `startDay` = tanggal awal bulan buku: periode bulan dan tahun
+ * mengikutinya, minggu dan rentang tidak (tapi periode bulan ujungnya ikut).
+ */
+export function periodBounds(p: Period, startDay = 1): PeriodBounds {
   const a = parse(p.anchor);
-  const year = a.getUTCFullYear();
-  const month = a.getUTCMonth() + 1;
+  const { year, month } = periodOf(p.anchor, startDay);
+  const endOf = (last: string) => {
+    const e = periodOf(last, startDay);
+    return { endYear: e.year, endMonth: e.month };
+  };
   switch (p.kind) {
     case 'week': {
       // Minggu dimulai Senin
       const monday = addDays(p.anchor, -((a.getUTCDay() + 6) % 7));
       const sunday = addDays(monday, 6);
       const sameYear = monday.slice(0, 4) === sunday.slice(0, 4);
-      const end = parse(sunday);
       return {
         from: startOf(monday),
         to: startOf(addDays(sunday, 1)),
         label: `${short(monday, !sameYear)} – ${short(sunday, true)}`,
-        endYear: end.getUTCFullYear(),
-        endMonth: end.getUTCMonth() + 1,
+        ...endOf(sunday),
       };
     }
-    case 'year':
+    case 'year': {
+      // Tahun = periode Januari s.d. Desember tahun itu
+      const y = Number(p.anchor.slice(0, 4));
       return {
-        from: startOf(`${year}-01-01`),
-        to: startOf(`${year + 1}-01-01`),
-        label: String(year),
-        endYear: year,
+        from: periodRange(y, 1, startDay).from,
+        to: periodRange(y + 1, 1, startDay).from,
+        label: String(y),
+        endYear: y,
         endMonth: 12,
       };
+    }
     case 'range': {
       const from = p.from ?? p.anchor;
       const to = p.to && p.to >= from ? p.to : from;
-      const end = parse(to);
       return {
         from: startOf(from),
         to: startOf(addDays(to, 1)),
         label: `${short(from, from.slice(0, 4) !== to.slice(0, 4))} – ${short(to, true)}`,
-        endYear: end.getUTCFullYear(),
-        endMonth: end.getUTCMonth() + 1,
+        ...endOf(to),
       };
     }
     default: {
-      const next = month === 12 ? `${year + 1}-01-01` : `${year}-${pad(month + 1)}-01`;
+      const range = periodRangeLabel(year, month, startDay);
       return {
-        from: startOf(`${year}-${pad(month)}-01`),
-        to: startOf(next),
+        ...periodRange(year, month, startDay),
         label: `${MONTHS_LONG[month - 1]} ${year}`,
+        ...(range ? { range } : {}),
         endYear: year,
         endMonth: month,
       };
@@ -100,7 +118,7 @@ export function periodBounds(p: Period): PeriodBounds {
 }
 
 /** Geser ke periode sebelum (-1) / sesudah (+1). Rentang digeser sepanjang dirinya. */
-export function shiftPeriod(p: Period, delta: number): Period {
+export function shiftPeriod(p: Period, delta: number, startDay = 1): Period {
   const a = parse(p.anchor);
   switch (p.kind) {
     case 'week':
@@ -114,13 +132,15 @@ export function shiftPeriod(p: Period, delta: number): Period {
       return { ...p, from: addDays(from, length * delta), to: addDays(to, length * delta) };
     }
     default: {
-      const d = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth() + delta, 1));
-      return { ...p, anchor: ymd(d) };
+      // Jangkar = tanggal mulai periode tujuan, jadi tidak tergelincir ke periode lain
+      const { year, month } = periodOf(p.anchor, startDay);
+      const n = addMonths(year, month, delta);
+      return { ...p, anchor: periodStartDate(n.year, n.month, startDay) };
     }
   }
 }
 
 /** Periode berikutnya sudah dimulai? (tombol › nonaktif kalau belum) */
-export function hasNext(p: Period, now: Date = new Date()): boolean {
-  return periodBounds(shiftPeriod(p, 1)).from <= startOf(todayWib(now));
+export function hasNext(p: Period, now: Date = new Date(), startDay = 1): boolean {
+  return periodBounds(shiftPeriod(p, 1, startDay), startDay).from <= startOf(todayWib(now));
 }

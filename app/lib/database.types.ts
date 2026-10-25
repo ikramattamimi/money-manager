@@ -204,6 +204,7 @@ export type Database = {
           created_by: string | null
           currency: string
           id: string
+          month_start_day: number
           name: string
           updated_at: string
         }
@@ -212,6 +213,7 @@ export type Database = {
           created_by?: string | null
           currency?: string
           id?: string
+          month_start_day?: number
           name: string
           updated_at?: string
         }
@@ -220,6 +222,7 @@ export type Database = {
           created_by?: string | null
           currency?: string
           id?: string
+          month_start_day?: number
           name?: string
           updated_at?: string
         }

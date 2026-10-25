@@ -48,6 +48,8 @@ export function useActiveBook() {
     role: computed(() => book.value?.role ?? null),
     canEdit: computed(() => book.value?.role === 'owner' || book.value?.role === 'editor'),
     isOwner: computed(() => book.value?.role === 'owner'),
+    /** Tanggal awal periode bulan buku ini (1–31) */
+    monthStartDay: computed(() => book.value?.month_start_day ?? 1),
     setActiveBook,
     isPending,
     error,

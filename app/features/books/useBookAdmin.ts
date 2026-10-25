@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { booksApi, type BookRole } from './api';
 import { bookKeys } from './keys';
+import { transactionKeys } from '@/features/transactions/keys';
 
 export const ROLE_LABEL: Record<BookRole, string> = {
   owner: 'Pemilik',
@@ -45,6 +46,13 @@ export function useBookMutations() {
     rename: useMutation({
       mutationFn: ({ id, name }: { id: string; name: string }) => booksApi.rename(id, name),
       onSuccess: invalidate,
+      onError,
+    }),
+    // Semua total per bulan berubah: muat ulang buku dan semua data transaksi/statistik
+    setMonthStartDay: useMutation({
+      mutationFn: ({ id, day }: { id: string; day: number }) => booksApi.setMonthStartDay(id, day),
+      onSuccess: () =>
+        Promise.all([invalidate(), client.invalidateQueries({ queryKey: transactionKeys.all })]),
       onError,
     }),
     remove: useMutation({

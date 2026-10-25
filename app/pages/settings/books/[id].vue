@@ -23,7 +23,14 @@ import {
   useBookMembers,
   useBookMutations,
 } from '@/features/books/useBookAdmin';
-import { MONTHS_SHORT } from '@/lib/time';
+import {
+  addMonths,
+  dayKey,
+  MONTHS_LONG,
+  MONTHS_SHORT,
+  periodOf,
+  periodRangeLabel,
+} from '@/lib/time';
 
 // Atur satu buku: nama, anggota dan peran, undangan, keluar, hapus.
 // Peran ditegakkan RLS dan trigger; layar ini hanya menyembunyikan tombol.
@@ -54,6 +61,26 @@ function rename() {
   mutations.rename.mutate(
     { id: id.value, name: value },
     { onSuccess: () => toast.show('Nama buku disimpan') },
+  );
+}
+
+// ---------- tanggal awal bulan ----------
+const startDay = ref(1);
+watch(book, (b) => b && (startDay.value = b.month_start_day), { immediate: true });
+/** Contoh periode berjalan dengan tanggal pilihan, untuk pratinjau */
+const startPreview = computed(() => {
+  const p = periodOf(dayKey(new Date()), startDay.value);
+  const next = addMonths(p.year, p.month, 1);
+  return startDay.value === 1
+    ? 'Bulan mengikuti kalender, tanggal 1 sampai akhir bulan.'
+    : `Bulan ${MONTHS_LONG[p.month - 1]} = ${periodRangeLabel(p.year, p.month, startDay.value)}, ` +
+        `${MONTHS_LONG[next.month - 1]} = ${periodRangeLabel(next.year, next.month, startDay.value)}.`;
+});
+function saveStartDay() {
+  if (!book.value || startDay.value === book.value.month_start_day) return;
+  mutations.setMonthStartDay.mutate(
+    { id: id.value, day: startDay.value },
+    { onSuccess: () => toast.show(`Bulan dimulai tanggal ${startDay.value}`) },
   );
 }
 
@@ -197,6 +224,40 @@ function deleteBook() {
             >Simpan</Button
           >
         </form>
+      </Card>
+
+      <!-- Tanggal awal bulan -->
+      <Card class="mt-3.5 p-3.5">
+        <form v-if="isOwner" class="flex flex-col gap-2" @submit.prevent="saveStartDay">
+          <div class="flex items-end gap-2">
+            <FormField label="Bulan dimulai tanggal" for="book-start-day" class="flex-1">
+              <select id="book-start-day" v-model.number="startDay" class="field-input">
+                <option v-for="d in 31" :key="d" :value="d">{{ d }}</option>
+              </select>
+            </FormField>
+            <Button
+              type="submit"
+              size="touch"
+              variant="secondary"
+              :disabled="
+                startDay === book?.month_start_day || mutations.setMonthStartDay.isPending.value
+              "
+              >Simpan</Button
+            >
+          </div>
+          <p class="m-0 text-xs text-muted-foreground">
+            {{ startPreview }}
+            <template v-if="startDay > 28">
+              Bulan yang lebih pendek mulai di hari terakhirnya.</template
+            >
+            Berlaku untuk semua anggota: transaksi, statistik, dan budget.
+          </p>
+        </form>
+        <p v-else class="m-0 text-meta">
+          Bulan di buku ini dimulai tanggal <b>{{ book?.month_start_day ?? 1 }}</b
+          >.
+          <span class="text-muted-foreground">Hanya pemilik yang bisa mengubahnya.</span>
+        </p>
       </Card>
 
       <!-- Anggota -->

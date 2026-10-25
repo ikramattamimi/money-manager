@@ -6,7 +6,10 @@ import {
   firstWeekdayMondayBased,
   fromLocalInput,
   jakartaParts,
-  monthRange,
+  periodDays,
+  periodOf,
+  periodRange,
+  periodRangeLabel,
   toLocalInput,
 } from './time';
 
@@ -23,11 +26,31 @@ describe('waktu WIB', () => {
   });
 
   it('rentang bulan dimulai tengah malam WIB', () => {
-    expect(monthRange(2026, 10)).toEqual({
+    expect(periodRange(2026, 10)).toEqual({
       from: '2026-09-30T17:00:00.000Z',
       to: '2026-10-31T17:00:00.000Z',
     });
-    expect(monthRange(2026, 12).to).toBe('2026-12-31T17:00:00.000Z');
+    expect(periodRange(2026, 12).to).toBe('2026-12-31T17:00:00.000Z');
+  });
+
+  it('periode dengan tanggal awal 25: Oktober = 25 Okt – 24 Nov', () => {
+    expect(periodRange(2026, 10, 25)).toEqual({
+      from: '2026-10-24T17:00:00.000Z',
+      to: '2026-11-24T17:00:00.000Z',
+    });
+    expect(periodRangeLabel(2026, 10, 25)).toBe('25 Okt – 24 Nov');
+    expect(periodRangeLabel(2026, 10, 1)).toBe('');
+    // 24 Okt 23.59 WIB masih September, 25 Okt 00.00 WIB sudah Oktober
+    expect(periodOf('2026-10-24T16:59:00Z', 25)).toEqual({ year: 2026, month: 9 });
+    expect(periodOf('2026-10-24T17:00:00Z', 25)).toEqual({ year: 2026, month: 10 });
+    expect(periodOf('2026-01-10', 25)).toEqual({ year: 2025, month: 12 });
+    expect(periodDays(2026, 10, 25)).toHaveLength(31);
+  });
+
+  it('tanggal awal 31 jatuh ke hari terakhir bulan pendek', () => {
+    expect(periodRangeLabel(2027, 2, 31)).toBe('28 Feb – 30 Mar');
+    expect(periodOf('2027-03-30', 31)).toEqual({ year: 2027, month: 2 });
+    expect(periodOf('2027-03-31', 31)).toEqual({ year: 2027, month: 3 });
   });
 
   it('berpindah bulan melewati tahun', () => {

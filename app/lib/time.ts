@@ -60,17 +60,70 @@ export function jakartaParts(value: string | Date): JakartaParts {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Rentang satu bulan WIB sebagai ISO UTC: [from, to) */
-export function monthRange(year: number, month: number): { from: string; to: string } {
-  const next = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+// ---------------------------------------------------------------------
+// Periode bulan. Buku bisa memilih tanggal awal bulan (1–31): periode
+// "Oktober" dengan awal 25 = 25 Okt – 24 Nov. Bulan yang lebih pendek dari
+// tanggal awal mulai di hari terakhirnya. Aturan yang sama ada di SQL
+// (private.period_start / private.period_key).
+// ---------------------------------------------------------------------
+
+/** Tanggal mulai periode (year, month), "YYYY-MM-DD" WIB */
+export function periodStartDate(year: number, month: number, startDay = 1): string {
+  const day = Math.min(Math.max(startDay, 1), daysInMonth(year, month));
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+/** Rentang satu periode bulan sebagai ISO UTC: [from, to) */
+export function periodRange(
+  year: number,
+  month: number,
+  startDay = 1,
+): { from: string; to: string } {
+  const next = addMonths(year, month, 1);
   return {
-    from: new Date(`${year}-${pad(month)}-01T00:00:00${OFFSET}`).toISOString(),
-    to: new Date(`${next.year}-${pad(next.month)}-01T00:00:00${OFFSET}`).toISOString(),
+    from: new Date(`${periodStartDate(year, month, startDay)}T00:00:00${OFFSET}`).toISOString(),
+    to: new Date(
+      `${periodStartDate(next.year, next.month, startDay)}T00:00:00${OFFSET}`,
+    ).toISOString(),
   };
 }
 
-export function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+/** Periode tempat sebuah waktu (atau tanggal "YYYY-MM-DD") jatuh */
+export function periodOf(value: string | Date, startDay = 1): { year: number; month: number } {
+  const p =
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? (() => {
+          const [year, month, day] = value.split('-').map(Number) as [number, number, number];
+          return { year, month, day };
+        })()
+      : jakartaParts(value);
+  const start = Number(periodStartDate(p.year, p.month, startDay).slice(8));
+  return p.day >= start ? { year: p.year, month: p.month } : addMonths(p.year, p.month, -1);
+}
+
+/** Semua tanggal "YYYY-MM-DD" dalam periode, urut */
+export function periodDays(year: number, month: number, startDay = 1): string[] {
+  const next = addMonths(year, month, 1);
+  const end = periodStartDate(next.year, next.month, startDay);
+  const days: string[] = [];
+  const d = new Date(`${periodStartDate(year, month, startDay)}T00:00:00Z`);
+  for (let key = d.toISOString().slice(0, 10); key < end; key = d.toISOString().slice(0, 10)) {
+    days.push(key);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return days;
+}
+
+/** "25 Okt – 24 Nov"; kosong kalau periode = bulan kalender (awal tanggal 1) */
+export function periodRangeLabel(year: number, month: number, startDay = 1): string {
+  if (startDay <= 1) return '';
+  const days = periodDays(year, month, startDay);
+  const short = (s: string) => `${Number(s.slice(8))} ${MONTHS_SHORT[Number(s.slice(5, 7)) - 1]}`;
+  return `${short(days[0]!)} – ${short(days[days.length - 1]!)}`;
 }
 
 /** Hari pertama bulan, indeks kolom kalender yang dimulai Senin (0 = Senin) */

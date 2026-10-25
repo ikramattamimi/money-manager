@@ -7,8 +7,9 @@ import ToneIcon from '@/components/data/ToneIcon.vue';
 import HeaderButton from '@/components/layout/HeaderButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { useActiveBook } from '@/features/books/useActiveBook';
 import { useExportExcel } from '@/features/export/useExport';
-import { fromLocalInput, jakartaParts, MONTHS_LONG, monthRange } from '@/lib/time';
+import { fromLocalInput, jakartaParts, MONTHS_LONG, periodOf, periodRange } from '@/lib/time';
 
 // Ekspor transaksi ke Excel dengan kolom gaya Realbyte, supaya bisa dibuka di
 // Excel/Numbers atau diimpor balik ke buku lain.
@@ -17,6 +18,7 @@ useHead({ title: 'Ekspor Excel · Money Manager' });
 
 const exporter = useExportExcel();
 const toast = useToast();
+const { monthStartDay } = useActiveBook();
 
 const today = jakartaParts(new Date());
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -35,15 +37,18 @@ const to = ref(todayInput);
 /** Batas [from, to) dalam ISO UTC, dihitung di zona WIB */
 const bounds = computed<{ from: string | null; to: string | null; label: string } | null>(() => {
   switch (range.value) {
-    case 'month':
+    case 'month': {
+      // Periode bulan berjalan menurut tanggal awal bulan buku
+      const p = periodOf(todayInput, monthStartDay.value);
       return {
-        ...monthRange(today.year, today.month),
-        label: `${MONTHS_LONG[today.month - 1]} ${today.year}`,
+        ...periodRange(p.year, p.month, monthStartDay.value),
+        label: `${MONTHS_LONG[p.month - 1]} ${p.year}`,
       };
+    }
     case 'year':
       return {
-        from: monthRange(today.year, 1).from,
-        to: monthRange(today.year + 1, 1).from,
+        from: periodRange(today.year, 1, monthStartDay.value).from,
+        to: periodRange(today.year + 1, 1, monthStartDay.value).from,
         label: String(today.year),
       };
     case 'all':

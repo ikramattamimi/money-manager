@@ -36,17 +36,17 @@ import {
   addMonths,
   dayKey,
   dayLabel,
-  daysInMonth,
-  firstWeekdayMondayBased,
-  jakartaParts,
   MONTHS_LONG,
   MONTHS_SHORT,
+  periodDays,
+  periodOf,
+  periodRangeLabel,
 } from '@/lib/time';
 
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Transaksi · Money Manager' });
 
-const { canEdit } = useActiveBook();
+const { canEdit, monthStartDay } = useActiveBook();
 const { md, lg } = useBreakpoint();
 const ui = useQuickAddUi();
 const editor = useTxEditor();
@@ -55,11 +55,21 @@ const highlight = useTxHighlight();
 const categories = useCategories();
 const { rowProps } = useTxDisplay();
 
-// ---------- bulan aktif (bertahan saat pindah tab) ----------
-const today = jakartaParts(new Date());
-const year = useState('tx:year', () => today.year);
-const month = useState('tx:month', () => today.month);
-const isCurrent = computed(() => year.value === today.year && month.value === today.month);
+// ---------- periode bulan aktif (bertahan saat pindah tab) ----------
+// Periode mengikuti tanggal awal bulan buku: awal 25 → Oktober = 25 Okt – 24 Nov
+const todayKey = dayKey(new Date());
+const current = computed(() => periodOf(todayKey, monthStartDay.value));
+const year = useState('tx:year', () => current.value.year);
+const month = useState('tx:month', () => current.value.month);
+const isCurrent = computed(
+  () => year.value === current.value.year && month.value === current.value.month,
+);
+// Tanggal awal berubah (buku lain / pengaturan diganti): kembali ke periode berjalan
+watch(monthStartDay, () => {
+  year.value = current.value.year;
+  month.value = current.value.month;
+});
+const rangeHint = computed(() => periodRangeLabel(year.value, month.value, monthStartDay.value));
 
 function shiftMonth(delta: number) {
   const next = addMonths(year.value, month.value, delta);
@@ -107,25 +117,36 @@ const days = computed(() => {
 
 const signed = (n: number) => (n ? (n > 0 ? '+' : '−') + formatRupiah(Math.abs(n)) : '');
 
-// ---------- kalender ----------
-const selectedDay = ref(isCurrent.value ? today.day : 1);
-watch([year, month], () => (selectedDay.value = isCurrent.value ? today.day : 1));
-const offset = computed(() => firstWeekdayMondayBased(year.value, month.value));
-const dayCount = computed(() => daysInMonth(year.value, month.value));
+// ---------- kalender (tanggal-tanggal dalam periode, bisa melewati dua bulan) ----------
+const calendarDays = computed(() => periodDays(year.value, month.value, monthStartDay.value));
+const firstKey = () => (isCurrent.value ? todayKey : calendarDays.value[0]!);
+const selectedDay = ref(firstKey());
+watch([year, month, monthStartDay], () => (selectedDay.value = firstKey()));
+const offset = computed(() => {
+  const [y, m, d] = calendarDays.value[0]!.split('-').map(Number) as [number, number, number];
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+});
+const dayNum = (key: string) => Number(key.slice(8));
+const dayName = (key: string) => `${dayNum(key)} ${MONTHS_LONG[Number(key.slice(5, 7)) - 1]}`;
+/** Tanggal 1 bulan berikutnya di tengah periode diberi nama bulannya */
+const cellLabel = (key: string, i: number) =>
+  i > 0 && dayNum(key) === 1
+    ? `1 ${MONTHS_SHORT[Number(key.slice(5, 7)) - 1]}`
+    : String(dayNum(key));
 const daySums = computed(() => {
-  const sums: Record<number, { income: number; expense: number }> = {};
+  const sums: Record<string, { income: number; expense: number }> = {};
   for (const t of list.value) {
     if (t.is_adjustment) continue;
-    const s = (sums[jakartaParts(t.occurred_at).day] ??= { income: 0, expense: 0 });
+    const s = (sums[dayKey(t.occurred_at)] ??= { income: 0, expense: 0 });
     if (t.type === 'income') s.income += t.amount;
     if (t.type === 'expense') s.expense += t.amount;
   }
   return sums;
 });
 const selectedList = computed(() =>
-  list.value.filter((t) => jakartaParts(t.occurred_at).day === selectedDay.value),
+  list.value.filter((t) => dayKey(t.occurred_at) === selectedDay.value),
 );
-const isFuture = (d: number) => isCurrent.value && d > today.day;
+const isFuture = (key: string) => key > todayKey;
 
 // ---------- bulanan ----------
 const { data: overview } = useMonthsOverview(year);
@@ -189,6 +210,7 @@ function addFirst() {
         <template #actions>
           <MonthPicker
             :label="`${MONTHS_SHORT[month - 1]} ${year}`"
+            :hint="rangeHint"
             @prev="shiftMonth(-1)"
             @next="shiftMonth(1)"
           />
@@ -270,23 +292,23 @@ function addFirst() {
             <div class="grid grid-cols-7 gap-0.5">
               <span v-for="n in offset" :key="`e${n}`" />
               <button
-                v-for="d in dayCount"
+                v-for="(d, i) in calendarDays"
                 :key="d"
                 type="button"
                 :aria-pressed="d === selectedDay"
-                :aria-label="`${d} ${MONTHS_LONG[month - 1]}`"
+                :aria-label="dayName(d)"
                 :class="[
                   'press flex min-h-13 flex-col items-center gap-px rounded-[10px] pt-1.5 text-label font-semibold',
                   d === selectedDay
                     ? 'bg-primary text-white [&_small]:!text-white/85'
-                    : isCurrent && d === today.day
+                    : d === todayKey
                       ? 'text-primary-accent ring-[1.5px] ring-inset ring-primary-accent hover:bg-surface-2'
                       : 'hover:bg-surface-2',
                   isFuture(d) && d !== selectedDay && 'font-medium text-faint',
                 ]"
                 @click="selectedDay = d"
               >
-                <span class="tabular-nums">{{ d }}</span>
+                <span class="tabular-nums">{{ cellLabel(d, i) }}</span>
                 <small
                   v-if="daySums[d]?.expense"
                   class="text-[9.5px] font-semibold tracking-tight text-bad tabular-nums"
@@ -304,7 +326,7 @@ function addFirst() {
           </Card>
           <ListGroup
             v-if="selectedList.length"
-            :label="`${selectedDay} ${MONTHS_LONG[month - 1]}`"
+            :label="dayName(selectedDay)"
             :aside="`${selectedList.length} transaksi`"
           >
             <TransactionRow
@@ -340,7 +362,14 @@ function addFirst() {
               :key="m.month"
               as="button"
               :title="`${MONTHS_LONG[m.month - 1]} ${year}`"
-              :subtitle="`Masuk ${formatShort(m.income)} · Keluar ${formatShort(m.expense)} · ${m.tx_count} transaksi`"
+              :subtitle="
+                [
+                  periodRangeLabel(year, m.month, monthStartDay),
+                  `Masuk ${formatShort(m.income)} · Keluar ${formatShort(m.expense)} · ${m.tx_count} transaksi`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              "
               :value="(m.net >= 0 ? '+' : '') + formatShort(m.net)"
               :value-class="m.net >= 0 ? 'text-primary-accent' : 'text-bad'"
               @click="((month = m.month), (view = 'daily'))"

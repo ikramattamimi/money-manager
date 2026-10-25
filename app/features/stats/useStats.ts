@@ -17,9 +17,10 @@ export const statsKeys = {
 
 /** Periode statistik yang dipilih, bertahan saat pindah tab */
 export function useStatsPeriod() {
+  const { monthStartDay } = useActiveBook();
   const period = useState<Period>('stats:period', () => ({ kind: 'month', anchor: todayWib() }));
-  const bounds = computed(() => periodBounds(period.value));
-  return { period, bounds };
+  const bounds = computed(() => periodBounds(period.value, monthStartDay.value));
+  return { period, bounds, monthStartDay };
 }
 
 export interface CategorySlice {

@@ -60,4 +60,24 @@ describe('periode statistik', () => {
     expect(hasNext({ kind: 'month', anchor: '2026-09-01' }, NOW)).toBe(true);
     expect(hasNext({ kind: 'week', anchor: '2026-10-25' }, NOW)).toBe(false);
   });
+
+  it('tanggal awal bulan 25: periode, geser, dan ujung tren mengikutinya', () => {
+    const b = periodBounds({ kind: 'month', anchor: '2026-10-10' }, 25);
+    expect(b).toMatchObject({
+      label: 'September 2026',
+      range: '25 Sep – 24 Okt',
+      from: '2026-09-24T17:00:00.000Z',
+      to: '2026-10-24T17:00:00.000Z',
+      endMonth: 9,
+    });
+    expect(shiftPeriod({ kind: 'month', anchor: '2026-10-10' }, 1, 25).anchor).toBe('2026-10-25');
+    // 25 Okt 00.30 WIB: periode Oktober sudah dimulai, November belum
+    expect(hasNext({ kind: 'month', anchor: '2026-10-10' }, NOW, 25)).toBe(true);
+    expect(hasNext({ kind: 'month', anchor: '2026-10-25' }, NOW, 25)).toBe(false);
+    expect(periodBounds({ kind: 'year', anchor: '2026-10-25' }, 25).from).toBe(
+      '2026-01-24T17:00:00.000Z',
+    );
+    expect(periodBounds({ kind: 'week', anchor: '2026-10-21' }, 25).endMonth).toBe(10);
+    expect(periodBounds({ kind: 'month', anchor: '2026-10-10' }).range).toBeUndefined();
+  });
 });

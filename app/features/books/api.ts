@@ -41,6 +41,15 @@ export const booksApi = {
     if (error) throw new Error('Gagal mengganti nama buku.', { cause: error });
   },
 
+  /** Tanggal awal periode bulan (1–31), hanya pemilik (ditegakkan RLS) */
+  async setMonthStartDay(id: string, day: number): Promise<void> {
+    const { error } = await useSupabase()
+      .from('books')
+      .update({ month_start_day: day })
+      .eq('id', id);
+    if (error) throw new Error('Gagal menyimpan tanggal awal bulan.', { cause: error });
+  },
+
   /** Hapus buku beserta semua isinya (hanya pemilik, ditegakkan RLS) */
   async remove(id: string): Promise<void> {
     const { error } = await useSupabase().from('books').delete().eq('id', id);
