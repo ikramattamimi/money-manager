@@ -16,4 +16,10 @@
   "observability": {
     "enabled": true,
   },
+  "vars": {
+    "NUXT_OCR_DAILY_LIMIT": "30",
+    "NUXT_OCR_MODEL": "claude-haiku-5-5",
+    "NUXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_W0a0QC5GUHKk6lHIjnBxtg_js5Ew7j9",
+    "NUXT_PUBLIC_SUPABASE_URL": "https://setdjlttwahdajvmzkyo.supabase.co"
+  }
 }
