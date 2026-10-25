@@ -11,6 +11,7 @@ import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import type { RecurringFrequency, RecurringRule } from '@/features/recurring/api';
+import { installmentPlan } from '@/features/recurring/installment';
 import { FREQUENCY_LABEL, useRecurringMutations } from '@/features/recurring/useRecurring';
 import type { TxType } from '@/features/transactions/api';
 import { usePickerItems } from '@/features/transactions/usePickerItems';
@@ -49,6 +50,28 @@ const form = reactive({
   active: r?.active ?? true,
 });
 const errors = reactive<Record<string, string>>({});
+
+// Cicilan: total dibagi N bulan, aturan bulanan yang berhenti di cicilan ke-N
+const installment = reactive({ on: false, total: 0, months: 3 });
+const plan = computed(() =>
+  installment.on
+    ? installmentPlan(installment.total, installment.months, form.startOn, form.dayOfMonth ?? 1)
+    : null,
+);
+watch(plan, (p) => {
+  if (!p) return;
+  form.frequency = 'monthly';
+  form.interval = 1;
+  form.amount = p.amount;
+  form.endOn = p.endOn;
+});
+watch(
+  () => installment.on,
+  (on) => {
+    if (on && !form.name.trim()) form.name = 'Cicilan ';
+    if (!on) form.endOn = '';
+  },
+);
 
 const TYPES = [
   { value: 'expense', label: 'Pengeluaran' },
@@ -116,6 +139,8 @@ function save() {
   if (!form.accountId) errors.accountId = 'Pilih akun.';
   if (form.type === 'transfer' && !form.toAccountId) errors.toAccountId = 'Pilih akun tujuan.';
   if (!form.startOn) errors.startOn = 'Isi tanggal mulai.';
+  if (installment.on && !plan.value)
+    errors.installment = 'Isi total cicilan dan jumlah bulan (minimal 2).';
   if (form.endOn && form.endOn < form.startOn)
     errors.endOn = 'Tanggal akhir sebelum tanggal mulai.';
   if (form.interval < 1 || form.interval > 365) errors.interval = 'Isi 1–365.';
@@ -189,6 +214,38 @@ function remove() {
     </div>
 
     <SegmentedControl v-model="form.type" :options="TYPES" label="Jenis transaksi" />
+
+    <template v-if="!rule && form.type === 'expense'">
+      <Switch
+        id="rr-installment"
+        v-model="installment.on"
+        label="Cicilan"
+        description="Total dibagi rata per bulan dan berhenti sendiri setelah cicilan terakhir."
+      />
+      <div v-if="installment.on" class="grid grid-cols-2 gap-3">
+        <FormField label="Total cicilan" for="rr-total" :error="errors.installment">
+          <AmountInput id="rr-total" v-model="installment.total" />
+        </FormField>
+        <FormField label="Berapa bulan" for="rr-months">
+          <input
+            id="rr-months"
+            v-model.number="installment.months"
+            type="number"
+            inputmode="numeric"
+            min="2"
+            max="60"
+            class="field-input"
+          />
+        </FormField>
+        <p v-if="plan" class="col-span-2 m-0 -mt-1.5 text-xs text-muted-foreground">
+          {{ installment.months }} × {{ plan.amount.toLocaleString('id-ID') }}, terakhir
+          {{ plan.endOn.split('-').reverse().join('/') }}.<template v-if="plan.rounding">
+            Total tercatat {{ (plan.amount * installment.months).toLocaleString('id-ID') }} (selisih
+            pembulatan {{ Math.abs(plan.rounding).toLocaleString('id-ID') }}).</template
+          >
+        </p>
+      </div>
+    </template>
 
     <div class="grid gap-3 sm:grid-cols-2">
       <FormField label="Nama" for="rr-name" :error="errors.name">
