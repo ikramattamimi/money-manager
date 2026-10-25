@@ -1,6 +1,6 @@
-import { keepPreviousData, useQuery } from '@tanstack/vue-query';
+import { useQuery } from '@tanstack/vue-query';
 import type { Tone } from '@/components/data/tone';
-import { useActiveBook } from '@/features/books/useActiveBook';
+import { keepWithinBook, useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { transactionKeys } from '@/features/transactions/keys';
 import { statsApi } from './api';
@@ -49,7 +49,7 @@ export function useBreakdown(type: Ref<'income' | 'expense'>) {
     queryFn: () =>
       statsApi.breakdown(bookId.value!, bounds.value.from, bounds.value.to, type.value),
     enabled: computed(() => !!bookId.value),
-    placeholderData: keepPreviousData,
+    placeholderData: keepWithinBook(bookId),
   });
 
   const slices = computed<CategorySlice[]>(() => {
@@ -115,6 +115,6 @@ export function useTrend(months = 6, categoryId: Ref<string | null> = ref(null))
         categoryId.value,
       ),
     enabled: computed(() => !!bookId.value),
-    placeholderData: keepPreviousData,
+    placeholderData: keepWithinBook(bookId),
   });
 }

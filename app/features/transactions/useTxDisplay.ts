@@ -1,4 +1,6 @@
 import { useAccounts } from '@/features/accounts/useAccounts';
+import { useActiveBook } from '@/features/books/useActiveBook';
+import { useBookMembers } from '@/features/books/useBookAdmin';
 import { ADJUSTMENT_STYLE, TRANSFER_STYLE } from '@/features/categories/icons';
 import { useCategories } from '@/features/categories/useCategories';
 import { formatRupiah } from '@/lib/format';
@@ -11,6 +13,14 @@ const SIGN = { income: '+', expense: '−', transfer: '' } as const;
 export function useTxDisplay() {
   const categories = useCategories();
   const accounts = useAccounts();
+  const { bookId } = useActiveBook();
+  const members = useBookMembers(bookId);
+  // Buku bersama: nama pencatat untuk transaksi yang dicatat anggota lain
+  const otherNames = computed(() => {
+    const list = members.data.value ?? [];
+    if (list.length < 2) return new Map<string, string>();
+    return new Map(list.filter((m) => !m.is_me).map((m) => [m.user_id, m.display_name]));
+  });
 
   function rowProps(t: Transaction, perspectiveAccountId?: string) {
     const style = t.is_adjustment
@@ -44,7 +54,9 @@ export function useTxDisplay() {
       subtitle,
       amount: sign + formatRupiah(t.amount),
       kind,
-      meta: formatTime(t.occurred_at),
+      meta: [formatTime(t.occurred_at), t.created_by ? otherNames.value.get(t.created_by) : '']
+        .filter(Boolean)
+        .join(' · '),
     };
   }
 

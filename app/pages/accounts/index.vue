@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDownUp, Check, ChevronRight, Plus, Wallet } from '@lucide/vue';
+import { ArrowDownUp, BookOpen, Check, ChevronRight, Plus, Wallet } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import Overlay from '@/components/base/Overlay.vue';
 import EmptyState from '@/components/data/EmptyState.vue';
@@ -22,7 +22,7 @@ import { formatRupiah, formatShort } from '@/lib/format';
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Akun · Money Manager' });
 
-const { canEdit } = useActiveBook();
+const { canEdit, book } = useActiveBook();
 const { accounts, grouped, totals } = useAccounts();
 const mutations = useAccountMutations();
 
@@ -45,13 +45,21 @@ function openForm(account: Account | null) {
 <template>
   <div>
     <PageHeader title="Akun" :summary="formatRupiah(totals.net)">
-      <template v-if="canEdit" #actions>
-        <HeaderButton :aria-pressed="sorting" @click="sorting = !sorting">
-          <component :is="sorting ? Check : ArrowDownUp" aria-hidden="true" />{{
-            sorting ? 'Selesai' : 'Urutkan'
-          }}
+      <template #actions>
+        <HeaderButton
+          :label="`Buku ${book?.name ?? ''}, ganti buku`"
+          @click="navigateTo('/settings/books')"
+        >
+          <BookOpen aria-hidden="true" /><span class="max-w-[96px] truncate">{{ book?.name }}</span>
         </HeaderButton>
-        <HeaderButton @click="openForm(null)"><Plus aria-hidden="true" />Akun</HeaderButton>
+        <template v-if="canEdit">
+          <HeaderButton :aria-pressed="sorting" @click="sorting = !sorting">
+            <component :is="sorting ? Check : ArrowDownUp" aria-hidden="true" />{{
+              sorting ? 'Selesai' : 'Urutkan'
+            }}
+          </HeaderButton>
+          <HeaderButton @click="openForm(null)"><Plus aria-hidden="true" />Akun</HeaderButton>
+        </template>
       </template>
       <PageHero label="Aset bersih" :value="formatRupiah(totals.net)" />
       <div class="flex flex-wrap gap-1.5">

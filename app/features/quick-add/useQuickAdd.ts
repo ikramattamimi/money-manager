@@ -60,6 +60,20 @@ export function useQuickAdd() {
     { immediate: true },
   );
 
+  // Pindah buku: akun/kategori pilihan dari buku lain tidak berlaku lagi
+  watch([source.accounts, source.categories], ([accounts, categories]) => {
+    const m = manual.value;
+    if (accounts.length && m.accountId && !accounts.some((a) => a.id === m.accountId)) {
+      m.accountId = source.defaultAccountId.value;
+      m.toAccountId = null;
+      touched.value.account = false;
+    }
+    if (categories.length && m.categoryId && !categories.some((c) => c.id === m.categoryId)) {
+      m.categoryId = null;
+      touched.value.category = false;
+    }
+  });
+
   const parsed = computed(() =>
     parseQuick(text.value, {
       accounts: source.accounts.value,

@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/vue-query';
-import { useActiveBook } from '@/features/books/useActiveBook';
+import { useQuery } from '@tanstack/vue-query';
+import { keepWithinBook, useActiveBook } from '@/features/books/useActiveBook';
 import { transactionKeys } from '@/features/transactions/keys';
 import { searchApi, type SearchFilters } from './api';
 
@@ -44,6 +44,6 @@ export function useSearch(filters: Ref<SearchFilters>, page: Ref<number>) {
     queryKey: computed(() => searchKeys.results(bookId.value, settled.value, page.value)),
     queryFn: () => searchApi.search(bookId.value!, settled.value, page.value),
     enabled: computed(() => !!bookId.value && hasFilter(settled.value)),
-    placeholderData: keepPreviousData,
+    placeholderData: keepWithinBook(bookId),
   });
 }

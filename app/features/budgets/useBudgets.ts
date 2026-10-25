@@ -1,6 +1,6 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import type { Tone } from '@/components/data/tone';
-import { useActiveBook } from '@/features/books/useActiveBook';
+import { keepWithinBook, useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { transactionKeys } from '@/features/transactions/keys';
 import { budgetsApi, type BudgetStatus } from './api';
@@ -33,7 +33,7 @@ export function useBudgetStatus(year: Ref<number>, month: Ref<number>) {
     queryKey: computed(() => budgetKeys.status(bookId.value, year.value, month.value)),
     queryFn: () => budgetsApi.status(bookId.value!, year.value, month.value),
     enabled: computed(() => !!bookId.value),
-    placeholderData: keepPreviousData,
+    placeholderData: keepWithinBook(bookId),
   });
 
   const views = computed<BudgetView[]>(() =>
