@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
-import { X } from '@lucide/vue';
+import { Check, X } from '@lucide/vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
 import type { Tone } from '@/components/data/tone';
 import { linearFriction, shouldCommit } from '@/lib/gesture';
@@ -18,6 +18,9 @@ const props = defineProps<{
   /** Nominal asli yang dicoret kalau sebagian/seluruhnya diganti (fase 10 T6) */
   was?: string;
   deletable?: boolean;
+  /** Mode pilih banyak: ikon jadi lingkaran centang, geser hapus nonaktif */
+  selecting?: boolean;
+  selected?: boolean;
 }>();
 const emit = defineEmits<{ delete: []; select: [] }>();
 
@@ -27,7 +30,7 @@ const gone = ref(false);
 
 const { dragging } = useSwipe(row, {
   axis: 'x',
-  canStart: () => !!props.deletable && !gone.value,
+  canStart: () => !!props.deletable && !props.selecting && !gone.value,
   // Ke kanan tidak ada aksi: gesekan, bukan berhenti mendadak
   onMove: (dx) => (offset.value = dx > 0 ? linearFriction(dx) : dx),
   onEnd: ({ delta, elapsedMs }) => {
@@ -82,6 +85,7 @@ defineExpose({ flash });
         ref="row"
         role="button"
         tabindex="0"
+        :aria-pressed="selecting ? !!selected : undefined"
         :class="[
           'relative grid touch-pan-y grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 bg-card px-2.5 py-2.5 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
           !dragging && 'transition-transform duration-[260ms] ease-out',
@@ -91,7 +95,17 @@ defineExpose({ flash });
         @keydown.enter="emit('select')"
         @keydown.delete="deletable && emit('delete')"
       >
-        <ToneIcon :icon="icon" :tone="tone" />
+        <span
+          v-if="selecting"
+          :class="[
+            'grid size-9 place-items-center rounded-full border-2 transition-colors duration-150',
+            selected ? 'border-primary-accent bg-primary-accent text-white' : 'border-input',
+          ]"
+          aria-hidden="true"
+        >
+          <Check v-if="selected" class="size-4" />
+        </span>
+        <ToneIcon v-else :icon="icon" :tone="tone" />
         <span class="flex min-w-0 flex-col">
           <b class="truncate text-label font-semibold">{{ title }}</b>
           <small class="truncate text-xs text-muted-foreground">{{ subtitle }}</small>

@@ -128,6 +128,27 @@ export const transactionsApi = {
     const { error } = await useSupabase().from('transactions').delete().eq('id', id);
     if (error) throw new Error('Gagal menghapus transaksi.', { cause: error });
   },
+
+  /** Ubah banyak transaksi sekaligus dengan isian yang sama (bulk edit) */
+  async updateMany(ids: string[], patch: TablesUpdate<'transactions'>): Promise<void> {
+    if (!ids.length) return;
+    const { error } = await useSupabase().from('transactions').update(patch).in('id', ids);
+    if (error)
+      throw new Error(friendly(error.message, 'Gagal mengubah transaksi.'), { cause: error });
+  },
+
+  async removeMany(ids: string[]): Promise<void> {
+    if (!ids.length) return;
+    const { error } = await useSupabase().from('transactions').delete().in('id', ids);
+    if (error) throw new Error('Gagal menghapus transaksi.', { cause: error });
+  },
+
+  /** Pulihkan banyak transaksi (urungkan hapus massal) */
+  async createMany(inputs: TxInput[]): Promise<void> {
+    if (!inputs.length) return;
+    const { error } = await useSupabase().from('transactions').insert(inputs);
+    if (error) throw new Error('Gagal memulihkan transaksi.', { cause: error });
+  },
 };
 
 /** Kaitan pemasukan ↔ pengeluaran yang digantinya (reimburse, utang) */

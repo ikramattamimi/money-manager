@@ -15,6 +15,7 @@ import PageHero from '@/components/layout/PageHero.vue';
 import StatChip from '@/components/layout/StatChip.vue';
 import PendingRecurring from '@/components/money/PendingRecurring.vue';
 import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
+import BulkTxBar from '@/components/money/BulkTxBar.vue';
 import TransactionRow from '@/components/money/TransactionRow.vue';
 import { Button } from '@/components/ui/button';
 import { useActiveBook } from '@/features/books/useActiveBook';
@@ -22,6 +23,7 @@ import { useCategories } from '@/features/categories/useCategories';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import type { Transaction } from '@/features/transactions/api';
 import { netAmount, summarize } from '@/features/transactions/effects';
+import { useTxSelection } from '@/features/transactions/useBulk';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 import {
@@ -55,6 +57,8 @@ const mutations = useTransactionMutations();
 const highlight = useTxHighlight();
 const categories = useCategories();
 const { rowProps } = useTxDisplay();
+// Pilih banyak untuk ubah kategori/akun atau hapus sekaligus; berhenti saat pindah periode/tampilan
+const selection = useTxSelection();
 
 // ---------- periode bulan aktif (bertahan saat pindah tab) ----------
 // Periode mengikuti tanggal awal bulan buku: awal 25 → Oktober = 25 Okt – 24 Nov
@@ -104,6 +108,8 @@ const VIEWS = [
   { value: 'yearly', label: 'Tahunan' },
 ] as const;
 const view = useState<(typeof VIEWS)[number]['value']>('tx:view', () => 'daily');
+watch([view, year, month], () => selection.stop());
+onBeforeUnmount(() => selection.stop());
 
 // ---------- data ----------
 const { data: txs, isPending, error } = useMonthTransactions(year, month);
@@ -295,6 +301,17 @@ function addFirst() {
               >
             </EmptyState>
           </Card>
+          <div v-if="canEdit && list.length" class="mt-2.5 flex justify-end px-1">
+            <Button
+              :variant="selection.selecting.value ? 'soft' : 'ghost'"
+              size="sm"
+              @click="
+                selection.selecting.value ? selection.stop() : (selection.selecting.value = true)
+              "
+            >
+              {{ selection.selecting.value ? 'Selesai' : 'Pilih' }}
+            </Button>
+          </div>
           <ListGroup
             v-for="d in days"
             :key="d.key"
@@ -308,10 +325,13 @@ function addFirst() {
               :ref="(el) => (rows[t.id] = el as InstanceType<typeof TransactionRow> | null)"
               v-bind="rowProps(t)"
               :deletable="canEdit"
-              @select="editor.edit(t)"
+              :selecting="selection.selecting.value"
+              :selected="selection.has(t.id)"
+              @select="selection.selecting.value ? selection.toggle(t.id) : editor.edit(t)"
               @delete="remove(t)"
             />
           </ListGroup>
+          <BulkTxBar v-if="selection.selecting.value" :list="list" />
         </template>
 
         <!-- Kalender -->

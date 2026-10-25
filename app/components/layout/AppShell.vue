@@ -49,8 +49,11 @@ const active = computed(() => {
 });
 
 // Tombol + hanya di tab Transaksi dan Akun (fase 10 T2)
+// Disembunyikan saat memilih banyak transaksi (bilah aksi massal di tempat yang sama)
+const txSelecting = useState('tx:selecting', () => false);
 const showAdd = computed(
-  () => props.canAdd && (route.path === txPath || active.value === 'accounts'),
+  () =>
+    props.canAdd && !txSelecting.value && (route.path === txPath || active.value === 'accounts'),
 );
 
 /** Tombol +, tombol sidebar, dan pintasan N */
