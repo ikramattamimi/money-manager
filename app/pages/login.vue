@@ -113,7 +113,7 @@ const FEATURES = [
             Money Manager
           </h1>
           <p class="m-0 max-w-[30ch] text-[15px] text-on-grad-2 md:text-base">
-            Catat keuangan tanpa ribet, dari HP atau laptop.
+            Catat keuangan tanpa ribet input manual.
           </p>
         </div>
       </div>
@@ -151,8 +151,7 @@ const FEATURES = [
             <div class="flex flex-col gap-1">
               <h2 class="m-0 text-panel font-bold">Masuk atau daftar</h2>
               <p class="m-0 text-meta text-muted-foreground">
-                Kami kirim kode {{ OTP_LENGTH }} digit ke email. Belum punya akun? Kode yang sama
-                sekalian mendaftarkanmu.
+                Kami akan mengirim kode {{ OTP_LENGTH }} digit ke email Anda. Kode ini bisa digunakan untuk masuk atau membuat akun baru.
               </p>
             </div>
             <label class="flex flex-col gap-1.5">
