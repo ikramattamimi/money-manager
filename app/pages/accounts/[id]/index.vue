@@ -11,6 +11,7 @@ import PageHero from '@/components/layout/PageHero.vue';
 import StatChip from '@/components/layout/StatChip.vue';
 import AccountForm from '@/components/money/AccountForm.vue';
 import AdjustBalanceForm from '@/components/money/AdjustBalanceForm.vue';
+import CardBill from '@/components/money/CardBill.vue';
 import TransactionRow from '@/components/money/TransactionRow.vue';
 import { useAccountLedger, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
@@ -113,6 +114,13 @@ function open(which: 'form' | 'adjust') {
         <StatChip v-if="account.archived" label="Status" value="diarsipkan" tone="warn" />
       </div>
     </PageHeader>
+
+    <CardBill
+      v-if="account && group?.kind === 'card' && !isPending"
+      :account="account"
+      :ledger="ledger ?? []"
+      @settings="open('form')"
+    />
 
     <Card v-if="isPending" class="mt-3.5 p-1"><Skeleton :rows="5" /></Card>
     <Card v-else-if="!days.length" class="mt-3.5">

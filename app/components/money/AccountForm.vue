@@ -25,7 +25,11 @@ const form = reactive({
   negative: (props.account?.opening_balance ?? 0) < 0,
   includeInTotal: props.account?.include_in_total ?? true,
   note: props.account?.note ?? '',
+  // Kartu kredit (fase 11 T3): tanggal cetak tagihan dan jatuh tempo, 0 = belum diatur
+  statementDay: props.account?.statement_day ?? 0,
+  dueDay: props.account?.due_day ?? 0,
 });
+const isCard = computed(() => groupById.value.get(form.groupId)?.kind === 'card');
 const errors = reactive<Record<string, string>>({});
 
 // Grup utang/kartu kredit: saldo awal biasanya negatif
@@ -48,6 +52,8 @@ function save() {
   for (const key of Object.keys(errors)) Reflect.deleteProperty(errors, key);
   if (!form.name.trim()) errors.name = 'Isi nama akun.';
   if (!form.groupId) errors.groupId = 'Pilih grup.';
+  if (isCard.value && !form.statementDay !== !form.dueDay)
+    errors.dueDay = 'Isi tanggal cetak dan jatuh tempo, atau kosongkan keduanya.';
   if (Object.keys(errors).length || !bookId.value) return;
 
   const data = {
@@ -56,6 +62,8 @@ function save() {
     opening_balance: form.negative ? -form.opening : form.opening,
     include_in_total: form.includeInTotal,
     note: form.note.trim(),
+    statement_day: isCard.value && form.statementDay ? form.statementDay : null,
+    due_day: isCard.value && form.dueDay ? form.dueDay : null,
   };
   if (props.account) {
     mutations.update.mutate(
@@ -125,6 +133,25 @@ function toggleArchive() {
         <option v-for="g in groups.data.value" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>
     </FormField>
+
+    <div v-if="isCard" class="grid grid-cols-2 gap-3">
+      <FormField label="Tanggal cetak tagihan" for="acc-statement">
+        <select id="acc-statement" v-model.number="form.statementDay" class="field-input">
+          <option :value="0">Belum diatur</option>
+          <option v-for="d in 31" :key="d" :value="d">Tanggal {{ d }}</option>
+        </select>
+      </FormField>
+      <FormField label="Jatuh tempo" for="acc-due" :error="errors.dueDay">
+        <select id="acc-due" v-model.number="form.dueDay" class="field-input">
+          <option :value="0">Belum diatur</option>
+          <option v-for="d in 31" :key="d" :value="d">Tanggal {{ d }}</option>
+        </select>
+      </FormField>
+      <p class="col-span-2 m-0 -mt-1.5 text-xs text-muted-foreground">
+        Transaksi setelah tanggal cetak masuk ke tagihan bulan berikutnya. Jatuh tempo yang lebih
+        kecil dari tanggal cetak berarti bulan sesudahnya.
+      </p>
+    </div>
 
     <FormField
       label="Saldo awal"
