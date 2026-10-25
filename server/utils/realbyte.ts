@@ -7,6 +7,7 @@ import type {
   ImportTransaction,
   ParsedImport,
 } from '#shared/types/import';
+import { sha256 } from './hash';
 
 /** Judul kolom ekspor Realbyte Money Manager (iOS), urut */
 export const REALBYTE_HEADER = [
@@ -132,14 +133,6 @@ export function guessCategoryIcon(name: string): string {
 }
 
 const TONES = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const;
-
-async function sha256(value: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)]
-    .slice(0, 20)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
 
 const lower = (s: string) => s.trim().toLowerCase();
 
