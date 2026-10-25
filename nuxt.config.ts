@@ -54,6 +54,10 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Hanya di server. Email undangan buku lewat Resend (NUXT_RESEND_API_KEY);
+    // kosong = undangan tetap dibuat, link dibagikan manual.
+    resendApiKey: '',
+    mailFrom: 'Money Manager <noreply@ikrm.dev>',
     public: {
       // Diisi lewat NUXT_PUBLIC_SUPABASE_URL dan NUXT_PUBLIC_SUPABASE_ANON_KEY
       supabaseUrl: '',

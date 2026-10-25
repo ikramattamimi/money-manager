@@ -65,7 +65,8 @@ const SECTION =
         :icon="BookOpen"
         tone="primary"
         :title="book?.name ?? '…'"
-        :subtitle="`Buku aktif${role ? ` · ${ROLE_LABEL[role]}` : ''}`"
+        :subtitle="`Buku aktif${role ? ` · ${ROLE_LABEL[role]}` : ''} · ganti, undang anggota`"
+        @click="navigateTo('/settings/books')"
       />
     </Card>
 
