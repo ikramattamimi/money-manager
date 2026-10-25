@@ -53,6 +53,7 @@ const accounts = useAccounts();
 const categories = useCategories();
 const pickerItems = usePickerItems();
 const flow = useBankImport(props.source);
+const toast = useToast();
 
 // ---------- 1. akun & file ----------
 const LAST_ACCOUNT = 'mm-bank-account';
@@ -264,19 +265,45 @@ const pickerTitle = computed(() =>
     : (pickerRows.value[0]?.note ?? ''),
 );
 
-function openPicker(rows: ReconciledRow[]) {
+function openPicker(rows: ReconciledRow[], mode?: 'category' | 'account') {
   if (!rows.length) return;
   pickerRows.value = rows;
-  pickerMode.value = rows.every((r) => choice(r).transfer) ? 'account' : 'category';
+  pickerMode.value = mode ?? (rows.every((r) => choice(r).transfer) ? 'account' : 'category');
   pickerOpen.value = true;
 }
 
-function pickSelected() {
-  const rows = (preview.value?.rows ?? []).filter((r) => selected.value.has(r.dedupeKey));
-  // Kategori hanya untuk satu arah sekaligus; ambil arah yang paling banyak
+const selectedRows = () =>
+  (preview.value?.rows ?? []).filter((r) => selected.value.has(r.dedupeKey));
+/** Pilih semua baris di tab ini (kecuali yang sudah tercatat) */
+const tabRows = computed(() =>
+  (byStatus.value.get(tab.value) ?? []).filter((r) => r.status !== 'tercatat'),
+);
+const allSelected = computed(
+  () => !!tabRows.value.length && tabRows.value.every((r) => selected.value.has(r.dedupeKey)),
+);
+function toggleAll() {
+  selected.value = allSelected.value ? new Set() : new Set(tabRows.value.map((r) => r.dedupeKey));
+}
+
+/** Ubah sekaligus: kategori (satu arah), akun lawan transfer, atau lewati/pakai */
+function pickSelected(mode: 'category' | 'account' = 'category') {
+  const rows = selectedRows();
+  if (mode === 'account') return openPicker(rows, 'account');
+  // Kategori pemasukan dan pengeluaran berbeda: ambil arah yang paling banyak
   const outs = rows.filter((r) => r.direction === 'out');
   const ins = rows.filter((r) => r.direction === 'in');
-  openPicker(outs.length >= ins.length ? outs : ins);
+  const target = outs.length >= ins.length ? outs : ins;
+  const skipped = rows.length - target.length;
+  if (skipped)
+    toast.show(
+      `${skipped} baris ${target === outs ? 'pemasukan' : 'pengeluaran'} tidak ikut, pilih terpisah`,
+    );
+  openPicker(target, 'category');
+}
+function includeSelected(include: boolean) {
+  for (const r of selectedRows()) choice(r).include = include;
+  selecting.value = false;
+  selected.value = new Set();
 }
 
 const pickerCategoryItems = computed(() =>
@@ -550,10 +577,26 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
         class="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mt-5 flex flex-wrap items-center gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card md:bottom-4"
       >
         <template v-if="selecting">
-          <span class="flex-1 text-meta">{{ selected.size }} dipilih</span>
-          <Button size="touch" :disabled="!selected.size" @click="pickSelected">
-            <Tag />Ubah kategori
-          </Button>
+          <div class="flex w-full items-center gap-2">
+            <span class="flex-1 text-meta">{{ selected.size }} dipilih</span>
+            <Button variant="ghost" size="sm" @click="toggleAll">
+              {{ allSelected ? 'Batal pilih semua' : 'Pilih semua' }}
+            </Button>
+          </div>
+          <div class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
+            <Button :disabled="!selected.size" @click="pickSelected('category')">
+              <Tag />Kategori
+            </Button>
+            <Button variant="secondary" :disabled="!selected.size" @click="pickSelected('account')">
+              <ArrowLeftRight />Jadikan transfer
+            </Button>
+            <Button variant="secondary" :disabled="!selected.size" @click="includeSelected(false)">
+              Lewati
+            </Button>
+            <Button variant="secondary" :disabled="!selected.size" @click="includeSelected(true)">
+              Pakai
+            </Button>
+          </div>
         </template>
         <template v-else>
           <span class="flex-1 text-meta">
