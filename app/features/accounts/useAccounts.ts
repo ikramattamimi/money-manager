@@ -109,6 +109,43 @@ export function useAccountMutations() {
       },
       onSettled: invalidate,
     }),
+    createGroup: useMutation({
+      mutationFn: (input: TablesInsert<'account_groups'>) => accountsApi.createGroup(input),
+      onSuccess: invalidate,
+      onError,
+    }),
+    updateGroup: useMutation({
+      mutationFn: ({ id, patch }: { id: string; patch: TablesUpdate<'account_groups'> }) =>
+        accountsApi.updateGroup(id, patch),
+      onSuccess: invalidate,
+      onError,
+    }),
+    deleteGroup: useMutation({
+      mutationFn: (id: string) => accountsApi.deleteGroup(id),
+      onSuccess: invalidate,
+      onError,
+    }),
+    reorderGroups: useMutation({
+      mutationFn: (ids: string[]) => accountsApi.reorderGroups(ids),
+      // Sama seperti urutan akun: langsung terlihat, dikembalikan kalau gagal
+      onMutate: async (ids) => {
+        await client.cancelQueries({ queryKey: accountKeys.all });
+        const key = [...accountKeys.all, 'groups'];
+        const saved = client.getQueriesData<AccountGroup[]>({ queryKey: key });
+        const sortOf = new Map(ids.map((id, sort) => [id, sort]));
+        client.setQueriesData<AccountGroup[]>({ queryKey: key }, (list) =>
+          list
+            ?.map((g) => (sortOf.has(g.id) ? { ...g, sort: sortOf.get(g.id)! } : g))
+            .sort((a, b) => a.sort - b.sort),
+        );
+        return saved;
+      },
+      onError: (error: Error, _ids, saved) => {
+        saved?.forEach(([key, data]) => client.setQueryData(key, data));
+        onError(error);
+      },
+      onSettled: invalidate,
+    }),
     adjust: useMutation({
       mutationFn: ({ id, actual }: { id: string; actual: number }) =>
         accountsApi.adjust(id, actual),

@@ -223,7 +223,15 @@ export function parseQuick(text: string, ctx: ParseContext, now: Date = new Date
     }
   }
   found.sort((a, b) => a.at - b.at);
-  if (transferMarked && found.length === 2) {
+  // "bca ke gopay", "ke gopay dari bca": dua akun dan tepat satu didahului "ke" =
+  // transfer, akun setelah "ke" tujuannya
+  const afterKe = found.map((f) => /\bke\s*$/.test(norm.slice(0, f.at)));
+  const keTarget = found.length === 2 && afterKe[0] !== afterKe[1] ? (afterKe[0] ? 0 : 1) : null;
+  if (keTarget !== null) {
+    out.type = 'transfer';
+    out.accountId = found[1 - keTarget]!.id;
+    out.toAccountId = found[keTarget]!.id;
+  } else if (transferMarked && found.length === 2) {
     out.type = 'transfer';
     out.accountId = found[0]!.id;
     out.toAccountId = found[1]!.id;

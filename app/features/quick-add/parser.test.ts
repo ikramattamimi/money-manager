@@ -151,6 +151,32 @@ describe('jenis', () => {
     });
     expect(parse('gopay->seabank 20rb')).toMatchObject({ toAccountId: 'seabank' });
   });
+  it('"ke" di antara dua akun = transfer, tanpa kata tf', () => {
+    expect(parse('bca ke gopay 25rb')).toMatchObject({
+      type: 'transfer',
+      accountId: 'bca',
+      toAccountId: 'gopay',
+      amount: 25000,
+      note: '',
+      categoryId: null,
+    });
+    expect(parse('25rb dari seabank ke jago utama')).toMatchObject({
+      type: 'transfer',
+      accountId: 'seabank',
+      toAccountId: 'jago-utama',
+    });
+  });
+  it('"ke" boleh di depan: akun setelahnya tetap tujuan', () => {
+    expect(parse('ke gopay dari bca 50rb kemarin')).toMatchObject({
+      type: 'transfer',
+      accountId: 'bca',
+      toAccountId: 'gopay',
+      when: 'Kemarin',
+    });
+  });
+  it('"ke" dengan satu akun bukan transfer', () => {
+    expect(parse('ke bengkel 150rb bca')).toMatchObject({ type: null, accountId: 'bca' });
+  });
   it('dua akun tanpa tanda transfer bukan transfer', () => {
     expect(parse('kopi gopay bca 20rb')).toMatchObject({ type: null, accountId: 'gopay' });
   });

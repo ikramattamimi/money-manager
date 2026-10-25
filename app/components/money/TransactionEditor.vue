@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BottomSheet from '@/components/base/BottomSheet.vue';
 import CenterDialog from '@/components/base/CenterDialog.vue';
-import TransactionForm from './TransactionForm.vue';
+import TransactionComposer from './TransactionComposer.vue';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 
 // Pembungkus form lengkap: sheet bawah di HP, dialog di iPad dan desktop.
@@ -19,7 +19,7 @@ watch(open, (v) => v && (opened.value = true));
 
 <template>
   <component :is="md ? CenterDialog : BottomSheet" v-model:open="open" labelledby="tx-form-title">
-    <TransactionForm
+    <TransactionComposer
       v-if="opened"
       :key="editor.session.value"
       :transaction="editor.transaction.value"

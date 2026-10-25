@@ -494,11 +494,11 @@ function addFirst() {
       <!-- Kolom kanan (>= 1024px): Catat cepat selalu terbuka + pengeluaran teratas -->
       <aside
         v-if="lg"
-        class="sticky top-0 hidden flex-col gap-3.5 pt-3.5 lg:flex"
+        class="sticky top-0 hidden max-h-dvh flex-col gap-3.5 overflow-y-auto overscroll-contain pb-3.5 pt-3.5 lg:flex"
         aria-label="Catat cepat dan ringkasan"
       >
         <Card v-if="canEdit" class="px-3.5 pb-3.5 pt-3">
-          <QuickAddPanel ref="inlinePanel" inline title-id="qa-inline-title" />
+          <QuickAddPanel ref="inlinePanel" inline with-import title-id="qa-inline-title" />
         </Card>
         <Card class="p-1">
           <CardHead title="Pengeluaran teratas" class="px-2.5 pt-2.5">

@@ -137,6 +137,7 @@ watch(lg, (wide) => {
       <QuickAddPanel
         ref="panel"
         title-id="qa-title"
+        with-import
         @close="ui.open.value = false"
         @saved="ui.open.value = false"
       />

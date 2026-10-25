@@ -16,6 +16,43 @@ export const accountsApi = {
     return data;
   },
 
+  async createGroup(input: TablesInsert<'account_groups'>): Promise<AccountGroup> {
+    const { data, error } = await useSupabase()
+      .from('account_groups')
+      .insert(input)
+      .select()
+      .single();
+    if (error) throw new Error('Gagal menambah grup.', { cause: error });
+    return data;
+  },
+
+  async updateGroup(id: string, patch: TablesUpdate<'account_groups'>): Promise<void> {
+    const { error } = await useSupabase().from('account_groups').update(patch).eq('id', id);
+    if (error) throw new Error('Gagal menyimpan grup.', { cause: error });
+  },
+
+  /** Hanya grup tanpa akun (termasuk yang diarsipkan) yang bisa dihapus */
+  async deleteGroup(id: string): Promise<void> {
+    const { error } = await useSupabase().from('account_groups').delete().eq('id', id);
+    if (error)
+      throw new Error(
+        error.code === '23503'
+          ? 'Grup masih berisi akun. Pindahkan akunnya dulu.'
+          : 'Gagal menghapus grup.',
+        { cause: error },
+      );
+  },
+
+  /** Simpan urutan grup: setiap id mendapat sort sesuai posisinya */
+  async reorderGroups(ids: string[]): Promise<void> {
+    const supabase = useSupabase();
+    const results = await Promise.all(
+      ids.map((id, sort) => supabase.from('account_groups').update({ sort }).eq('id', id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw new Error('Gagal menyimpan urutan grup.', { cause: failed.error });
+  },
+
   /** Akun beserta saldonya (dari view account_balances, dihitung di database) */
   async list(bookId: string): Promise<Account[]> {
     const supabase = useSupabase();

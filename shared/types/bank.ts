@@ -59,6 +59,16 @@ export interface BankPreview {
   declared: { in: number; out: number } | null;
   /** Foto: sisa jatah baca AI hari ini */
   quotaLeft?: number;
+  /** Foto: hasil baca per foto, urut seperti yang diunggah */
+  photos?: PhotoReadResult[];
+}
+
+export interface PhotoReadResult {
+  name: string;
+  /** Baris yang terbaca (sebelum baris tumpang tindih dibuang) */
+  rows: number;
+  /** Alasan foto ini tidak menghasilkan baris; null kalau terbaca */
+  error: string | null;
 }
 
 /** Baris yang disimpan dari layar pencocokan */

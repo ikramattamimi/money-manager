@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  FolderCog,
   FolderInput,
   ListChecks,
   Plus,
@@ -130,6 +131,9 @@ function openForm(account: Account | null) {
           <BookOpen aria-hidden="true" /><span class="max-w-[96px] truncate">{{ book?.name }}</span>
         </HeaderButton>
         <template v-if="canEdit">
+          <HeaderButton label="Kelola grup akun" @click="navigateTo('/accounts/groups')">
+            <FolderCog aria-hidden="true" />
+          </HeaderButton>
           <HeaderButton :aria-pressed="sorting" @click="sorting = !sorting">
             <component :is="sorting ? Check : ArrowDownUp" aria-hidden="true" />{{
               sorting ? 'Selesai' : 'Urutkan'

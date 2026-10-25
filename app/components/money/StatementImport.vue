@@ -8,6 +8,7 @@ import {
   CircleHelp,
   FileText,
   History,
+  ImagePlus,
   RefreshCw,
   Sparkles,
   Tag,
@@ -45,7 +46,9 @@ import { MONTHS_SHORT } from '@/lib/time';
 // riwayat (dibaca Claude di server, fase 11) → cocokkan → simpan yang baru.
 // File hanya dibaca di server selama permintaan; tidak disimpan.
 // Foto baru dikirim setelah user menekan "Baca dengan AI" (tindakan eksplisit).
-const props = defineProps<{ source: 'pdf' | 'photo' }>();
+// `embedded`: dipasang di tab form Tambah transaksi (tanpa kepala halaman).
+const props = defineProps<{ source: 'pdf' | 'photo'; embedded?: boolean }>();
+const emit = defineEmits<{ done: [] }>();
 const isPhoto = computed(() => props.source === 'photo');
 
 const { bookId, canEdit } = useActiveBook();
@@ -95,13 +98,29 @@ const step = computed(() =>
 );
 
 const input = ref<HTMLInputElement>();
-// Foto yang dipilih, menunggu tombol Baca dengan AI
-const photo = shallowRef<File | null>(null);
-const photoUrl = ref('');
-watch(photo, (file, _old, onCleanup) => {
-  photoUrl.value = file ? URL.createObjectURL(file) : '';
-  onCleanup(() => photoUrl.value && URL.revokeObjectURL(photoUrl.value));
+// Foto yang dipilih (boleh beberapa), menunggu tombol Baca dengan AI
+const MAX_PHOTOS = 10;
+const photos = shallowRef<File[]>([]);
+// URL pratinjau per file: dibuat sekali, dilepas hanya saat fotonya dibuang,
+// supaya pratinjau lain tidak berkedip waktu satu foto dihapus
+const urlOf = new Map<File, string>();
+const photoUrls = computed(() =>
+  photos.value.map((f) => {
+    if (!urlOf.has(f)) urlOf.set(f, URL.createObjectURL(f));
+    return urlOf.get(f)!;
+  }),
+);
+watch(photos, (files) => {
+  for (const [file, url] of urlOf)
+    if (!files.includes(file)) {
+      URL.revokeObjectURL(url);
+      urlOf.delete(file);
+    }
 });
+onBeforeUnmount(() => urlOf.forEach((url) => URL.revokeObjectURL(url)));
+function removePhoto(index: number) {
+  photos.value = photos.value.filter((_, i) => i !== index);
+}
 const compressing = ref(false);
 const busy = computed(() => compressing.value || flow.preview.isPending.value);
 
@@ -115,28 +134,34 @@ function withAccount(run: () => void) {
 }
 
 function choose(event: Event) {
-  const picked = (event.target as HTMLInputElement).files?.[0];
+  const picked = [...((event.target as HTMLInputElement).files ?? [])];
   (event.target as HTMLInputElement).value = '';
-  if (!picked || !accountId.value) return;
+  if (!picked.length || !accountId.value) return;
   result.value = null;
   flow.commit.reset();
   flow.preview.reset();
-  if (isPhoto.value) photo.value = picked;
-  else upload(picked);
+  if (!isPhoto.value) return upload(picked[0]!);
+  // Foto baru ditambahkan ke yang sudah dipilih, maksimal MAX_PHOTOS
+  const next = [...photos.value, ...picked];
+  if (next.length > MAX_PHOTOS)
+    toast.show(
+      `Maksimal ${MAX_PHOTOS} foto sekali baca, ${next.length - MAX_PHOTOS} tidak dipakai`,
+    );
+  photos.value = next.slice(0, MAX_PHOTOS);
 }
 
-/** Foto: dikecilkan dulu di HP, lalu dikirim untuk dibaca */
+/** Foto: dikecilkan dulu di HP, lalu dikirim bersama untuk dibaca */
 async function readPhoto() {
-  if (!photo.value) return;
+  if (!photos.value.length) return;
   compressing.value = true;
   try {
-    upload(await compressImage(photo.value));
+    upload(await Promise.all(photos.value.map((f) => compressImage(f))));
   } finally {
     compressing.value = false;
   }
 }
 
-function upload(file: File) {
+function upload(file: File | File[]) {
   flow.preview.mutate(
     { file, accountId: accountId.value },
     {
@@ -150,7 +175,7 @@ function upload(file: File) {
 
 function startOver() {
   result.value = null;
-  photo.value = null;
+  photos.value = [];
   selecting.value = false;
   selected.value = new Set();
   flow.preview.reset();
@@ -375,11 +400,18 @@ const lastBalance = computed(() => {
   return last?.balance ?? null;
 });
 const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.balance ?? null);
+/** Foto yang tidak menghasilkan baris, ditampilkan supaya tidak hilang diam-diam */
+const unreadPhotos = computed(() => (preview.value?.photos ?? []).filter((p) => p.error));
+
+function finish() {
+  if (props.embedded) emit('done');
+  else navigateTo('/');
+}
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[720px]">
-    <PageHeader :title="isPhoto ? 'Baca foto struk' : 'Impor mutasi bank'">
+  <div :class="!embedded && 'mx-auto md:max-w-[720px]'">
+    <PageHeader v-if="!embedded" :title="isPhoto ? 'Baca foto struk' : 'Impor mutasi bank'">
       <template #actions>
         <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
           <ArrowLeft aria-hidden="true" />
@@ -394,6 +426,7 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
       ref="input"
       type="file"
       :accept="isPhoto ? 'image/*' : '.pdf,application/pdf'"
+      :multiple="isPhoto"
       class="sr-only"
       tabindex="-1"
       aria-hidden="true"
@@ -402,13 +435,14 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
 
     <!-- ---------- 1. akun & file ---------- -->
     <template v-if="step === 'pick'">
-      <Card class="mt-3.5 flex flex-col gap-3 px-3.5 py-4">
+      <Card :class="['flex flex-col gap-3 px-3.5 py-4', !embedded && 'mt-3.5']">
         <div class="flex items-start gap-3">
           <ToneIcon :icon="isPhoto ? Camera : FileText" tone="primary" size="sm" />
           <p v-if="isPhoto" class="m-0 text-meta text-muted-foreground">
             Foto struk belanja atau screenshot riwayat GoPay, ShopeePay, dan dompet digital lain
-            yang tidak punya ekspor. Foto dibaca AI hanya setelah kamu menekan Baca dengan AI, tidak
-            disimpan, dan hasilnya tetap kamu periksa sebelum disimpan.
+            yang tidak punya ekspor. Bisa beberapa foto sekaligus (maksimal {{ MAX_PHOTOS }}). Foto
+            dibaca AI hanya setelah kamu menekan Baca dengan AI, tidak disimpan, dan hasilnya tetap
+            kamu periksa sebelum disimpan.
           </p>
           <p v-else class="m-0 text-meta text-muted-foreground">
             Unduh mutasi PDF dari aplikasi bank (rekening koran SeaBank atau riwayat Kantong Jago),
@@ -448,17 +482,39 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
         {{ flow.preview.error.value.message }}
       </p>
       <!-- Foto terpilih: pratinjau + tombol baca (gambar belum dikirim ke mana pun) -->
-      <Card v-if="isPhoto && photoUrl" class="mt-3.5 flex items-center gap-3 p-2.5">
-        <img
-          :src="photoUrl"
-          alt="Foto yang dipilih"
-          class="size-16 shrink-0 rounded-lg bg-surface-2 object-cover"
-        />
-        <span class="flex min-w-0 flex-1 flex-col">
-          <b class="truncate text-label font-semibold">{{ photo?.name }}</b>
+      <Card v-if="isPhoto && photos.length" class="mt-3.5 flex flex-col gap-2.5 p-2.5">
+        <div class="flex items-baseline justify-between gap-2 px-1">
+          <b class="text-label font-semibold">{{ photos.length }} foto dipilih</b>
           <small class="text-xs text-muted-foreground">Belum dikirim. Periksa dulu fotonya.</small>
-        </span>
-        <Button variant="ghost" size="default" @click="input?.click()">Ganti</Button>
+        </div>
+        <ul class="m-0 grid list-none grid-cols-4 gap-2 p-0 sm:grid-cols-5">
+          <li v-for="(url, i) in photoUrls" :key="url" class="relative">
+            <img
+              :src="url"
+              :alt="`Foto ${i + 1}: ${photos[i]?.name ?? ''}`"
+              class="aspect-square w-full rounded-lg bg-surface-2 object-cover"
+            />
+            <button
+              type="button"
+              class="press-icon absolute -right-1.5 -top-1.5 grid size-7 place-items-center rounded-full border bg-card text-muted-foreground shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5"
+              :aria-label="`Hapus foto ${i + 1}`"
+              :disabled="busy"
+              @click="removePhoto(i)"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </li>
+          <li v-if="photos.length < MAX_PHOTOS">
+            <button
+              type="button"
+              class="press flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-medium text-muted-foreground hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-5"
+              :disabled="busy"
+              @click="input?.click()"
+            >
+              <ImagePlus aria-hidden="true" />Tambah
+            </button>
+          </li>
+        </ul>
       </Card>
       <div class="mt-4 flex flex-col items-stretch gap-2">
         <p
@@ -469,13 +525,19 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
           Pilih dulu akunnya di atas: ketuk grup, lalu akun.
         </p>
         <Button
-          v-if="isPhoto && photo"
+          v-if="isPhoto && photos.length"
           size="touch"
           :disabled="!canEdit || busy"
           @click="withAccount(readPhoto)"
         >
           <component :is="busy ? RefreshCw : Sparkles" :class="busy && 'animate-spin'" />
-          {{ busy ? 'Membaca foto…' : 'Baca dengan AI' }}
+          {{
+            busy
+              ? `Membaca ${photos.length > 1 ? `${photos.length} foto` : 'foto'}…`
+              : photos.length > 1
+                ? `Baca ${photos.length} foto dengan AI`
+                : 'Baca dengan AI'
+          }}
         </Button>
         <Button
           v-else
@@ -527,6 +589,16 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
               Sisa {{ preview.quotaLeft }} foto hari ini.</template
             >
           </p>
+          <p
+            v-for="p in unreadPhotos"
+            :key="p.name"
+            class="m-0 flex items-start gap-1.5 text-xs text-warn"
+          >
+            <CircleAlert class="mt-px size-3.5 shrink-0" aria-hidden="true" />
+            <span
+              ><b class="font-semibold">{{ p.name }}</b> tidak terbaca: {{ p.error }}</span
+            >
+          </p>
         </div>
       </Card>
 
@@ -574,7 +646,12 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
 
       <!-- Bilah simpan menempel di bawah -->
       <div
-        class="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mt-5 flex flex-wrap items-center gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card md:bottom-4"
+        :class="[
+          'sticky z-10 mt-5 flex flex-wrap items-center gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card',
+          embedded
+            ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] md:bottom-0'
+            : 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] md:bottom-4',
+        ]"
       >
         <template v-if="selecting">
           <div class="flex w-full items-center gap-2">
@@ -658,7 +735,7 @@ const appBalance = computed(() => accounts.byId.value.get(accountId.value)?.bala
         </p>
       </Card>
       <div class="mt-3.5 flex flex-wrap justify-center gap-2">
-        <Button variant="secondary" size="touch" @click="navigateTo('/')">Lihat transaksi</Button>
+        <Button variant="secondary" size="touch" @click="finish">Lihat transaksi</Button>
         <Button variant="ghost" size="touch" @click="startOver">{{
           isPhoto ? 'Baca foto lain' : 'Impor mutasi lain'
         }}</Button>

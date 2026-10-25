@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import FormPage from '@/components/layout/FormPage.vue';
-import TransactionForm from '@/components/money/TransactionForm.vue';
+import TransactionComposer from '@/components/money/TransactionComposer.vue';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 
 // Form transaksi sebagai halaman penuh di HP (bukan modal), seperti Realbyte.
@@ -20,7 +20,7 @@ useHead({ title: () => `${title.value} · Money Manager` });
 
 <template>
   <FormPage :title="title" title-id="tx-page-title" @back="editor.close()">
-    <TransactionForm
+    <TransactionComposer
       :key="editor.session.value"
       class="flex-1"
       layout="page"

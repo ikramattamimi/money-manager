@@ -79,6 +79,11 @@ function save() {
   emit('close');
 }
 
+function manageGroups() {
+  if (!props.page) emit('close');
+  navigateTo('/accounts/groups');
+}
+
 function toggleArchive() {
   if (!props.account) return;
   const archived = !props.account.archived;
@@ -132,6 +137,13 @@ function toggleArchive() {
       <select id="acc-group" v-model="form.groupId" class="field-input">
         <option v-for="g in groups.data.value" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>
+      <button
+        type="button"
+        class="press mt-1 self-start rounded-md text-xs font-semibold text-primary-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        @click="manageGroups"
+      >
+        Buat atau ubah grup
+      </button>
     </FormField>
 
     <div v-if="isCard" class="grid grid-cols-2 gap-3">

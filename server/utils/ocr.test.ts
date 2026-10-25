@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toBase64, toStatementRows, type OcrResult } from './ocr';
+import { mergePhotoRows, toBase64, toStatementRows, type OcrResult } from './ocr';
 
 const result = (
   transactions: OcrResult['transactions'],
@@ -70,5 +70,30 @@ describe('hasil baca foto → baris mutasi', () => {
     expect(toBase64(new TextEncoder().encode('Money Manager'))).toBe(btoa('Money Manager'));
     const big = new Uint8Array(100_000).map((_, i) => i % 256);
     expect(atob(toBase64(big)).length).toBe(100_000);
+  });
+});
+
+describe('gabung baris dari beberapa foto', () => {
+  const rows = (list: ReturnType<typeof tx>[]) => toStatementRows(result(list), '2026-10-25');
+
+  it('membuang baris yang sama di screenshot yang tumpang tindih', () => {
+    const a = rows([tx({ time: '09:00' }), tx({ time: '12:30' })]);
+    const b = rows([tx({ time: '12:30' }), tx({ time: '18:00' })]);
+    const merged = mergePhotoRows([a, b]);
+    expect(merged.map((r) => r.time)).toEqual(['09:00', '12:30', '18:00']);
+    expect(merged.map((r) => r.row)).toEqual([1, 2, 3]);
+  });
+
+  it('tetap menyimpan transaksi kembar asli dalam satu foto', () => {
+    const a = rows([tx(), tx()]);
+    const b = rows([tx()]);
+    expect(mergePhotoRows([a, b])).toHaveLength(2);
+    expect(mergePhotoRows([b, a])).toHaveLength(2);
+  });
+
+  it('struk berbeda dengan nominal sama di toko berbeda tetap dua', () => {
+    const a = rows([tx({ counterparty: 'Indomaret' })]);
+    const b = rows([tx({ counterparty: 'Alfamart' })]);
+    expect(mergePhotoRows([a, b])).toHaveLength(2);
   });
 });

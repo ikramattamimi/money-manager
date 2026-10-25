@@ -58,15 +58,15 @@ export const importApi = {
   },
 
   /** Unggah PDF mutasi untuk dicocokkan dengan buku; belum ada yang disimpan */
-  /** `source`: 'pdf' mutasi bank, 'photo' struk/screenshot yang dibaca AI di server */
+  /** `source`: 'pdf' mutasi bank, 'photo' struk/screenshot yang dibaca AI di server (boleh beberapa) */
   async bankPreview(
-    file: File,
+    file: File | File[],
     bookId: string,
     accountId: string,
     source: 'pdf' | 'photo' = 'pdf',
   ): Promise<BankPreview> {
     const body = new FormData();
-    body.append('file', file);
+    for (const f of Array.isArray(file) ? file : [file]) body.append('file', f);
     body.append('bookId', bookId);
     body.append('accountId', accountId);
     try {

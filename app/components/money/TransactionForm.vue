@@ -35,6 +35,8 @@ const props = withDefaults(
     draft: Draft | null;
     titleId: string;
     layout?: 'dialog' | 'page';
+    /** Kepala dialog (judul + tutup) dipasang pembungkusnya (TransactionComposer) */
+    bare?: boolean;
   }>(),
   { layout: 'dialog' },
 );
@@ -424,7 +426,7 @@ function saveAsTemplate() {
     @submit.prevent="save()"
     @focusin="closePickerOnInput"
   >
-    <div v-if="layout === 'dialog'" class="flex items-center gap-2">
+    <div v-if="layout === 'dialog' && !bare" class="flex items-center gap-2">
       <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
         {{ isAdjustment ? 'Koreksi saldo' : editing ? 'Ubah transaksi' : 'Transaksi baru' }}
       </h2>
@@ -453,7 +455,7 @@ function saveAsTemplate() {
         v-if="layout === 'page' && !editing"
         label="Ketik saja"
         for="tx-quick"
-        hint="mis. bensin 100rb kemarin bca · bca > gopay 99rb · + gaji 5jt bca"
+        hint="mis. bensin 100rb kemarin bca · bca ke gopay 99rb · + gaji 5jt bca"
       >
         <input
           id="tx-quick"

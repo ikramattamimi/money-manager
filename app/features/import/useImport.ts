@@ -42,7 +42,7 @@ export function useBankImport(source: 'pdf' | 'photo' = 'pdf') {
 
   return {
     preview: useMutation({
-      mutationFn: ({ file, accountId }: { file: File; accountId: string }) =>
+      mutationFn: ({ file, accountId }: { file: File | File[]; accountId: string }) =>
         importApi.bankPreview(file, bookId.value!, accountId, source),
     }),
     commit: useMutation({

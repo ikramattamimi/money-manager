@@ -134,3 +134,28 @@ export function toBase64(data: Uint8Array): string {
     binary += String.fromCharCode(...data.subarray(i, i + 0x8000));
   return btoa(binary);
 }
+
+/**
+ * Gabungkan baris dari beberapa foto. Screenshot riwayat yang saling tumpang
+ * tindih memuat transaksi yang sama: baris kembar (tanggal, jam, arah, nominal,
+ * pihak lawan) hanya diambil sebanyak kemunculan terbanyak di satu foto, jadi
+ * dua transaksi kembar asli dalam satu foto tetap dua.
+ */
+export function mergePhotoRows(lists: StatementRow[][]): StatementRow[] {
+  const kept = new Map<string, number>();
+  const rows: StatementRow[] = [];
+  for (const list of lists) {
+    const seen = new Map<string, number>();
+    for (const r of list) {
+      const key = [r.date, r.time ?? '', r.direction, r.amount, r.counterparty.toLowerCase()].join(
+        '|',
+      );
+      const n = (seen.get(key) ?? 0) + 1;
+      seen.set(key, n);
+      if (n <= (kept.get(key) ?? 0)) continue;
+      kept.set(key, n);
+      rows.push({ ...r, row: rows.length + 1 });
+    }
+  }
+  return rows;
+}
