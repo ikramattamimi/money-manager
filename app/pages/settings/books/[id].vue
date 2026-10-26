@@ -248,6 +248,9 @@ function deleteBook() {
           </div>
           <p class="m-0 text-xs text-muted-foreground">
             {{ startPreview }}
+            <template v-if="startDay >= 20">
+              Tanggal 20–31 dihitung mulai bulan sebelumnya, cocok untuk gajian akhir bulan.</template
+            >
             <template v-if="startDay > 28">
               Bulan yang lebih pendek mulai di hari terakhirnya.</template
             >

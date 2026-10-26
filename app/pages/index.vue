@@ -62,7 +62,7 @@ const { rowProps } = useTxDisplay();
 const selection = useTxSelection();
 
 // ---------- periode bulan aktif (bertahan saat pindah tab) ----------
-// Periode mengikuti tanggal awal bulan buku: awal 25 → Oktober = 25 Okt – 24 Nov
+// Periode mengikuti tanggal awal bulan buku: awal 25 → Oktober = 25 Sep – 24 Okt
 const todayKey = dayKey(new Date());
 const current = computed(() => periodOf(todayKey, monthStartDay.value));
 const year = useState('tx:year', () => current.value.year);
@@ -152,7 +152,7 @@ const { data: yearsData } = useYearsOverview(isYearly, scopeId);
 const years = computed(() =>
   (yearsData.value ?? []).map((y) => ({ ...y, net: y.income - y.expense })),
 );
-/** Rentang tahun periode kalau awal bulan bukan tanggal 1: "25 Jan 2026 – 24 Jan 2027" */
+/** Rentang tahun periode kalau awal bulan bukan tanggal 1: "25 Des 2025 – 24 Des 2026" */
 const yearHint = (y: number) => {
   if (monthStartDay.value <= 1) return '';
   const first = periodDays(y, 1, monthStartDay.value)[0]!;

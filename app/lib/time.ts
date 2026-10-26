@@ -65,16 +65,21 @@ export function daysInMonth(year: number, month: number): number {
 }
 
 // ---------------------------------------------------------------------
-// Periode bulan. Buku bisa memilih tanggal awal bulan (1–31): periode
-// "Oktober" dengan awal 25 = 25 Okt – 24 Nov. Bulan yang lebih pendek dari
-// tanggal awal mulai di hari terakhirnya. Aturan yang sama ada di SQL
-// (private.period_start / private.period_key).
+// Periode bulan. Buku bisa memilih tanggal awal bulan (1–31). Awal 2–19:
+// periode "Oktober" mulai di bulan Oktober (awal 10 = 10 Okt – 9 Nov). Awal
+// 20–31 (gajian akhir bulan): mulai di bulan sebelumnya (awal 25 = 25 Sep –
+// 24 Okt). Bulan yang lebih pendek dari tanggal awal mulai di hari
+// terakhirnya. Aturan yang sama ada di SQL (private.period_start / period_key).
 // ---------------------------------------------------------------------
+
+/** Tanggal awal mulai dari ini, periode dimulai di bulan sebelum namanya */
+export const LATE_START_DAY = 20;
 
 /** Tanggal mulai periode (year, month), "YYYY-MM-DD" WIB */
 export function periodStartDate(year: number, month: number, startDay = 1): string {
-  const day = Math.min(Math.max(startDay, 1), daysInMonth(year, month));
-  return `${year}-${pad(month)}-${pad(day)}`;
+  const at = startDay >= LATE_START_DAY ? addMonths(year, month, -1) : { year, month };
+  const day = Math.min(Math.max(startDay, 1), daysInMonth(at.year, at.month));
+  return `${at.year}-${pad(at.month)}-${pad(day)}`;
 }
 
 /** Rentang satu periode bulan sebagai ISO UTC: [from, to) */
@@ -101,8 +106,11 @@ export function periodOf(value: string | Date, startDay = 1): { year: number; mo
           return { year, month, day };
         })()
       : jakartaParts(value);
-  const start = Number(periodStartDate(p.year, p.month, startDay).slice(8));
-  return p.day >= start ? { year: p.year, month: p.month } : addMonths(p.year, p.month, -1);
+  // Periode yang mulai di bulan kalender tanggal ini
+  const named =
+    startDay >= LATE_START_DAY ? addMonths(p.year, p.month, 1) : { year: p.year, month: p.month };
+  const start = Number(periodStartDate(named.year, named.month, startDay).slice(8));
+  return p.day >= start ? named : addMonths(named.year, named.month, -1);
 }
 
 /** Semua tanggal "YYYY-MM-DD" dalam periode, urut */

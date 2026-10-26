@@ -2,7 +2,7 @@
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 
 // Pemilih bulan kaca di kepala halaman: ‹ Okt 2026 ›, dengan rentang tanggal
-// kecil di bawahnya kalau bulan buku tidak mulai tanggal 1 ("25 Okt – 24 Nov").
+// kecil di bawahnya kalau bulan buku tidak mulai tanggal 1 ("25 Sep – 24 Okt").
 // canNext default true: prop boolean yang tidak diisi dibaca Vue sebagai false,
 // jadi tanpa default panah berikutnya selalu mati di halaman yang tidak mengisinya.
 const props = withDefaults(defineProps<{ label: string; hint?: string; canNext?: boolean }>(), {
