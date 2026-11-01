@@ -15,6 +15,22 @@ export const budgetsApi = {
     return data;
   },
 
+  /** Riwayat nominal satu budget (tiap perubahan berlaku mulai `start_on`), lama ke baru */
+  async history(
+    bookId: string,
+    categoryId: string | null,
+  ): Promise<{ amount: number; start_on: string }[]> {
+    let query = useSupabase()
+      .from('budgets')
+      .select('amount, start_on')
+      .eq('book_id', bookId)
+      .eq('period', 'monthly');
+    query = categoryId ? query.eq('category_id', categoryId) : query.is('category_id', null);
+    const { data, error } = await query.order('start_on');
+    if (error) throw new Error('Gagal memuat riwayat budget.', { cause: error });
+    return data;
+  },
+
   /**
    * Atur budget mulai bulan `startOn` (tanggal 1). Bulan sebelumnya tetap
    * memakai nominal lama. `categoryId` null = budget total.

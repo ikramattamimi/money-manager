@@ -1,144 +1,180 @@
 <script setup lang="ts">
-import { ArrowLeft, PiggyBank, Plus } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import KpiStrip from '@/components/data/KpiStrip.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import Meter from '@/components/data/Meter.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import { ChevronLeft, ChevronRight, PiggyBank } from '@lucide/vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import MonthPicker from '@/components/layout/MonthPicker.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import BudgetForm from '@/components/money/BudgetForm.vue';
+import NavBar from '@/components/ios/NavBar.vue';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useBudgetMonth } from '@/features/budgets/useBudgetMonth';
-import { useBudgetStatus, type BudgetView } from '@/features/budgets/useBudgets';
+import { useBudgetStatus } from '@/features/budgets/useBudgets';
+import { asTone, categoryIcon } from '@/features/categories/icons';
 import { useCategories } from '@/features/categories/useCategories';
-import { formatRupiah, formatShort } from '@/lib/format';
-import { dayKey, MONTHS_LONG, MONTHS_SHORT, periodOf, periodRangeLabel } from '@/lib/time';
+import { formatRupiah } from '@/lib/format';
+import { MONTHS_LONG, periodRangeLabel } from '@/lib/time';
 
-// Budget bulanan: total dan per kategori, dengan progres aman / hampir habis /
-// lewat. Nominal yang diubah berlaku mulai bulan yang sedang dilihat.
+// Atur budget (mockup budget-setting): semua kategori pengeluaran dengan
+// budgetnya di bulan terpilih. Kategori bersub bisa dibuka untuk budget tiap
+// sub. Ketuk = halaman nominal. Budget berlaku mulai bulan yang dilihat.
 definePageMeta({ layout: 'app' });
-useHead({ title: 'Budget · Money Manager' });
+useHead({ title: 'Atur budget · Money Manager' });
 
 const { canEdit, monthStartDay } = useActiveBook();
 const { year, month, shift, key } = useBudgetMonth();
-const { query, views } = useBudgetStatus(year, month);
+const { views } = useBudgetStatus(year, month);
 const categories = useCategories();
 
-const today = computed(() => periodOf(dayKey(new Date()), monthStartDay.value));
-const isCurrent = computed(
-  () => year.value === today.value.year && month.value === today.value.month,
+const range = computed(
+  () =>
+    periodRangeLabel(year.value, month.value, monthStartDay.value) ||
+    `${MONTHS_LONG[month.value - 1]} ${year.value}`,
 );
+const budgetOf = (id: string | null) => views.value.find((v) => v.category_id === id) ?? null;
+const open = ref<string | null>(null);
 
-const totals = computed(() => {
-  const total = views.value.find((v) => !v.category_id);
-  const limit = total?.limit ?? views.value.reduce((s, v) => s + v.limit, 0);
-  const spent = total?.spent ?? views.value.reduce((s, v) => s + v.spent, 0);
-  return [
-    { label: 'Batas', value: formatShort(limit) },
-    { label: 'Terpakai', value: formatShort(spent), tone: 'bad' as const },
-    {
-      label: limit - spent >= 0 ? 'Sisa' : 'Lewat',
-      value: formatShort(Math.abs(limit - spent)),
-      tone: limit - spent >= 0 ? ('ok' as const) : ('bad' as const),
-    },
-  ];
-});
-const STATUS_CLASS = { ok: 'text-muted-foreground', warn: 'text-warn', bad: 'text-bad' } as const;
-const style = (b: BudgetView) =>
-  b.category_id ? categories.style(b.category_id) : { icon: PiggyBank, tone: 'primary' as const };
-
-const { openAsPage } = useFormPage();
-const formOpen = ref(false);
-const editing = ref<BudgetView | null>(null);
-const session = ref(0);
-function openForm(budget: BudgetView | null) {
-  if (!canEdit.value) return;
-  const path = budget
-    ? `/stats/budget/${budget.category_id ?? 'total'}?month=${key.value}`
-    : `/stats/budget/new?month=${key.value}`;
-  if (openAsPage(path)) return;
-  editing.value = budget;
-  session.value++;
-  formOpen.value = true;
-}
+const rows = computed(() =>
+  categories.tree('expense').map((p) => ({
+    id: p.id,
+    label: p.name,
+    icon: categoryIcon(p.icon),
+    tone: asTone(p.tone),
+    budget: budgetOf(p.id),
+    subs: p.children.map((c) => ({ id: c.id, label: c.name, budget: budgetOf(c.id) })),
+  })),
+);
+const total = computed(() => budgetOf(null));
+const href = (id: string) => `/stats/budget/${id}/edit?month=${key.value}`;
+const amount = (b: { limit: number } | null) => (b ? formatRupiah(b.limit) : 'Rp 0');
+const NuxtLink = resolveComponent('NuxtLink');
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[720px]">
-    <PageHeader title="Budget" :summary="`${MONTHS_SHORT[month - 1]} ${year}`">
-      <template #actions>
-        <HeaderButton label="Kembali ke Statistik" @click="navigateTo('/stats')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-        <MonthPicker
-          :label="`${MONTHS_SHORT[month - 1]} ${year}`"
-          :hint="periodRangeLabel(year, month, monthStartDay)"
-          :can-next="!isCurrent"
-          @prev="shift(-1)"
-          @next="shift(1)"
-        />
-        <HeaderButton v-if="canEdit" label="Tambah budget" @click="openForm(null)">
-          <Plus aria-hidden="true" />
-        </HeaderButton>
-      </template>
-      <KpiStrip v-if="views.length" :items="totals" />
-    </PageHeader>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar
+      title="Atur budget"
+      back="Statistik"
+      back-to="/stats"
+      line
+      class="sticky top-0 md:static"
+    >
+      <div class="flex items-center justify-center gap-0.5 pb-1.5">
+        <button
+          type="button"
+          aria-label="Bulan sebelumnya"
+          class="grid size-11 place-items-center rounded-xl active:bg-fill-press"
+          @click="shift(-1)"
+        >
+          <ChevronLeft class="size-5" stroke-width="2.2" aria-hidden="true" />
+        </button>
+        <span class="min-w-[190px] text-center text-bar font-semibold tracking-[-0.02em]">{{
+          range
+        }}</span>
+        <button
+          type="button"
+          aria-label="Bulan berikutnya"
+          class="grid size-11 place-items-center rounded-xl active:bg-fill-press"
+          @click="shift(1)"
+        >
+          <ChevronRight class="size-5" stroke-width="2.2" aria-hidden="true" />
+        </button>
+      </div>
+    </NavBar>
 
-    <Card v-if="query.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="4" /></Card>
-    <Card v-else-if="!views.length" class="mt-3.5">
-      <EmptyState
-        :icon="PiggyBank"
-        :title="`Belum ada budget untuk ${MONTHS_LONG[month - 1]}`"
-        description="Buat budget total atau per kategori. Budget berlaku terus ke bulan berikutnya sampai diubah."
-      />
-    </Card>
-
-    <ListGroup v-else label="Budget bulan ini" :aside="`${views.length} budget`">
-      <ListRow
-        v-for="b in views"
-        :key="b.budget_id"
-        :as="canEdit ? 'button' : 'div'"
-        :title="b.label"
-        class="items-start"
-        @click="openForm(b)"
+    <div class="mx-4 mt-3.5 overflow-hidden rounded-group bg-card">
+      <component
+        :is="canEdit ? NuxtLink : 'div'"
+        :to="canEdit ? href('total') : undefined"
+        class="set-row flex min-h-12 items-center gap-3 py-2 pl-4 pr-3.5 active:bg-fill-press"
       >
-        <template #lead><ToneIcon v-bind="style(b)" /></template>
-        <template #below>
-          <Meter :value="b.ratio" :tone="b.tone" :label="`Budget ${b.label}`" class="mt-1.5" />
-          <small class="mt-1 text-xs tabular-nums text-muted-foreground">
-            {{ formatRupiah(b.spent) }} dari {{ formatRupiah(b.limit) }} ·
-            {{ Math.round(b.ratio * 100) }}%
-            <template v-if="b.carried"> · sisa bulan lalu +{{ formatShort(b.carried) }}</template>
-          </small>
-        </template>
-        <template #end>
-          <span :class="['text-xs font-semibold tabular-nums', STATUS_CLASS[b.tone]]">
-            {{
-              b.remaining >= 0
-                ? `Sisa ${formatShort(b.remaining)}`
-                : `Lewat ${formatShort(-b.remaining)}`
-            }}
-          </span>
-        </template>
-      </ListRow>
-    </ListGroup>
+        <ToneIcon :icon="PiggyBank" tone="primary" size="sm" />
+        <span class="flex min-w-0 flex-1 flex-col">
+          <b class="text-row font-semibold">Semua pengeluaran</b>
+          <span class="text-meta text-muted-foreground">Budget total bulanan</span>
+        </span>
+        <span :class="['shrink-0 text-row', total ? 'font-semibold' : 'text-muted-foreground']">{{
+          amount(total)
+        }}</span>
+      </component>
+    </div>
 
-    <Overlay v-model:open="formOpen" labelledby="budget-form-title">
-      <BudgetForm
-        :key="session"
-        :budget="editing"
-        :year="year"
-        :month="month"
-        :taken="views.map((v) => v.category_id)"
-        title-id="budget-form-title"
-        @close="formOpen = false"
-      />
-    </Overlay>
+    <div class="mx-4 mt-3.5 overflow-hidden rounded-group bg-card">
+      <template v-for="r in rows" :key="r.id">
+        <div class="set-row flex min-h-12 items-center">
+          <component
+            :is="canEdit ? NuxtLink : 'div'"
+            :to="canEdit ? href(r.id) : undefined"
+            class="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2 pl-4 active:bg-fill-press"
+          >
+            <ToneIcon :icon="r.icon" :tone="r.tone" size="sm" />
+            <span class="flex min-w-0 flex-1 flex-col">
+              <b class="truncate text-row font-medium">{{ r.label }}</b>
+              <span v-if="r.subs.length" class="truncate text-meta text-muted-foreground">{{
+                r.subs.map((s) => s.label).join(', ')
+              }}</span>
+            </span>
+            <span
+              :class="[
+                'shrink-0 pr-2 text-row',
+                r.budget ? 'font-semibold' : 'text-muted-foreground',
+              ]"
+              >{{ amount(r.budget) }}</span
+            >
+          </component>
+          <button
+            v-if="r.subs.length"
+            type="button"
+            :aria-expanded="open === r.id"
+            :aria-label="`${open === r.id ? 'Tutup' : 'Buka'} sub-kategori ${r.label}`"
+            class="grid h-12 w-10 shrink-0 place-items-center text-chevron"
+            @click="open = open === r.id ? null : r.id"
+          >
+            <ChevronRight
+              class="chev size-[18px]"
+              :style="{ transform: `rotate(${open === r.id ? 90 : 0}deg)` }"
+              stroke-width="2.6"
+              aria-hidden="true"
+            />
+          </button>
+          <span v-else class="w-3.5" />
+        </div>
+        <template v-if="open === r.id">
+          <component
+            :is="canEdit ? NuxtLink : 'div'"
+            v-for="s in r.subs"
+            :key="s.id"
+            :to="canEdit ? href(s.id) : undefined"
+            class="set-row flex min-h-12 items-center gap-3 bg-surface-2 py-2 pl-14 pr-6 active:bg-fill-press"
+          >
+            <b class="min-w-0 flex-1 truncate text-body font-medium">{{ s.label }}</b>
+            <span
+              :class="['shrink-0 text-row', s.budget ? 'font-semibold' : 'text-muted-foreground']"
+              >{{ amount(s.budget) }}</span
+            >
+          </component>
+        </template>
+      </template>
+    </div>
+    <p class="mx-8 mb-6 mt-2.5 text-meta text-muted-foreground">
+      Ketuk kategori untuk mengatur budget. Nominal baru berlaku mulai {{ range }}; bulan sebelumnya
+      tidak berubah.
+    </p>
   </div>
 </template>
+
+<style scoped>
+.set-row {
+  position: relative;
+  transition: background-color 120ms ease;
+}
+.set-row + .set-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 58px;
+  right: 0;
+  height: 0.5px;
+  background: var(--sep);
+}
+.chev {
+  transition: transform 200ms var(--ease-out);
+}
+</style>

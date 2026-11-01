@@ -977,6 +977,19 @@ export type Database = {
           tx_count: number
         }[]
       }
+      note_breakdown: {
+        Args: {
+          p_book_id: string
+          p_from: string
+          p_to: string
+          p_type: Database["public"]["Enums"]["transaction_type"]
+        }
+        Returns: {
+          note: string
+          total: number
+          tx_count: number
+        }[]
+      }
       ai_refund_quota: { Args: never; Returns: undefined }
       ai_take_quota: { Args: { p_limit: number }; Returns: number }
       commit_bank_import: {

@@ -15,7 +15,23 @@ export const statsKeys = {
     [...statsKeys.all, 'trend', bookId, y, m, n, c] as const,
   insight: (bookId: string | null, from: string, to: string) =>
     [...statsKeys.all, 'insight', bookId, from, to] as const,
+  notes: (bookId: string | null, from: string, to: string, type: string) =>
+    [...statsKeys.all, 'notes', bookId, from, to, type] as const,
 };
+
+/** Total per catatan (toko/tempat) untuk periode terpilih; aktif hanya saat dibuka */
+export function useNoteBreakdown(type: Ref<'income' | 'expense'>, enabled: Ref<boolean>) {
+  const { bookId } = useActiveBook();
+  const { bounds } = useStatsPeriod();
+  return useQuery({
+    queryKey: computed(() =>
+      statsKeys.notes(bookId.value, bounds.value.from, bounds.value.to, type.value),
+    ),
+    queryFn: () => statsApi.notes(bookId.value!, bounds.value.from, bounds.value.to, type.value),
+    enabled: computed(() => !!bookId.value && enabled.value),
+    placeholderData: keepWithinBook(bookId),
+  });
+}
 
 /** Periode statistik yang dipilih, bertahan saat pindah tab */
 export function useStatsPeriod() {

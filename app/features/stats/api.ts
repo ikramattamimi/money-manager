@@ -1,3 +1,4 @@
+import type { Transaction } from '@/features/transactions/api';
 import type { Database } from '@/lib/database.types';
 import { useSupabase } from '@/lib/supabase';
 
@@ -5,6 +6,7 @@ type Fn = Database['public']['Functions'];
 export type BreakdownRow = Fn['category_breakdown']['Returns'][number];
 export type TrendRow = Fn['monthly_trend']['Returns'][number];
 export type InsightRow = Fn['period_insight']['Returns'][number];
+export type NoteRow = Fn['note_breakdown']['Returns'][number];
 
 export const statsApi = {
   /** Angka mentah kartu Ringkasan: periode [from, to) dan periode sebelumnya */
@@ -38,6 +40,48 @@ export const statsApi = {
       p_type: type,
     });
     if (error) throw new Error('Gagal memuat statistik kategori.', { cause: error });
+    return data;
+  },
+
+  /**
+   * Transaksi tanpa kategori di [from, to), terbaru dulu. RPC pencarian tidak
+   * bisa menyaring kategori kosong, jadi dibaca langsung (RLS tetap berlaku).
+   */
+  async uncategorized(
+    bookId: string,
+    from: string,
+    to: string,
+    type: 'income' | 'expense',
+  ): Promise<Transaction[]> {
+    const { data, error } = await useSupabase()
+      .from('transactions')
+      .select('*')
+      .eq('book_id', bookId)
+      .eq('type', type)
+      .eq('is_adjustment', false)
+      .is('category_id', null)
+      .gte('occurred_at', from)
+      .lt('occurred_at', to)
+      .order('occurred_at', { ascending: false })
+      .limit(2000);
+    if (error) throw new Error('Gagal memuat transaksi tanpa kategori.', { cause: error });
+    return data;
+  },
+
+  /** Total per catatan (toko/tempat) untuk [from, to), terbesar dulu */
+  async notes(
+    bookId: string,
+    from: string,
+    to: string,
+    type: 'income' | 'expense',
+  ): Promise<NoteRow[]> {
+    const { data, error } = await useSupabase().rpc('note_breakdown', {
+      p_book_id: bookId,
+      p_from: from,
+      p_to: to,
+      p_type: type,
+    });
+    if (error) throw new Error('Gagal memuat statistik per catatan.', { cause: error });
     return data;
   },
 
