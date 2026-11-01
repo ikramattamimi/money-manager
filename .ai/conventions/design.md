@@ -75,10 +75,13 @@ form solid. `prefers-reduced-transparency` → solid. Kaca opnamix (`bg-glass*`,
 
 ## Form
 
-- **HP (< 768px): form selalu halaman penuh, bukan modal/sheet.** Bungkus
-  dengan `FormPage` (bar atas "‹ Kembali" + judul, `layout: false`), form diberi
-  prop `page` (atau `layout="page"`) supaya judulnya disembunyikan dan tombol
-  aksinya menempel di bawah (`.form-page-actions`).
+- **HP (< 768px): form selalu halaman penuh yang masuk dari bawah** (mockup
+  `.form`). Bungkus dengan `FormPage` (bar atas "Batal" + judul + slot
+  `#action`, `layout: false`); plugin `page-transition` menganimasikannya naik
+  320ms dan turun 200ms. Form diberi prop `page` (atau `layout="page"`) supaya
+  judulnya disembunyikan dan tombol aksinya menempel di bawah
+  (`.form-page-actions`). Halaman `layout: false` dianggap form, kecuali
+  `/invite`.
 - **iPad dan desktop:** form tampil sebagai dialog (`Overlay` / `CenterDialog`).
 - Pembuka form memanggil `useFormPage().openAsPage(path)`: di HP pindah ke
   halaman dan mengembalikan `true`; selain itu `false` dan pemanggil membuka
@@ -97,13 +100,18 @@ form solid. `prefers-reduced-transparency` → solid. Kaca opnamix (`bg-glass*`,
 
 | Hal | Aturan |
 |---|---|
-| Tekan | `.press` (`scale(0.97)`, 160ms ease-out), ikon `.press-icon` (`0.92`) |
-| Pindah tab / halaman | Tanpa animasi |
+| Tekan | `.press` (`scale(0.97)`, 160ms ease-out), ikon `.press-icon` / tombol bar `0.9`, tab `0.93` |
+| Pindah tab | Tanpa animasi. Ketuk tab aktif = gulir ke atas |
+| Masuk halaman rincian (HP) | Push: halaman baru dari kanan, lama ke −30% di bawah peredup, 350ms `--ease-drawer`. Kembali = pop (kebalikannya). Plugin `page-transition`, otomatis untuk semua rute |
+| Form (HP) | Naik dari bawah 320ms, turun 200ms |
+| iPad / desktop | Pindah halaman tanpa animasi |
 | Aksi keyboard (`N`, `Esc`, Enter) | Tanpa animasi |
-| Lensa tab bar | 220ms `--ease-drawer` |
-| Sheet, grid pilihan di HP | Masuk 280ms, keluar 200ms, `--ease-drawer` |
-| Dialog | Masuk 240ms dari `scale(0.98)` + opacity, keluar 150ms |
-| Toast | Masuk lewat `@starting-style`, keluar 160ms |
+| Lembar (`IosSheet`) | Masuk 320ms, keluar 200ms (atau menyambung kecepatan jari), `--ease-drawer` |
+| Panel dock | Muncul pertama 280ms; ganti isi tanpa animasi |
+| Ganti bulan (`MonthSwipe`) | Ikut jari; bulan baru masuk dari ±44px 300ms |
+| Menu tahan tombol + | 200ms skala 0,95 + opacity dari pojok tombol, keluar 150ms |
+| Dialog peringatan | Masuk dari `scale(1.08)` + opacity 220ms |
+| Toast | Turun dari atas lewat `@starting-style` 300ms, naik keluar 160ms |
 | Sorotan baris baru | WAAPI `element.animate`, bukan transisi warna permanen |
 | Muncul bertahap | `.stagger`, hanya saat app pertama dibuka |
 
@@ -117,13 +125,24 @@ form solid. `prefers-reduced-transparency` → solid. Kaca opnamix (`bg-glass*`,
 
 ## Gestur
 
-Pakai `useSwipe` dan fungsi di `app/lib/gesture.ts`:
+Pakai fungsi di `app/lib/gesture.ts` (`project`, `rubber`,
+`createVelocityTracker`) dan pola mockup (apple-design):
 
 - Arah dikunci setelah 10px; gerak di sumbu lain dilepas ke scroll.
-- Aksi jalan kalau melewati porsi ukuran (sheet 30%, baris 45%) **atau**
-  di-flick (> 0,11 px/ms).
-- Batas tanpa aksi pakai gesekan (`linearFriction`, `sqrtFriction`), bukan
-  berhenti mendadak.
+- Konten bergerak 1:1 dengan jari; tulis `transform` langsung ke elemen,
+  jangan lewat state Vue per frame.
+- Keputusan lepas memakai **proyeksi momentum**: `posisi + project(v)` melewati
+  porsi ukuran (lembar 35%, ganti bulan 40%, geser-kembali 50%). Jari yang
+  berbalik arah saat dilepas = batal.
+- Animasi lanjutan menyambung kecepatan jari (durasi dari sisa jarak ÷
+  kecepatan, dibatasi), bukan durasi tetap.
+- Batas memakai `rubber()`, bukan berhenti mendadak.
+- **Geser horizontal di daftar = pindah bulan** (`MonthSwipe`), jadi baris
+  transaksi tidak digeser-hapus di HP; hapus lewat form ubah + Urungkan.
+- **Geser dari tepi kiri (24px) = kembali** di halaman rincian (bukan tab
+  utama dan bukan form). Komponen lain mengabaikan pointer yang mulai di
+  24px kiri.
+- `useSwipe` lama tetap untuk komponen yang belum diganti (sheet lama, baris).
 
 ## Konfirmasi vs Urungkan
 

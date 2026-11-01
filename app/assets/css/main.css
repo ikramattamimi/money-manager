@@ -13,6 +13,13 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Halaman yang digeser (transisi push/pop, geser bulan) tidak boleh melebarkan
+     dokumen: HP akan memperkecil zoom. clip, bukan hidden, supaya sticky tetap jalan. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
   body {
     @apply bg-background font-sans text-sm text-foreground antialiased;
     font-optical-sizing: auto;

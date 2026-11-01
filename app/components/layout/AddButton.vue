@@ -80,6 +80,7 @@ onBeforeUnmount(() => {
 <template>
   <button
     ref="fab"
+    data-chrome
     type="button"
     aria-label="Catat transaksi. Tahan untuk pilihan cepat"
     aria-haspopup="menu"

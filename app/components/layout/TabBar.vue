@@ -24,6 +24,7 @@ function onTap(key: string) {
 
 <template>
   <nav
+    data-chrome
     aria-label="Navigasi utama"
     :class="withAdd ? 'right-[84px]' : 'right-3.5'"
     class="ios-tabbar fixed bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] left-3.5 z-40 flex rounded-full p-1 md:bottom-auto md:left-1/2 md:right-auto md:top-[calc(env(safe-area-inset-top,0px)+14px)] md:w-[480px] md:-translate-x-1/2 xl:hidden"
@@ -47,7 +48,7 @@ function onTap(key: string) {
     </NuxtLink>
   </nav>
   <!-- Gradasi di bawah konten supaya teks tidak beradu dengan tab bar (mockup .edge) -->
-  <div class="ios-edge pointer-events-none fixed inset-x-0 bottom-0 z-30 h-[130px] md:hidden" aria-hidden="true" />
+  <div data-chrome class="ios-edge pointer-events-none fixed inset-x-0 bottom-0 z-30 h-[130px] md:hidden" aria-hidden="true" />
 </template>
 
 <style scoped>

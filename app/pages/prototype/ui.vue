@@ -11,6 +11,9 @@ import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
 import IosSheet from '@/components/ios/IosSheet.vue';
 import IosSwitch from '@/components/ios/IosSwitch.vue';
+import MonthNav from '@/components/ios/MonthNav.vue';
+import MonthPickerSheet from '@/components/ios/MonthPickerSheet.vue';
+import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import NavBar from '@/components/ios/NavBar.vue';
 import Segmented from '@/components/ios/Segmented.vue';
 import SubTabs from '@/components/ios/SubTabs.vue';
@@ -55,6 +58,19 @@ const TONES: Tone[] = [
 ];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
+// Contoh geser bulan dengan data tiruan (batas maju Desember 2026)
+const demoYear = ref(2026);
+const demoMonth = ref(11);
+const pickerOpen = ref(false);
+const demoMax = 2026 * 12 + 11;
+const demoIndex = computed(() => demoYear.value * 12 + demoMonth.value - 1);
+function demoShift(dir: number) {
+  const i = demoIndex.value + dir;
+  if (i > demoMax) return;
+  demoYear.value = Math.floor(i / 12);
+  demoMonth.value = (i % 12) + 1;
+}
+
 async function askDelete() {
   const ok = await alert.confirm({
     title: 'Batalkan impor?',
@@ -81,6 +97,43 @@ async function askDelete() {
         { label: 'Pengeluaran', value: 'Rp2.170.500', tone: 'exp' },
         { label: 'Total', value: 'Rp6.889.500' },
       ]"
+    />
+
+    <!-- Geser daftar = pindah bulan, judul bulan membuka pemilih (R2) -->
+    <div class="mt-3 bg-card shadow-[0_0.5px_0_var(--sep)]">
+      <MonthNav
+        :label="`${MONTHS[demoMonth - 1]} ${demoYear}`"
+        :can-next="demoIndex < demoMax"
+        @prev="demoShift(-1)"
+        @next="demoShift(1)"
+        @pick="pickerOpen = true"
+      />
+    </div>
+    <MonthSwipe
+      :month-key="`${demoYear}-${String(demoMonth).padStart(2, '0')}`"
+      :prev-label="MONTHS[(demoMonth + 10) % 12]!"
+      :next-label="MONTHS[demoMonth % 12]!"
+      :can-next="demoIndex < demoMax"
+      @shift="demoShift"
+    >
+      <GroupedList :label="`Geser bulan · ${MONTHS[demoMonth - 1]} ${demoYear}`" aside="geser kiri/kanan">
+        <GroupRow
+          v-for="n in 3"
+          :key="n"
+          :title="`Transaksi ${n} ${MONTHS[demoMonth - 1]}`"
+          :value="`Rp${(n * demoMonth * 12500).toLocaleString('id-ID')}`"
+          strong
+          @click="toast.show(`Ketuk transaksi ${n}`)"
+        />
+      </GroupedList>
+    </MonthSwipe>
+    <MonthPickerSheet
+      v-model:open="pickerOpen"
+      :year="demoYear"
+      :month="demoMonth"
+      :current="{ year: 2026, month: 11 }"
+      :max-index="demoMax"
+      @pick="(y, m) => ((demoYear = y), (demoMonth = m))"
     />
 
     <GroupedList label="Baris grup" aside="3 akun">

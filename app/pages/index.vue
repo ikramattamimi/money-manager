@@ -34,16 +34,15 @@ import {
   useTransactionMutations,
   useTxHighlight,
 } from '@/features/transactions/useTransactions';
+import MonthPickerSheet from '@/components/ios/MonthPickerSheet.vue';
+import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import { formatRupiah, formatShort } from '@/lib/format';
-import { shouldCommit } from '@/lib/gesture';
 import {
-  addMonths,
   dayKey,
   dayLabel,
   MONTHS_LONG,
   MONTHS_SHORT,
   periodDays,
-  periodOf,
   periodRangeLabel,
 } from '@/lib/time';
 
@@ -61,46 +60,27 @@ const { rowProps } = useTxDisplay();
 // Pilih banyak untuk ubah kategori/akun atau hapus sekaligus; berhenti saat pindah periode/tampilan
 const selection = useTxSelection();
 
-// ---------- periode bulan aktif (bertahan saat pindah tab) ----------
-// Periode mengikuti tanggal awal bulan buku: awal 25 → Oktober = 25 Sep – 24 Okt
+// ---------- periode bulan aktif (bersama rincian akun, bertahan saat pindah tab) ----------
 const todayKey = dayKey(new Date());
-const current = computed(() => periodOf(todayKey, monthStartDay.value));
-const year = useState('tx:year', () => current.value.year);
-const month = useState('tx:month', () => current.value.month);
-const isCurrent = computed(
-  () => year.value === current.value.year && month.value === current.value.month,
-);
+const selected = useSelectedMonth();
+const { year, month, isCurrent, rangeHint } = selected;
 // Tanggal awal berubah (buku lain / pengaturan diganti): kembali ke periode berjalan
-watch(monthStartDay, () => {
-  year.value = current.value.year;
-  month.value = current.value.month;
-});
-const rangeHint = computed(() => periodRangeLabel(year.value, month.value, monthStartDay.value));
+watch(monthStartDay, () => selected.goToday());
 
-function shiftMonth(delta: number) {
-  const next = addMonths(year.value, month.value, delta);
-  year.value = next.year;
-  month.value = next.month;
-}
 /** Tampilan Tahunan: panah dan geser pindah tahun, selain itu pindah bulan */
 function shift(delta: number) {
   if (view.value === 'yearly') year.value += delta;
-  else shiftMonth(delta);
+  else selected.shift(delta);
 }
-
-// Geser kepala halaman ke kiri/kanan untuk pindah bulan
-const header = ref<HTMLElement>();
-useSwipe(header, {
-  axis: 'x',
-  threshold: 14,
-  canStart: (e) => !(e.target as HTMLElement).closest('button'),
-  onMove: () => {},
-  onEnd: ({ delta, elapsedMs }) => {
-    const width = header.value?.offsetWidth ?? 1;
-    if (shouldCommit(Math.abs(delta), width, elapsedMs, { ratio: 0.25, minFlick: 30 }))
-      shift(delta < 0 ? 1 : -1);
-  },
-});
+const canNext = computed(() =>
+  view.value === 'yearly' ? year.value < selected.current.value.year : selected.canNext.value,
+);
+const swipeKey = computed(() =>
+  view.value === 'yearly' ? String(year.value) : `${year.value}-${String(month.value).padStart(2, '0')}`,
+);
+const swipeLabel = (delta: number) =>
+  view.value === 'yearly' ? String(year.value + delta) : selected.neighborLabel(delta);
+const pickerOpen = ref(false);
 
 const VIEWS = [
   { value: 'daily', label: 'Harian' },
@@ -277,14 +257,16 @@ function addFirst() {
 
 <template>
   <div>
-    <div ref="header" class="touch-pan-y">
+    <div>
       <PageHeader title="Transaksi" :summary="`Sisa ${formatShort(summary.net)}`">
         <template #actions>
           <MonthPicker
             :label="isYearly ? String(year) : `${MONTHS_SHORT[month - 1]} ${year}`"
             :hint="isYearly ? yearHint(year) : rangeHint"
+            :can-next="canNext"
             @prev="shift(-1)"
             @next="shift(1)"
+            @pick="isYearly ? undefined : (pickerOpen = true)"
           />
           <HeaderButton label="Cari" @click="navigateTo('/search')"
             ><Search aria-hidden="true"
@@ -325,7 +307,15 @@ function addFirst() {
     <div
       class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5"
     >
-      <div>
+      <!-- Geser daftar ke kiri/kanan = pindah bulan (HP); baris tidak digeser-hapus di HP -->
+      <MonthSwipe
+        :month-key="swipeKey"
+        :prev-label="swipeLabel(-1)"
+        :next-label="swipeLabel(1)"
+        :can-next="canNext"
+        :disabled="md || selection.selecting.value"
+        @shift="shift"
+      >
         <PendingRecurring />
         <Card v-if="error" class="mt-3.5">
           <EmptyState
@@ -382,7 +372,7 @@ function addFirst() {
               :key="t.id"
               :ref="(el) => (rows[t.id] = el as InstanceType<typeof TransactionRow> | null)"
               v-bind="rowProps(t)"
-              :deletable="canEdit"
+              :deletable="canEdit && md"
               :selecting="selection.selecting.value"
               :selected="selection.has(t.id)"
               @select="selection.selecting.value ? selection.toggle(t.id) : editor.edit(t)"
@@ -447,7 +437,7 @@ function addFirst() {
               v-for="t in selectedList"
               :key="t.id"
               v-bind="rowProps(t)"
-              :deletable="canEdit"
+              :deletable="canEdit && md"
               @select="editor.edit(t)"
               @delete="remove(t)"
             />
@@ -537,7 +527,7 @@ function addFirst() {
             </ListRow>
           </Card>
         </template>
-      </div>
+      </MonthSwipe>
 
       <!-- Kolom kanan (>= 1024px): Catat cepat selalu terbuka + pengeluaran teratas -->
       <aside
@@ -559,5 +549,14 @@ function addFirst() {
         </Card>
       </aside>
     </div>
+
+    <MonthPickerSheet
+      v-model:open="pickerOpen"
+      :year="year"
+      :month="month"
+      :current="selected.current.value"
+      :max-index="selected.maxIndex.value"
+      @pick="selected.set"
+    />
   </div>
 </template>

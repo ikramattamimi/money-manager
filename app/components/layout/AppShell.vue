@@ -119,7 +119,8 @@ watch(lg, (wide) => {
   />
 
   <main
-    class="min-h-dvh px-3 pb-[calc(env(safe-area-inset-bottom,0px)+120px)] pt-[calc(env(safe-area-inset-top,0px)+8px)] md:px-6 md:pb-12 md:pt-[calc(env(safe-area-inset-top,0px)+80px)] xl:pb-10 xl:pl-[calc(232px+28px)] xl:pr-7 xl:pt-5"
+    data-page-stage
+    class="min-h-dvh bg-background px-3 pb-[calc(env(safe-area-inset-bottom,0px)+120px)] pt-[calc(env(safe-area-inset-top,0px)+8px)] md:px-6 md:pb-12 md:pt-[calc(env(safe-area-inset-top,0px)+80px)] xl:pb-10 xl:pl-[calc(232px+28px)] xl:pr-7 xl:pt-5"
   >
     <div class="mx-auto max-w-[1120px]">
       <slot />

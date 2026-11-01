@@ -9,7 +9,7 @@ const props = withDefaults(defineProps<{ label: string; hint?: string; canNext?:
   hint: '',
   canNext: true,
 });
-const emit = defineEmits<{ prev: []; next: [] }>();
+const emit = defineEmits<{ prev: []; next: []; pick: [] }>();
 </script>
 
 <template>
@@ -29,12 +29,18 @@ const emit = defineEmits<{ prev: []; next: [] }>();
     >
       <ChevronLeft aria-hidden="true" />
     </button>
-    <span class="flex min-w-16 flex-col items-center px-0.5 text-center" aria-live="polite">
+    <button
+      type="button"
+      class="press flex min-w-16 flex-col items-center rounded-[7px] px-0.5 text-center hover:bg-glass-2"
+      :aria-label="`Pilih bulan, ${props.label}`"
+      aria-live="polite"
+      @click="emit('pick')"
+    >
       <span class="text-meta font-semibold tabular-nums">{{ props.label }}</span>
       <small v-if="hint" class="-mt-px text-2xs leading-tight tabular-nums opacity-80">{{
         hint
       }}</small>
-    </span>
+    </button>
     <button
       type="button"
       class="press press-icon grid size-7.5 place-items-center rounded-[7px] hover:bg-glass-2 disabled:opacity-40 [&_svg]:size-4"
