@@ -54,9 +54,15 @@ const active = computed(() => {
 const txSelecting = useState('ui:selecting', () => false);
 const showAdd = computed(() => props.canAdd && !txSelecting.value);
 
+/** Ketuk ulang tab Transaksi = kembali ke hari ini (didengar halaman Transaksi) */
+const retapTx = useState('nav:retap:tx', () => 0);
+function onRetap(key: string) {
+  if (key === 'tx') retapTx.value++;
+}
+
 /** Menu tahan tombol +: Ketik cepat membuka panel quick-add, sisanya halaman impor/bookmark */
 const QUICK_PATH: Record<Exclude<QuickAction, 'quick'>, string> = {
-  bookmark: '/settings/templates',
+  bookmark: '/bookmarks',
   bank: '/settings/import/bank',
   photo: '/settings/import/photo',
 };
@@ -128,7 +134,7 @@ watch(lg, (wide) => {
   </main>
 
   <CompactTopBar />
-  <TabBar :base="base" :active="active" :with-add="showAdd" />
+  <TabBar :base="base" :active="active" :with-add="showAdd" @retap="onRetap" />
   <AddButton v-if="showAdd" @press="startQuickAdd" @quick="onQuick" />
   <Toaster />
   <IosAlert />

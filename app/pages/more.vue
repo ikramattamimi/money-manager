@@ -102,7 +102,7 @@ const SECTION =
       <SettingRow
         :icon="Zap"
         tone="warn"
-        title="Template"
+        title="Bookmark"
         subtitle="Transaksi yang sering dicatat, satu tap"
         @click="navigateTo('/settings/templates')"
       />

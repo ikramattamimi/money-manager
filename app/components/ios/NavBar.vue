@@ -38,7 +38,7 @@ function goBack() {
     ]"
   >
     <div class="flex h-11 items-center px-1">
-      <div class="flex min-w-[88px] items-center">
+      <div :class="['flex items-center', $slots.center ? 'min-w-11' : 'min-w-[88px]']">
         <button
           v-if="back"
           type="button"
@@ -50,14 +50,19 @@ function goBack() {
         </button>
         <slot name="left" />
       </div>
+      <!-- #center menggantikan judul (mis. navigasi bulan); judul tetap ada untuk pembaca layar -->
+      <template v-if="$slots.center">
+        <h1 class="sr-only">{{ title }}</h1>
+        <slot name="center" />
+      </template>
       <h1
-        v-if="!large"
+        v-else-if="!large"
         class="min-w-0 flex-1 truncate text-center text-bar font-semibold tracking-[-0.02em]"
       >
         <slot name="title">{{ title }}</slot>
       </h1>
       <span v-else class="flex-1" />
-      <div class="flex min-w-[88px] items-center justify-end">
+      <div :class="['flex items-center justify-end', $slots.center ? 'min-w-11' : 'min-w-[88px]']">
         <slot name="right" />
       </div>
     </div>

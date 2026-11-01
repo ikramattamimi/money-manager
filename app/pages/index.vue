@@ -1,51 +1,56 @@
 <script setup lang="ts">
-import { CalendarX, Check, Inbox, Layers, ListChecks, Plus, Search, Sigma } from '@lucide/vue';
+import { ChevronRight, Layers, ListFilter, Search, Sigma } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
 import CardHead from '@/components/base/CardHead.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
 import HBarList from '@/components/charts/HBarList.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import MonthPicker from '@/components/layout/MonthPicker.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PageHero from '@/components/layout/PageHero.vue';
-import StatChip from '@/components/layout/StatChip.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import MonthNav from '@/components/ios/MonthNav.vue';
+import MonthPickerSheet from '@/components/ios/MonthPickerSheet.vue';
+import MonthSwipe from '@/components/ios/MonthSwipe.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import SectionHeader from '@/components/ios/SectionHeader.vue';
+import SubTabs from '@/components/ios/SubTabs.vue';
+import SummaryStrip from '@/components/ios/SummaryStrip.vue';
+import BulkTxBar from '@/components/money/BulkTxBar.vue';
+import DayGroup from '@/components/money/DayGroup.vue';
+import DaySheet from '@/components/money/DaySheet.vue';
+import MonthSummary from '@/components/money/MonthSummary.vue';
 import PendingRecurring from '@/components/money/PendingRecurring.vue';
 import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
-import BulkTxBar from '@/components/money/BulkTxBar.vue';
-import TransactionRow from '@/components/money/TransactionRow.vue';
-import { Button } from '@/components/ui/button';
+import TxCalendar from '@/components/money/TxCalendar.vue';
+import TxRow from '@/components/money/TxRow.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import type { Transaction } from '@/features/transactions/api';
 import { netAmount, summarize } from '@/features/transactions/effects';
+import {
+  groupByDay,
+  shortDate,
+  sumsByDay,
+  weeksOf,
+  type WeekRow,
+} from '@/features/transactions/grouping';
 import { useTxSelection } from '@/features/transactions/useBulk';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
+import { useTxFilter } from '@/features/transactions/useTxFilter';
 import {
   useMonthsOverview,
   useMonthTransactions,
-  useYearsOverview,
-  useTransactionMutations,
   useTxHighlight,
+  useYearsOverview,
 } from '@/features/transactions/useTransactions';
-import MonthPickerSheet from '@/components/ios/MonthPickerSheet.vue';
-import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import { formatRupiah, formatShort } from '@/lib/format';
-import {
-  dayKey,
-  dayLabel,
-  MONTHS_LONG,
-  MONTHS_SHORT,
-  periodDays,
-  periodRangeLabel,
-} from '@/lib/time';
+import { dayKey, jakartaParts, MONTHS_LONG, periodDays, periodRangeLabel } from '@/lib/time';
 
+// Tab Transaksi (mockup daily/calendar/weekly/monthly/summary): bar atas
+// Cari · ‹ bulan › · Filter, sub-tab lima tampilan, ringkasan tiga kolom.
+// Geser daftar = pindah bulan; kepala tanggal = catat di tanggal itu;
+// tahan baris = pilih banyak. iPad landscape/desktop: kolom kanan Catat cepat.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Transaksi · Money Manager' });
 
@@ -53,52 +58,44 @@ const { canEdit, monthStartDay } = useActiveBook();
 const { md, lg } = useBreakpoint();
 const ui = useQuickAddUi();
 const editor = useTxEditor();
-const mutations = useTransactionMutations();
 const highlight = useTxHighlight();
 const categories = useCategories();
-const { rowProps } = useTxDisplay();
-// Pilih banyak untuk ubah kategori/akun atau hapus sekaligus; berhenti saat pindah periode/tampilan
+const { rowView } = useTxDisplay();
 const selection = useTxSelection();
+const filter = useTxFilter();
 
-// ---------- periode bulan aktif (bersama rincian akun, bertahan saat pindah tab) ----------
+// ---------- bulan ----------
 const todayKey = dayKey(new Date());
 const selected = useSelectedMonth();
-const { year, month, isCurrent, rangeHint } = selected;
-// Tanggal awal berubah (buku lain / pengaturan diganti): kembali ke periode berjalan
+const { year, month, rangeHint } = selected;
 watch(monthStartDay, () => selected.goToday());
-
-/** Tampilan Tahunan: panah dan geser pindah tahun, selain itu pindah bulan */
-function shift(delta: number) {
-  if (view.value === 'yearly') year.value += delta;
-  else selected.shift(delta);
-}
-const canNext = computed(() =>
-  view.value === 'yearly' ? year.value < selected.current.value.year : selected.canNext.value,
-);
-const swipeKey = computed(() =>
-  view.value === 'yearly' ? String(year.value) : `${year.value}-${String(month.value).padStart(2, '0')}`,
-);
-const swipeLabel = (delta: number) =>
-  view.value === 'yearly' ? String(year.value + delta) : selected.neighborLabel(delta);
+const swipeKey = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`);
 const pickerOpen = ref(false);
+
+// Ketuk ulang tab Transaksi (lewat state bersama tab bar) = kembali ke hari ini
+const retap = useState('nav:retap:tx', () => 0);
+watch(retap, () => {
+  selected.goToday();
+  view.value = 'daily';
+});
 
 const VIEWS = [
   { value: 'daily', label: 'Harian' },
   { value: 'calendar', label: 'Kalender' },
+  { value: 'weekly', label: 'Mingguan' },
   { value: 'monthly', label: 'Bulanan' },
-  { value: 'yearly', label: 'Tahunan' },
+  { value: 'summary', label: 'Ringkasan' },
 ] as const;
-const view = useState<(typeof VIEWS)[number]['value']>('tx:view', () => 'daily');
+type View = (typeof VIEWS)[number]['value'];
+const view = useState<View>('tx:view', () => 'daily');
+// Tampilan Tahunan lama sudah masuk ke Bulanan
+if (!VIEWS.some((v) => v.value === view.value)) view.value = 'monthly';
 watch([view, year, month], () => selection.stop());
 onBeforeUnmount(() => selection.stop());
 
 // ---------- cakupan: total yang tampil di Transaksi (mis. Uang bulanan) atau semua ----------
-// Ada total bertanda "tampil di Transaksi": transaksi dan ringkasan hanya dari
-// akunnya (transfer ikut kalau salah satu sisinya ada di sana). Bisa dilihat
-// semua akun lewat tombol di kepala halaman; pilihan bertahan saat pindah tab.
 const { accounts, transactionsTotal } = useAccounts();
 const showAll = useState('tx:all-accounts', () => false);
-// Total di Transaksi diganti/dihapus: mulai lagi dari total itu
 watch(
   () => transactionsTotal.value?.id,
   (id, old) => old !== undefined && id !== old && (showAll.value = false),
@@ -112,94 +109,37 @@ const scopeIds = computed(() =>
       )
     : null,
 );
+watch(scopeId, () => selection.stop());
 
 // ---------- data ----------
 const { data: txs, isPending, error } = useMonthTransactions(year, month);
+const rootOf = (id: string | null) =>
+  id ? (categories.byId.value.get(id)?.parent_id ?? id) : null;
 const list = computed(() => {
-  const all = txs.value ?? [];
   const ids = scopeIds.value;
-  if (!ids) return all;
-  return all.filter(
-    (t) => ids.has(t.account_id) || (!!t.to_account_id && ids.has(t.to_account_id)),
-  );
+  const scoped = ids
+    ? (txs.value ?? []).filter(
+        (t) => ids.has(t.account_id) || (!!t.to_account_id && ids.has(t.to_account_id)),
+      )
+    : (txs.value ?? []);
+  return filter.apply(scoped, rootOf);
 });
-watch(scopeId, () => selection.stop());
-const monthSummary = computed(() => summarize(list.value));
+const summary = computed(() => summarize(list.value));
+const days = computed(() => groupByDay(list.value));
+const sums = computed(() => sumsByDay(list.value));
+const periodKeys = computed(() => periodDays(year.value, month.value, monthStartDay.value));
+const weeks = computed(() => weeksOf(periodKeys.value, sums.value, todayKey));
+const weekLabel = (w: WeekRow) =>
+  w.from === w.to ? shortDate(w.from) : `${shortDate(w.from)} – ${shortDate(w.to)}`;
 
-// ---------- tahunan ----------
-const isYearly = computed(() => view.value === 'yearly');
-const { data: yearsData } = useYearsOverview(isYearly, scopeId);
-const years = computed(() =>
-  (yearsData.value ?? []).map((y) => ({ ...y, net: y.income - y.expense })),
-);
-/** Rentang tahun periode kalau awal bulan bukan tanggal 1: "25 Des 2025 – 24 Des 2026" */
-const yearHint = (y: number) => {
-  if (monthStartDay.value <= 1) return '';
-  const first = periodDays(y, 1, monthStartDay.value)[0]!;
-  const last = periodDays(y, 12, monthStartDay.value).at(-1)!;
-  const label = (k: string) =>
-    `${Number(k.slice(8))} ${MONTHS_SHORT[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`;
-  return `${label(first)} – ${label(last)}`;
-};
+/** Mingguan: ketuk minggu = Harian, gulir ke hari terbaru di minggu itu */
+function openWeek(w: WeekRow) {
+  view.value = 'daily';
+  const day = days.value.find((d) => d.key >= w.from && d.key <= w.to);
+  if (day) nextTick(() => document.getElementById(`day-${day.key}`)?.scrollIntoView());
+}
 
-/** Angka kepala halaman: periode bulan, atau tahun saat tampilan Tahunan */
-const summary = computed(() => {
-  if (!isYearly.value) return { ...monthSummary.value, count: list.value.length };
-  const y = years.value.find((r) => r.year === year.value);
-  return {
-    income: y?.income ?? 0,
-    expense: y?.expense ?? 0,
-    net: y?.net ?? 0,
-    count: y?.tx_count ?? 0,
-  };
-});
-const used = computed(() =>
-  summary.value.income ? summary.value.expense / summary.value.income : 0,
-);
-
-const days = computed(() => {
-  const groups = new Map<string, Transaction[]>();
-  for (const t of list.value) {
-    const key = dayKey(t.occurred_at);
-    groups.set(key, [...(groups.get(key) ?? []), t]);
-  }
-  return [...groups.entries()].map(([key, items]) => ({ key, items, net: summarize(items).net }));
-});
-
-const signed = (n: number) => (n ? (n > 0 ? '+' : '−') + formatRupiah(Math.abs(n)) : '');
-
-// ---------- kalender (tanggal-tanggal dalam periode, bisa melewati dua bulan) ----------
-const calendarDays = computed(() => periodDays(year.value, month.value, monthStartDay.value));
-const firstKey = () => (isCurrent.value ? todayKey : calendarDays.value[0]!);
-const selectedDay = ref(firstKey());
-watch([year, month, monthStartDay], () => (selectedDay.value = firstKey()));
-const offset = computed(() => {
-  const [y, m, d] = calendarDays.value[0]!.split('-').map(Number) as [number, number, number];
-  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
-});
-const dayNum = (key: string) => Number(key.slice(8));
-const dayName = (key: string) => `${dayNum(key)} ${MONTHS_LONG[Number(key.slice(5, 7)) - 1]}`;
-/** Tanggal 1 bulan berikutnya di tengah periode diberi nama bulannya */
-const cellLabel = (key: string, i: number) =>
-  i > 0 && dayNum(key) === 1
-    ? `1 ${MONTHS_SHORT[Number(key.slice(5, 7)) - 1]}`
-    : String(dayNum(key));
-const daySums = computed(() => {
-  const sums: Record<string, { income: number; expense: number }> = {};
-  for (const t of list.value) {
-    if (t.is_adjustment) continue;
-    const s = (sums[dayKey(t.occurred_at)] ??= { income: 0, expense: 0 });
-    if (t.type === 'income') s.income += netAmount(t);
-    if (t.type === 'expense') s.expense += netAmount(t);
-  }
-  return sums;
-});
-const selectedList = computed(() =>
-  list.value.filter((t) => dayKey(t.occurred_at) === selectedDay.value),
-);
-const isFuture = (key: string) => key > todayKey;
-
-// ---------- bulanan ----------
+// ---------- bulanan dan tahunan ----------
 const { data: overview } = useMonthsOverview(year, scopeId);
 const months = computed(() =>
   (overview.value ?? [])
@@ -207,15 +147,80 @@ const months = computed(() =>
     .sort((a, b) => b.month - a.month)
     .map((m) => ({ ...m, net: m.income - m.expense })),
 );
+const isMonthly = computed(() => view.value === 'monthly');
+const { data: yearsData } = useYearsOverview(isMonthly, scopeId);
+const years = computed(() =>
+  (yearsData.value ?? []).map((y) => ({ ...y, net: y.income - y.expense })),
+);
+function pickMonth(m: number) {
+  if (m === month.value) return;
+  selected.set(year.value, m);
+}
 
-// ---------- kolom kanan ----------
+// Bulan lalu untuk perbandingan di Ringkasan
+const prevYear = computed(() => (month.value === 1 ? year.value - 1 : year.value));
+const { data: prevOverview } = useMonthsOverview(prevYear, scopeId);
+const prev = computed(() => {
+  const m = month.value === 1 ? 12 : month.value - 1;
+  const row = prevOverview.value?.find((r) => r.month === m);
+  return row ? { income: row.income, expense: row.expense } : null;
+});
+
+// ---------- catat di tanggal tertentu ----------
+function addOn(key: string) {
+  if (!canEdit.value) return;
+  // Jam sekarang di tanggal itu, supaya urutan dalam hari tetap wajar
+  const now = jakartaParts(new Date());
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const occurredAt =
+    key === todayKey
+      ? null
+      : new Date(`${key}T${pad(now.hour)}:${pad(now.minute)}:00+07:00`).toISOString();
+  editor.create({
+    type: 'expense',
+    amount: 0,
+    accountId: null,
+    toAccountId: null,
+    categoryId: null,
+    note: '',
+    occurredAt,
+  });
+}
+
+// ---------- kalender: lembar hari ----------
+const sheetDay = ref(todayKey);
+const sheetOpen = ref(false);
+const sheetItems = computed(() => days.value.find((d) => d.key === sheetDay.value)?.items ?? []);
+function openDay(key: string) {
+  sheetDay.value = key;
+  sheetOpen.value = true;
+}
+function addFromSheet() {
+  sheetOpen.value = false;
+  addOn(sheetDay.value);
+}
+function openFromSheet(t: Transaction) {
+  sheetOpen.value = false;
+  editor.edit(t);
+}
+
+// ---------- pilih banyak: tahan baris ----------
+function startSelect(t: Transaction) {
+  if (!canEdit.value) return;
+  selection.selecting.value = true;
+  if (!selection.has(t.id)) selection.toggle(t.id);
+}
+function tapRow(t: Transaction) {
+  if (selection.selecting.value) selection.toggle(t.id);
+  else editor.edit(t);
+}
+
+// ---------- kolom kanan (>= 1024px) ----------
 const topCats = computed(() => {
   const by = new Map<string, number>();
   for (const t of list.value) {
     if (t.type !== 'expense' || t.is_adjustment || !t.category_id) continue;
-    // Gabungkan subkategori ke induknya
-    const c = categories.byId.value.get(t.category_id);
-    const key = c?.parent_id ?? t.category_id;
+    const key = rootOf(t.category_id)!;
     by.set(key, (by.get(key) ?? 0) + netAmount(t));
   }
   return [...by.entries()]
@@ -230,12 +235,17 @@ const topCats = computed(() => {
       ...categories.style(id),
     }));
 });
-
 const inlinePanel = ref<InstanceType<typeof QuickAddPanel>>();
 watch(ui.focusTick, () => nextTick(() => inlinePanel.value?.focus()));
 
+function addFirst() {
+  if (lg.value) ui.focusTick.value++;
+  else if (md.value) ui.open.value = true;
+  else addOn(todayKey);
+}
+
 // ---------- sorotan transaksi baru ----------
-const rows = ref<Record<string, InstanceType<typeof TransactionRow> | null>>({});
+const rows = ref<Record<string, InstanceType<typeof TxRow> | null>>({});
 watch([highlight, list], ([id]) => {
   if (!id || !rows.value[id]) return;
   nextTick(() => {
@@ -243,290 +253,266 @@ watch([highlight, list], ([id]) => {
     highlight.value = null;
   });
 });
-
-function remove(t: Transaction) {
-  mutations.removeWithUndo(t, t.note || 'Transaksi');
-}
-
-function addFirst() {
-  if (lg.value) ui.focusTick.value++;
-  else if (md.value) ui.open.value = true;
-  else editor.create();
-}
 </script>
 
 <template>
-  <div>
-    <div>
-      <PageHeader title="Transaksi" :summary="`Sisa ${formatShort(summary.net)}`">
-        <template #actions>
-          <MonthPicker
-            :label="isYearly ? String(year) : `${MONTHS_SHORT[month - 1]} ${year}`"
-            :hint="isYearly ? yearHint(year) : rangeHint"
-            :can-next="canNext"
-            @prev="shift(-1)"
-            @next="shift(1)"
-            @pick="isYearly ? undefined : (pickerOpen = true)"
-          />
-          <HeaderButton label="Cari" @click="navigateTo('/search')"
-            ><Search aria-hidden="true"
-          /></HeaderButton>
-        </template>
-        <PageHero
-          :label="isYearly ? `Sisa ${year}` : `Sisa ${MONTHS_LONG[month - 1]}`"
-          :value="formatRupiah(summary.net)"
-          :progress="{ label: 'Terpakai dari pemasukan', value: used }"
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Transaksi" class="sticky top-0 md:static">
+      <template #left>
+        <IconButton label="Cari" to="/search"><Search aria-hidden="true" /></IconButton>
+      </template>
+      <template #center>
+        <MonthNav
+          :label="selected.label.value"
+          :long-label="selected.longLabel.value"
+          :hint="rangeHint"
+          :can-next="selected.canNext.value"
+          @prev="selected.shift(-1)"
+          @next="selected.shift(1)"
+          @pick="pickerOpen = true"
         />
-        <div class="flex flex-wrap gap-1.5">
-          <StatChip label="Masuk" :value="formatShort(summary.income)" tone="ok" />
-          <StatChip label="Keluar" :value="formatShort(summary.expense)" tone="bad" />
-          <StatChip label="Transaksi" :value="summary.count" />
-        </div>
-        <!-- Total yang tampil di Transaksi: saldonya, dan tombol lihat semua akun -->
-        <div v-if="transactionsTotal" class="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            class="press inline-flex h-6.5 items-center gap-1.5 rounded-full border border-glass-line bg-glass px-2.5 text-xs text-on-grad-2 hover:bg-glass-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad [&_svg]:size-3.5"
-            :aria-pressed="!showAll"
-            @click="showAll = !showAll"
-          >
-            <component :is="showAll ? Layers : Sigma" aria-hidden="true" />
-            {{ showAll ? 'Semua akun' : transactionsTotal.name }}
-            <span class="text-on-grad-2/80">· ganti</span>
-          </button>
-          <StatChip
-            v-if="!showAll"
-            :label="`Saldo ${transactionsTotal.name}`"
-            :value="formatShort(transactionsTotal.sum)"
+      </template>
+      <template #right>
+        <IconButton
+          :label="filter.applied.value ? 'Filter aktif' : 'Filter'"
+          to="/filter"
+          class="relative"
+        >
+          <ListFilter aria-hidden="true" />
+          <span
+            v-if="filter.applied.value"
+            class="absolute right-2 top-2 size-2 rounded-full bg-primary-accent"
+            aria-hidden="true"
           />
-        </div>
-        <SegmentedControl v-model="view" :options="VIEWS" label="Tampilan" variant="on-grad" />
-      </PageHeader>
+        </IconButton>
+      </template>
+      <SubTabs v-model="view" :options="VIEWS" label="Tampilan transaksi" />
+    </NavBar>
+
+    <!-- Total yang tampil di Transaksi (mockup .scope): ketuk untuk semua akun -->
+    <div
+      v-if="transactionsTotal"
+      class="flex items-center gap-2 bg-card px-4 py-2 shadow-[inset_0_0.5px_0_var(--sep)]"
+    >
+      <button
+        type="button"
+        :aria-pressed="!showAll"
+        :class="[
+          'scope-chip inline-flex h-[30px] items-center gap-[5px] rounded-full px-[11px] text-meta font-semibold active:scale-[0.96] [&_svg]:size-3.5',
+          showAll ? 'bg-fill' : 'bg-primary-soft text-primary-accent',
+        ]"
+        @click="showAll = !showAll"
+      >
+        <component :is="showAll ? Layers : Sigma" stroke-width="2.6" aria-hidden="true" />
+        {{ showAll ? 'Semua akun' : transactionsTotal.name }}
+        <span class="font-medium text-muted-foreground">· ganti</span>
+      </button>
+      <span v-if="!showAll" class="ml-auto text-meta font-semibold text-muted-foreground">{{
+        formatRupiah(transactionsTotal.sum)
+      }}</span>
     </div>
+
+    <!-- Filter aktif: ringkas dan bisa dihapus -->
+    <div
+      v-if="filter.applied.value"
+      class="flex items-center gap-2 bg-primary-soft px-4 py-2 text-meta text-primary-accent"
+    >
+      <ListFilter class="size-4 shrink-0" aria-hidden="true" />
+      <span class="flex-1">Filter aktif: {{ list.length }} transaksi</span>
+      <button type="button" class="font-semibold" @click="filter.applied.value = null">
+        Hapus
+      </button>
+    </div>
+
+    <SummaryStrip
+      :items="[
+        { label: 'Pemasukan', value: formatRupiah(summary.income), tone: 'inc' },
+        { label: 'Pengeluaran', value: formatRupiah(summary.expense), tone: 'exp' },
+        { label: 'Total', value: formatRupiah(summary.net) },
+      ]"
+    />
 
     <div
       class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5"
     >
-      <!-- Geser daftar ke kiri/kanan = pindah bulan (HP); baris tidak digeser-hapus di HP -->
       <MonthSwipe
         :month-key="swipeKey"
-        :prev-label="swipeLabel(-1)"
-        :next-label="swipeLabel(1)"
-        :can-next="canNext"
+        :prev-label="selected.neighborLabel(-1)"
+        :next-label="selected.neighborLabel(1)"
+        :can-next="selected.canNext.value"
         :disabled="md || selection.selecting.value"
-        @shift="shift"
+        class="min-h-[60dvh]"
+        @shift="selected.shift"
       >
         <PendingRecurring />
-        <Card v-if="error" class="mt-3.5">
-          <EmptyState
-            :icon="CalendarX"
-            title="Transaksi gagal dimuat"
-            :description="error.message"
-          />
-        </Card>
-        <Card v-else-if="isPending" class="mt-3.5 p-1"><Skeleton :rows="5" /></Card>
+
+        <EmptyCard v-if="error" title="Transaksi gagal dimuat" :description="error.message" />
+        <EmptyCard v-else-if="isPending && !txs" title="Memuat transaksi…" />
 
         <!-- Harian -->
         <template v-else-if="view === 'daily'">
-          <Card v-if="!list.length" class="mt-3.5">
-            <EmptyState
-              :icon="Inbox"
-              title="Belum ada transaksi"
-              :description="`Belum ada catatan di ${MONTHS_LONG[month - 1]} ${year}.`"
-            >
-              <Button v-if="canEdit" variant="soft" @click="addFirst"
-                ><Plus />Catat transaksi</Button
-              >
-            </EmptyState>
-          </Card>
-          <div
-            v-if="canEdit && list.length"
-            class="mt-3 flex items-center justify-between gap-2 px-1"
+          <EmptyCard
+            v-if="!list.length"
+            title="Belum ada transaksi"
+            :description="`Ketuk + atau tanggal untuk mencatat di ${MONTHS_LONG[month - 1]}.`"
           >
-            <span class="text-xs text-muted-foreground">{{
-              selection.selecting.value
-                ? 'Ketuk transaksi untuk memilih'
-                : 'Ubah kategori/akun atau hapus sekaligus'
-            }}</span>
-            <Button
-              :variant="selection.selecting.value ? 'default' : 'secondary'"
-              size="default"
-              :aria-pressed="selection.selecting.value"
-              @click="
-                selection.selecting.value ? selection.stop() : (selection.selecting.value = true)
-              "
-            >
-              <component :is="selection.selecting.value ? Check : ListChecks" />
-              {{ selection.selecting.value ? 'Selesai' : 'Pilih banyak' }}
-            </Button>
-          </div>
-          <ListGroup
+            <IosButton v-if="canEdit" variant="soft" @click="addFirst">Catat transaksi</IosButton>
+          </EmptyCard>
+          <DayGroup
             v-for="d in days"
             :key="d.key"
-            :label="dayLabel(d.items[0]!.occurred_at)"
-            :aside="signed(d.net)"
-            :aside-class="d.net > 0 ? 'text-primary-accent' : 'text-bad'"
+            :day-key="d.key"
+            :income="d.income"
+            :expense="d.expense"
+            :addable="canEdit && !selection.selecting.value"
+            @add="addOn(d.key)"
           >
-            <TransactionRow
+            <TxRow
               v-for="t in d.items"
+              :id="t.id"
               :key="t.id"
-              :ref="(el) => (rows[t.id] = el as InstanceType<typeof TransactionRow> | null)"
-              v-bind="rowProps(t)"
-              :deletable="canEdit && md"
+              :ref="(el) => (rows[t.id] = el as InstanceType<typeof TxRow> | null)"
+              v-bind="rowView(t)"
+              :selectable="canEdit"
               :selecting="selection.selecting.value"
               :selected="selection.has(t.id)"
-              @select="selection.selecting.value ? selection.toggle(t.id) : editor.edit(t)"
-              @delete="remove(t)"
+              @open="tapRow(t)"
+              @longpress="startSelect(t)"
             />
-          </ListGroup>
+          </DayGroup>
           <BulkTxBar v-if="selection.selecting.value" :list="list" />
         </template>
 
         <!-- Kalender -->
         <template v-else-if="view === 'calendar'">
-          <Card class="mt-3.5 px-2 py-2.5">
-            <div class="grid grid-cols-7">
-              <span
-                v-for="d in ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']"
-                :key="d"
-                class="pb-1.5 pt-0.5 text-center text-2xs font-semibold uppercase tracking-wide text-faint"
-                >{{ d }}</span
-              >
-            </div>
-            <div class="grid grid-cols-7 gap-0.5">
-              <span v-for="n in offset" :key="`e${n}`" />
+          <TxCalendar :days="periodKeys" :sums="sums" :today="todayKey" @pick="openDay" />
+          <p class="mx-4 mt-3 text-center text-meta text-muted-foreground">
+            Ketuk tanggal untuk melihat transaksi atau mencatat di hari itu.
+          </p>
+        </template>
+
+        <!-- Mingguan -->
+        <div v-else-if="view === 'weekly'" class="mt-2.5">
+          <button
+            v-for="w in weeks"
+            :key="w.from"
+            type="button"
+            :aria-current="w.current ? 'true' : undefined"
+            :class="[
+              'grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-[11px] text-left shadow-[inset_0_-0.5px_0_var(--sep)] active:bg-fill-press',
+              w.current ? 'bg-primary-soft' : 'bg-card',
+            ]"
+            @click="openWeek(w)"
+          >
+            <span class="text-body font-semibold">
+              {{ weekLabel(w) }}
+              <small class="mt-px block text-[12.5px] font-medium text-muted-foreground">{{
+                w.current
+                  ? 'Minggu ini'
+                  : `${Math.round((Date.parse(w.to) - Date.parse(w.from)) / 864e5) + 1} hari`
+              }}</small>
+            </span>
+            <span class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+              <span class="text-inc">{{ formatRupiah(w.income) }}</span>
+              <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
+              <span>{{ formatRupiah(w.income - w.expense) }}</span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Bulanan: bulan di tahun ini, bulan terpilih terbuka per minggu; lalu per tahun -->
+        <template v-else-if="view === 'monthly'">
+          <EmptyCard
+            v-if="!months.length"
+            title="Belum ada transaksi"
+            :description="`Belum ada catatan di tahun ${year}.`"
+          />
+          <div v-else class="mt-2.5">
+            <template v-for="m in months" :key="m.month">
               <button
-                v-for="(d, i) in calendarDays"
-                :key="d"
                 type="button"
-                :aria-pressed="d === selectedDay"
-                :aria-label="dayName(d)"
+                :aria-expanded="m.month === month"
                 :class="[
-                  'press flex min-h-13 flex-col items-center gap-px rounded-[10px] pt-1.5 text-label font-semibold',
-                  d === selectedDay
-                    ? 'bg-primary text-white [&_small]:!text-white/85'
-                    : d === todayKey
-                      ? 'text-primary-accent ring-[1.5px] ring-inset ring-primary-accent hover:bg-surface-2'
-                      : 'hover:bg-surface-2',
-                  isFuture(d) && d !== selectedDay && 'font-medium text-faint',
+                  'grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-[11px] text-left shadow-[inset_0_-0.5px_0_var(--sep)] active:bg-fill-press',
+                  m.month === month ? 'bg-primary-soft' : 'bg-card',
                 ]"
-                @click="selectedDay = d"
+                @click="pickMonth(m.month)"
               >
-                <span class="tabular-nums">{{ cellLabel(d, i) }}</span>
-                <small
-                  v-if="daySums[d]?.expense"
-                  class="text-[9.5px] font-semibold tracking-tight text-bad tabular-nums"
+                <span class="text-body font-semibold">
+                  {{ MONTHS_LONG[m.month - 1] }}
+                  <small class="mt-px block text-[12.5px] font-medium text-muted-foreground">{{
+                    periodRangeLabel(year, m.month, monthStartDay) || `${m.tx_count} transaksi`
+                  }}</small>
+                </span>
+                <span class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+                  <span class="text-inc">{{ formatRupiah(m.income) }}</span>
+                  <span class="text-exp">{{ formatRupiah(m.expense) }}</span>
+                  <span>{{ formatRupiah(m.net) }}</span>
+                </span>
+              </button>
+              <template v-if="m.month === month">
+                <div
+                  v-for="w in weeks"
+                  :key="w.from"
+                  class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 bg-surface-2 py-[11px] pl-8 pr-4 shadow-[inset_0_-0.5px_0_var(--sep)]"
                 >
-                  {{ formatShort(daySums[d]!.expense, true) }}
-                </small>
-                <small
-                  v-if="daySums[d]?.income"
-                  class="text-[9.5px] font-semibold tracking-tight text-primary-accent tabular-nums"
-                >
-                  +{{ formatShort(daySums[d]!.income, true) }}
-                </small>
+                  <span class="text-[14px] font-medium">{{ weekLabel(w) }}</span>
+                  <span class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+                    <span class="text-inc">{{ formatRupiah(w.income) }}</span>
+                    <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
+                  </span>
+                </div>
+              </template>
+            </template>
+          </div>
+          <template v-if="years.length > 1">
+            <SectionHeader label="Per tahun" />
+            <div class="mx-4 overflow-hidden rounded-group bg-card">
+              <button
+                v-for="y in years"
+                :key="y.year"
+                type="button"
+                :class="[
+                  'year-row flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-fill-press',
+                  y.year === year && 'bg-primary-soft',
+                ]"
+                @click="
+                  selected.set(
+                    y.year,
+                    y.year === selected.current.value.year ? selected.current.value.month : 12,
+                  )
+                "
+              >
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <b class="text-row font-medium">{{ y.year }}</b>
+                  <span class="text-meta text-muted-foreground"
+                    >Masuk {{ formatShort(y.income) }} · Keluar {{ formatShort(y.expense) }}</span
+                  >
+                </span>
+                <span :class="['text-row font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']">{{
+                  formatShort(y.net)
+                }}</span>
+                <ChevronRight
+                  class="size-[18px] text-chevron"
+                  stroke-width="2.6"
+                  aria-hidden="true"
+                />
               </button>
             </div>
-          </Card>
-          <ListGroup
-            v-if="selectedList.length"
-            :label="dayName(selectedDay)"
-            :aside="`${selectedList.length} transaksi`"
-          >
-            <TransactionRow
-              v-for="t in selectedList"
-              :key="t.id"
-              v-bind="rowProps(t)"
-              :deletable="canEdit && md"
-              @select="editor.edit(t)"
-              @delete="remove(t)"
-            />
-          </ListGroup>
-          <Card v-else class="mt-3.5">
-            <EmptyState
-              :icon="CalendarX"
-              title="Tidak ada transaksi"
-              description="Belum ada catatan di tanggal ini."
-            />
-          </Card>
+          </template>
         </template>
 
-        <!-- Bulanan -->
-        <template v-else-if="view === 'monthly'">
-          <Card v-if="!months.length" class="mt-3.5">
-            <EmptyState
-              :icon="Inbox"
-              title="Belum ada transaksi"
-              :description="`Belum ada catatan di tahun ${year}.`"
-            />
-          </Card>
-          <Card v-else class="mt-3.5 flex flex-col gap-0.5 p-1">
-            <ListRow
-              v-for="m in months"
-              :key="m.month"
-              as="button"
-              :title="`${MONTHS_LONG[m.month - 1]} ${year}`"
-              :subtitle="
-                [
-                  periodRangeLabel(year, m.month, monthStartDay),
-                  `Masuk ${formatShort(m.income)} · Keluar ${formatShort(m.expense)} · ${m.tx_count} transaksi`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              "
-              :value="(m.net >= 0 ? '+' : '') + formatShort(m.net)"
-              :value-class="m.net >= 0 ? 'text-primary-accent' : 'text-bad'"
-              @click="((month = m.month), (view = 'daily'))"
-            >
-              <template #lead>
-                <span
-                  class="grid size-9 place-items-center rounded-[10px] bg-surface-2 text-xs font-bold text-muted-foreground"
-                >
-                  {{ MONTHS_SHORT[m.month - 1] }}
-                </span>
-              </template>
-            </ListRow>
-          </Card>
-        </template>
-
-        <!-- Tahunan -->
-        <template v-else>
-          <Card v-if="!years.length" class="mt-3.5">
-            <EmptyState
-              :icon="Inbox"
-              title="Belum ada transaksi"
-              description="Belum ada catatan di buku ini."
-            />
-          </Card>
-          <Card v-else class="mt-3.5 flex flex-col gap-0.5 p-1">
-            <ListRow
-              v-for="y in years"
-              :key="y.year"
-              as="button"
-              :title="String(y.year)"
-              :subtitle="
-                [
-                  yearHint(y.year),
-                  `Masuk ${formatShort(y.income)} · Keluar ${formatShort(y.expense)} · ${y.tx_count} transaksi`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              "
-              :value="(y.net >= 0 ? '+' : '') + formatShort(y.net)"
-              :value-class="y.net >= 0 ? 'text-primary-accent' : 'text-bad'"
-              :class="y.year === year ? 'bg-surface-2' : ''"
-              @click="((year = y.year), (view = 'monthly'))"
-            >
-              <template #lead>
-                <span
-                  class="grid size-9 place-items-center rounded-[10px] bg-surface-2 text-[11px] font-bold tabular-nums text-muted-foreground"
-                >
-                  {{ String(y.year).slice(2) }}
-                </span>
-              </template>
-            </ListRow>
-          </Card>
-        </template>
+        <!-- Ringkasan -->
+        <MonthSummary
+          v-else
+          :year="year"
+          :month="month"
+          :list="list"
+          :today="todayKey"
+          :prev="prev"
+        />
       </MonthSwipe>
 
       <!-- Kolom kanan (>= 1024px): Catat cepat selalu terbuka + pengeluaran teratas -->
@@ -558,5 +544,23 @@ function addFirst() {
       :max-index="selected.maxIndex.value"
       @pick="selected.set"
     />
+    <DaySheet
+      v-model:open="sheetOpen"
+      :day-key="sheetDay"
+      :items="sheetItems"
+      :sums="sums[sheetDay] ?? { income: 0, expense: 0 }"
+      :can-add="canEdit"
+      @add="addFromSheet"
+      @open="openFromSheet"
+    />
   </div>
 </template>
+
+<style scoped>
+.scope-chip {
+  transition: transform 120ms var(--ease-out);
+}
+.year-row + .year-row {
+  box-shadow: inset 0 0.5px 0 var(--sep);
+}
+</style>

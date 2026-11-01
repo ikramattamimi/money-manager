@@ -87,7 +87,7 @@ const categoryStyle = computed(() => (form.categoryId ? categories.style(form.ca
 
 function save() {
   for (const key of Object.keys(errors)) Reflect.deleteProperty(errors, key);
-  if (!form.name.trim()) errors.name = 'Isi nama template.';
+  if (!form.name.trim()) errors.name = 'Isi nama bookmark.';
   if (form.type === 'transfer') {
     if (!form.accountId) errors.accountId = 'Pilih akun asal.';
     if (!form.toAccountId) errors.toAccountId = 'Pilih akun tujuan.';
@@ -107,12 +107,12 @@ function save() {
   if (t) {
     mutations.update.mutate(
       { id: t.id, patch: data },
-      { onSuccess: () => toast.show('Template disimpan') },
+      { onSuccess: () => toast.show('Bookmark disimpan') },
     );
   } else {
     mutations.create.mutate(
       { ...data, book_id: bookId.value },
-      { onSuccess: () => toast.show(`Template ${data.name} ditambahkan`) },
+      { onSuccess: () => toast.show(`Bookmark ${data.name} ditambahkan`) },
     );
   }
   emit('close');
@@ -129,7 +129,7 @@ function remove() {
   <form class="flex flex-col gap-3.5" novalidate @submit.prevent="save">
     <div v-if="!page" class="flex items-center gap-2">
       <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ template ? 'Ubah template' : 'Template baru' }}
+        {{ template ? 'Ubah bookmark' : 'Bookmark baru' }}
       </h2>
       <Button
         variant="secondary"
@@ -278,7 +278,7 @@ function remove() {
       </Button>
       <span class="flex-1" />
       <Button type="submit" size="touch">{{
-        template ? 'Simpan perubahan' : 'Tambah template'
+        template ? 'Simpan perubahan' : 'Tambah bookmark'
       }}</Button>
     </div>
   </form>

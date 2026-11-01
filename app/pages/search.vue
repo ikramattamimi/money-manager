@@ -1,32 +1,35 @@
 <script setup lang="ts">
-import { ArrowLeft, Search, SearchX, SlidersHorizontal, X } from '@lucide/vue';
+import { Search, SlidersHorizontal, X } from '@lucide/vue';
 import AmountInput from '@/components/base/AmountInput.vue';
-import Card from '@/components/base/Card.vue';
 import FormField from '@/components/base/FormField.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
+import Toaster from '@/components/base/Toaster.vue';
 import GridPicker from '@/components/data/GridPicker.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import TransactionRow from '@/components/money/TransactionRow.vue';
-import { Button } from '@/components/ui/button';
+import Chip from '@/components/ios/Chip.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import Segmented from '@/components/ios/Segmented.vue';
+import DayGroup from '@/components/money/DayGroup.vue';
+import TxRow from '@/components/money/TxRow.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useCategories } from '@/features/categories/useCategories';
 import type { SearchFilters } from '@/features/search/api';
 import { PAGE_SIZE } from '@/features/search/api';
 import { EMPTY_FILTERS, hasFilter, useSearch } from '@/features/search/useSearch';
+import { groupByDay } from '@/features/transactions/grouping';
 import { usePickerItems } from '@/features/transactions/usePickerItems';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 import { formatRupiah } from '@/lib/format';
-import { dayKey, dayLabel, fromLocalInput } from '@/lib/time';
+import { fromLocalInput } from '@/lib/time';
 
 // Cari transaksi di catatan dan keterangan, dengan filter jenis, akun,
 // kategori, tanggal, dan nominal. Total dihitung dari semua hasil (RPC).
-definePageMeta({ layout: 'app' });
+// Modal dari ikon kaca pembesar di Transaksi (mockup search): naik dari bawah,
+// Batal di kanan, kolom cari dan chip filter di bar atas.
+definePageMeta({ layout: false });
 useHead({ title: 'Cari · Money Manager' });
+// iPad/desktop: tetap di dalam kerangka app (sidebar, dialog ubah transaksi)
+if (useBreakpoint().md.value) setPageLayout('app');
 
 const filters = useState<SearchFilters>('search:filters', () => ({ ...EMPTY_FILTERS }));
 const page = ref(0);
@@ -36,8 +39,10 @@ const results = useSearch(filters, page);
 const accounts = useAccounts();
 const categories = useCategories();
 const pickerItems = usePickerItems();
-const { rowProps } = useTxDisplay();
+const { rowView } = useTxDisplay();
 const editor = useTxEditor();
+const { closePage } = useFormPage();
+const close = () => closePage('/');
 
 const input = ref<HTMLInputElement>();
 onMounted(() => input.value?.focus({ preventScroll: true }));
@@ -110,188 +115,183 @@ function clearChip(key: keyof SearchFilters | 'date') {
     dateTo.value = '';
   } else if (key !== 'query') filters.value = { ...filters.value, [key]: null };
 }
-function clearAll() {
-  filters.value = { ...EMPTY_FILTERS };
-  dateFrom.value = '';
-  dateTo.value = '';
-}
 
 // ---------- hasil ----------
-const days = computed(() => {
-  const groups = new Map<string, NonNullable<typeof results.data.value>['rows']>();
-  for (const t of results.data.value?.rows ?? []) {
-    const key = dayKey(t.occurred_at);
-    groups.set(key, [...(groups.get(key) ?? []), t]);
-  }
-  return [...groups.entries()].map(([key, items]) => ({ key, items }));
-});
+const days = computed(() => groupByDay(results.data.value?.rows ?? []));
 const pages = computed(() => Math.ceil((results.data.value?.count ?? 0) / PAGE_SIZE));
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[720px]">
-    <PageHeader title="Cari transaksi">
-      <template #actions>
-        <HeaderButton label="Kembali ke Transaksi" @click="navigateTo('/')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-        <HeaderButton :aria-pressed="showFilters" @click="showFilters = !showFilters">
-          <SlidersHorizontal aria-hidden="true" />Filter
-        </HeaderButton>
-      </template>
-      <div class="relative">
-        <Search
-          class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
+  <div data-page-stage class="flex min-h-dvh flex-col bg-background">
+    <header
+      class="sticky top-0 z-30 bg-card pt-[env(safe-area-inset-top,0px)] shadow-[0_0.5px_0_var(--sep)]"
+    >
+      <div class="grid h-11 grid-cols-[1fr_auto_1fr] items-center px-1">
+        <span />
+        <h1 class="m-0 text-bar font-semibold tracking-[-0.02em]">Cari</h1>
+        <button
+          type="button"
+          class="h-11 justify-self-end px-3 text-bar text-primary-accent active:opacity-50"
+          @click="close"
+        >
+          Batal
+        </button>
+      </div>
+      <label
+        class="mx-4 mb-2.5 flex h-[38px] items-center gap-[7px] rounded-[11px] bg-fill px-2.5 text-muted-foreground"
+      >
+        <Search class="size-[18px] shrink-0" stroke-width="2.2" aria-hidden="true" />
         <input
           ref="input"
           v-model="filters.query"
           type="search"
           enterkeyhint="search"
           autocomplete="off"
-          placeholder="Cari catatan, mis. shopee"
+          placeholder="Catatan atau keterangan"
           aria-label="Cari catatan atau keterangan"
-          class="field-input pl-9"
+          class="min-w-0 flex-1 bg-transparent text-bar text-foreground outline-none placeholder:text-ter"
         />
+      </label>
+      <div class="flex gap-1.5 overflow-x-auto px-4 pb-2.5 [scrollbar-width:none]">
+        <Chip :on="showFilters" @click="showFilters = !showFilters">
+          <SlidersHorizontal class="size-3.5" aria-hidden="true" />Filter
+        </Chip>
+        <Chip v-for="c in chips" :key="c.key" on @click="clearChip(c.key)">
+          {{ c.label }}<X class="size-3.5" :aria-label="`Hapus filter ${c.label}`" />
+        </Chip>
       </div>
-    </PageHeader>
+    </header>
 
-    <!-- Filter -->
-    <Card v-if="showFilters" class="mt-3.5 flex flex-col gap-3.5 p-3.5">
-      <SegmentedControl v-model="type" :options="TYPES" label="Jenis transaksi" />
-      <div class="grid grid-cols-2 gap-3">
-        <FormField label="Akun" for="f-account">
-          <button
-            id="f-account"
-            type="button"
-            class="field-input flex items-center text-left"
-            @click="picker = picker === 'account' ? null : 'account'"
-          >
-            <span :class="['truncate', !filters.accountId && 'text-faint']">{{
-              accounts.name(filters.accountId) || 'Semua akun'
-            }}</span>
-          </button>
-        </FormField>
-        <FormField label="Kategori" for="f-category">
-          <button
-            id="f-category"
-            type="button"
-            class="field-input flex items-center text-left"
-            @click="picker = picker === 'category' ? null : 'category'"
-          >
-            <span :class="['truncate', !filters.categoryId && 'text-faint']">{{
-              filters.categoryId ? categories.label(filters.categoryId, true) : 'Semua kategori'
-            }}</span>
-          </button>
-        </FormField>
-      </div>
-      <section
-        v-if="picker"
-        class="overflow-hidden rounded-xl border"
-        :aria-label="picker === 'account' ? 'Pilih akun' : 'Pilih kategori'"
-      >
-        <div class="max-h-[46dvh] overflow-y-auto overscroll-contain">
-          <GridPicker
-            :key="picker"
-            :items="pickerList"
-            :model-value="(picker === 'account' ? filters.accountId : filters.categoryId) ?? ''"
-            :label="picker === 'account' ? 'Akun' : 'Kategori'"
-            @select="choose"
-          />
+    <main class="mx-auto w-full max-w-[720px] flex-1 pb-10">
+      <!-- Filter lengkap -->
+      <div v-if="showFilters" class="mx-4 mt-3.5 flex flex-col gap-3.5 rounded-group bg-card p-4">
+        <Segmented v-model="type" :options="TYPES" label="Jenis transaksi" />
+        <div class="grid grid-cols-2 gap-3">
+          <FormField label="Akun" for="f-account">
+            <button
+              id="f-account"
+              type="button"
+              class="field-input flex items-center text-left"
+              @click="picker = picker === 'account' ? null : 'account'"
+            >
+              <span :class="['truncate', !filters.accountId && 'text-faint']">{{
+                accounts.name(filters.accountId) || 'Semua akun'
+              }}</span>
+            </button>
+          </FormField>
+          <FormField label="Kategori" for="f-category">
+            <button
+              id="f-category"
+              type="button"
+              class="field-input flex items-center text-left"
+              @click="picker = picker === 'category' ? null : 'category'"
+            >
+              <span :class="['truncate', !filters.categoryId && 'text-faint']">{{
+                filters.categoryId ? categories.label(filters.categoryId, true) : 'Semua kategori'
+              }}</span>
+            </button>
+          </FormField>
         </div>
-      </section>
-      <div class="grid grid-cols-2 gap-3">
-        <FormField label="Dari tanggal" for="f-from">
-          <input
-            id="f-from"
-            v-model="dateFrom"
-            type="date"
-            :max="dateTo || undefined"
-            class="field-input"
-          />
-        </FormField>
-        <FormField label="Sampai tanggal" for="f-to">
-          <input
-            id="f-to"
-            v-model="dateTo"
-            type="date"
-            :min="dateFrom || undefined"
-            class="field-input"
-          />
-        </FormField>
-        <FormField label="Nominal minimal" for="f-min">
-          <AmountInput id="f-min" v-model="min" placeholder="Bebas" />
-        </FormField>
-        <FormField label="Nominal maksimal" for="f-max">
-          <AmountInput id="f-max" v-model="max" placeholder="Bebas" />
-        </FormField>
+        <section
+          v-if="picker"
+          class="overflow-hidden rounded-xl border"
+          :aria-label="picker === 'account' ? 'Pilih akun' : 'Pilih kategori'"
+        >
+          <div class="max-h-[46dvh] overflow-y-auto overscroll-contain">
+            <GridPicker
+              :key="picker"
+              :items="pickerList"
+              :model-value="(picker === 'account' ? filters.accountId : filters.categoryId) ?? ''"
+              :label="picker === 'account' ? 'Akun' : 'Kategori'"
+              @select="choose"
+            />
+          </div>
+        </section>
+        <div class="grid grid-cols-2 gap-3">
+          <FormField label="Dari tanggal" for="f-from">
+            <input
+              id="f-from"
+              v-model="dateFrom"
+              type="date"
+              :max="dateTo || undefined"
+              class="field-input"
+            />
+          </FormField>
+          <FormField label="Sampai tanggal" for="f-to">
+            <input
+              id="f-to"
+              v-model="dateTo"
+              type="date"
+              :min="dateFrom || undefined"
+              class="field-input"
+            />
+          </FormField>
+          <FormField label="Nominal minimal" for="f-min">
+            <AmountInput id="f-min" v-model="min" placeholder="Bebas" />
+          </FormField>
+          <FormField label="Nominal maksimal" for="f-max">
+            <AmountInput id="f-max" v-model="max" placeholder="Bebas" />
+          </FormField>
+        </div>
       </div>
-    </Card>
 
-    <div v-if="chips.length" class="mt-3 flex flex-wrap gap-1.5">
-      <button
-        v-for="c in chips"
-        :key="c.key"
-        type="button"
-        class="press inline-flex h-8 items-center gap-1.5 rounded-full border bg-card pl-3 pr-2 text-meta font-semibold"
-        :aria-label="`Hapus filter ${c.label}`"
-        @click="clearChip(c.key)"
-      >
-        {{ c.label }}<X class="size-3.5 text-muted-foreground" aria-hidden="true" />
-      </button>
-      <Button variant="ghost" size="default" @click="clearAll">Hapus semua</Button>
-    </div>
-
-    <!-- Hasil -->
-    <Card v-if="!hasFilter(filters)" class="mt-3.5">
-      <EmptyState
-        :icon="Search"
+      <!-- Hasil -->
+      <EmptyCard
+        v-if="!hasFilter(filters)"
         title="Cari di semua transaksi"
         description="Ketik catatan, atau pakai Filter untuk akun, kategori, tanggal, dan nominal."
       />
-    </Card>
-    <Card v-else-if="results.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="5" /></Card>
-    <Card v-else-if="!results.data.value?.count" class="mt-3.5">
-      <EmptyState
-        :icon="SearchX"
+      <EmptyCard v-else-if="results.isPending.value" title="Mencari…" />
+      <EmptyCard
+        v-else-if="!results.data.value?.count"
         title="Tidak ditemukan"
         description="Coba kata lain atau longgarkan filternya."
       />
-    </Card>
-    <template v-else>
-      <div
-        :class="[
-          'mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-2.5 text-meta transition-opacity duration-200',
-          results.isPlaceholderData.value && 'opacity-60',
-        ]"
-        aria-live="polite"
-      >
-        <b class="tabular-nums">{{ results.data.value.count.toLocaleString('id-ID') }} transaksi</b>
-        <span v-if="results.data.value.expense" class="tabular-nums text-bad"
-          >Keluar {{ formatRupiah(results.data.value.expense) }}</span
+      <template v-else>
+        <div
+          :class="[
+            'flex items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-meta uppercase tracking-[0.02em] text-muted-foreground transition-opacity duration-200',
+            results.isPlaceholderData.value && 'opacity-60',
+          ]"
+          aria-live="polite"
         >
-        <span v-if="results.data.value.income" class="tabular-nums text-primary-accent"
-          >Masuk {{ formatRupiah(results.data.value.income) }}</span
+          <span>{{ results.data.value.count.toLocaleString('id-ID') }} transaksi</span>
+          <span class="normal-case">
+            <span v-if="results.data.value.income" class="text-inc">{{
+              formatRupiah(results.data.value.income)
+            }}</span>
+            <span v-if="results.data.value.expense" class="ml-2 text-exp">{{
+              formatRupiah(results.data.value.expense)
+            }}</span>
+          </span>
+        </div>
+        <DayGroup
+          v-for="d in days"
+          :key="d.key"
+          :day-key="d.key"
+          :income="d.income"
+          :expense="d.expense"
         >
-      </div>
-      <ListGroup v-for="d in days" :key="d.key" :label="dayLabel(d.items[0]!.occurred_at)">
-        <TransactionRow
-          v-for="t in d.items"
-          :key="t.id"
-          v-bind="rowProps(t)"
-          @select="editor.edit(t)"
-        />
-      </ListGroup>
-      <div v-if="pages > 1" class="mt-4 flex items-center justify-center gap-2 text-meta">
-        <Button variant="secondary" size="default" :disabled="page === 0" @click="page--"
-          >Sebelumnya</Button
-        >
-        <span class="tabular-nums text-muted-foreground">{{ page + 1 }} / {{ pages }}</span>
-        <Button variant="secondary" size="default" :disabled="page + 1 >= pages" @click="page++"
-          >Berikutnya</Button
-        >
-      </div>
-    </template>
+          <TxRow
+            v-for="t in d.items"
+            :id="t.id"
+            :key="t.id"
+            v-bind="rowView(t)"
+            :selectable="false"
+            @open="editor.edit(t)"
+          />
+        </DayGroup>
+        <div v-if="pages > 1" class="mt-4 flex items-center justify-center gap-2 px-4 text-meta">
+          <IosButton variant="gray" class="flex-1" :disabled="page === 0" @click="page--"
+            >Sebelumnya</IosButton
+          >
+          <span class="text-muted-foreground">{{ page + 1 }} / {{ pages }}</span>
+          <IosButton variant="gray" class="flex-1" :disabled="page + 1 >= pages" @click="page++"
+            >Berikutnya</IosButton
+          >
+        </div>
+      </template>
+    </main>
+    <Toaster />
   </div>
 </template>

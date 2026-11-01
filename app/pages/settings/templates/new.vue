@@ -4,14 +4,14 @@ import TemplateForm from '@/components/money/TemplateForm.vue';
 
 // Template baru sebagai halaman penuh di HP (iPad/desktop: dialog)
 definePageMeta({ layout: false });
-useHead({ title: 'Template baru · Money Manager' });
+useHead({ title: 'Bookmark baru · Money Manager' });
 
 const { closePage } = useFormPage();
 const back = () => closePage('/settings/templates');
 </script>
 
 <template>
-  <FormPage title="Template baru" title-id="template-page-title" @back="back">
+  <FormPage title="Bookmark baru" title-id="template-page-title" @back="back">
     <TemplateForm
       :template="null"
       page

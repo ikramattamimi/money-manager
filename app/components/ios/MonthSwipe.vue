@@ -105,7 +105,8 @@ function up(e: PointerEvent) {
   const w = root.value?.offsetWidth || 390;
   const v = d.tracker.velocity(); // px/ms
   const proj = d.dx + project(v * 1000);
-  let dir: 1 | -1 | 0 = e.type === 'pointercancel' ? 0 : Math.abs(proj) > w * 0.4 ? (proj < 0 ? 1 : -1) : 0;
+  let dir: 1 | -1 | 0 =
+    e.type === 'pointercancel' ? 0 : Math.abs(proj) > w * 0.4 ? (proj < 0 ? 1 : -1) : 0;
   if (dir === 1 && !props.canNext) dir = 0;
   // Jari berbalik arah saat dilepas: batal
   if (dir !== 0 && Math.abs(v) > 0.05 && Math.sign(v) === dir) dir = 0;

@@ -347,7 +347,7 @@ defineExpose({ focus });
 
       <div v-if="qa.source.templates.value.length">
         <div class="pb-1.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Template
+          Bookmark
         </div>
         <div
           class="-mx-3.5 flex gap-1.5 overflow-x-auto px-3.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

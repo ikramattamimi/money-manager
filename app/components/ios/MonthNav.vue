@@ -27,7 +27,10 @@ const emit = defineEmits<{ prev: []; next: []; pick: [] }>();
       class="flex min-w-[104px] flex-col items-center rounded-[9px] px-2 py-1 active:bg-fill-press"
       @click="emit('pick')"
     >
-      <span class="flex items-center gap-1.5 text-bar font-semibold tracking-[-0.02em]" aria-live="polite">
+      <span
+        class="flex items-center gap-1.5 text-bar font-semibold tracking-[-0.02em]"
+        aria-live="polite"
+      >
         {{ props.label }}
         <ChevronDown class="size-3.5 text-ter" stroke-width="3" aria-hidden="true" />
       </span>

@@ -414,7 +414,7 @@ function saveAsTemplate() {
       note: data.note,
       description: data.description,
     },
-    { onSuccess: () => toast.show(`Template ${name} dibuat`) },
+    { onSuccess: () => toast.show(`Bookmark ${name} dibuat`) },
   );
 }
 </script>
@@ -666,7 +666,7 @@ function saveAsTemplate() {
         size="touch"
         @click="saveAsTemplate"
       >
-        <Zap />Jadikan template
+        <Zap />Jadikan bookmark
       </Button>
       <span class="flex-1" />
       <template v-if="!isAdjustment">

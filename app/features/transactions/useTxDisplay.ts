@@ -81,5 +81,35 @@ export function useTxDisplay() {
     };
   }
 
-  return { rowProps };
+  /**
+   * Baris gaya Realbyte/mockup (.ti): kolom kategori (induk + sub), catatan +
+   * akun, nominal tanpa tanda berwarna. Transfer: "Transfer", akun asal → tujuan.
+   */
+  function rowView(t: Transaction, perspectiveAccountId?: string) {
+    const base = rowProps(t, perspectiveAccountId);
+    const c = t.category_id ? categories.byId.value.get(t.category_id) : undefined;
+    const parent = c?.parent_id ? categories.byId.value.get(c.parent_id) : undefined;
+    const cat = t.is_adjustment
+      ? 'Koreksi'
+      : t.type === 'transfer'
+        ? 'Transfer'
+        : (parent?.name ?? c?.name ?? 'Tanpa kategori');
+    const acct =
+      t.type === 'transfer'
+        ? `${accounts.name(t.account_id)} → ${accounts.name(t.to_account_id)}`
+        : accounts.name(t.account_id);
+    const tone: 'inc' | 'exp' | 'trf' =
+      base.kind === 'income' ? 'inc' : base.kind === 'expense' ? 'exp' : 'trf';
+    return {
+      cat,
+      sub: parent ? (c?.name ?? '') : '',
+      title: base.title,
+      acct: [acct, base.meta.split(' · ').slice(1).join(' · ')].filter(Boolean).join(' · '),
+      amount: base.amount.replace(/^[+−]/, ''),
+      was: base.was,
+      tone,
+    };
+  }
+
+  return { rowProps, rowView };
 }

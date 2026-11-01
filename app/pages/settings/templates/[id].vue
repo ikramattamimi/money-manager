@@ -9,7 +9,7 @@ import { useTemplates } from '@/features/templates/useTemplates';
 
 // Ubah template sebagai halaman penuh di HP (iPad/desktop: dialog)
 definePageMeta({ layout: false });
-useHead({ title: 'Ubah template · Money Manager' });
+useHead({ title: 'Ubah bookmark · Money Manager' });
 
 const route = useRoute();
 const templates = useTemplates();
@@ -22,7 +22,7 @@ const back = () => closePage('/settings/templates');
 </script>
 
 <template>
-  <FormPage title="Ubah template" title-id="template-page-title" @back="back">
+  <FormPage title="Ubah bookmark" title-id="template-page-title" @back="back">
     <Skeleton v-if="templates.isPending.value" :rows="4" />
     <TemplateForm
       v-else-if="template"
@@ -33,6 +33,6 @@ const back = () => closePage('/settings/templates');
       title-id="template-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Zap" title="Template tidak ditemukan" /></Card>
+    <Card v-else><EmptyState :icon="Zap" title="Bookmark tidak ditemukan" /></Card>
   </FormPage>
 </template>

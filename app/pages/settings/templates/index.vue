@@ -21,7 +21,7 @@ import { formatRupiah } from '@/lib/format';
 // Template (bookmark Realbyte): transaksi yang sering dicatat. Diurutkan dari
 // yang paling sering dipakai; muncul sebagai tombol di Catat cepat.
 definePageMeta({ layout: 'app' });
-useHead({ title: 'Template · Money Manager' });
+useHead({ title: 'Bookmark · Money Manager' });
 
 const { canEdit } = useActiveBook();
 const templates = useTemplates();
@@ -57,13 +57,13 @@ function openForm(template: Template | null) {
 
 <template>
   <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Template">
+    <PageHeader title="Bookmark">
       <template #actions>
         <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
           <ArrowLeft aria-hidden="true" />
         </HeaderButton>
         <HeaderButton v-if="canEdit" @click="openForm(null)">
-          <Plus aria-hidden="true" />Template
+          <Plus aria-hidden="true" />Bookmark
         </HeaderButton>
       </template>
     </PageHeader>
@@ -72,14 +72,14 @@ function openForm(template: Template | null) {
     <Card v-else-if="!templates.data.value?.length" class="mt-3.5">
       <EmptyState
         :icon="Zap"
-        title="Belum ada template"
+        title="Belum ada bookmark"
         description="Simpan transaksi yang sering dicatat (langganan, parkir, kos) supaya cukup satu tap."
       />
     </Card>
     <ListGroup
       v-else
       label="Paling sering dipakai"
-      :aside="`${templates.data.value.length} template`"
+      :aside="`${templates.data.value.length} bookmark`"
     >
       <ListRow
         v-for="t in templates.data.value"

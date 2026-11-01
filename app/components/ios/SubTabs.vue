@@ -7,11 +7,7 @@ const model = defineModel<T>({ required: true });
 </script>
 
 <template>
-  <div
-    role="tablist"
-    :aria-label="label"
-    class="flex px-1.5 shadow-[inset_0_-0.5px_0_var(--sep)]"
-  >
+  <div role="tablist" :aria-label="label" class="flex px-1.5 shadow-[inset_0_-0.5px_0_var(--sep)]">
     <button
       v-for="o in options"
       :key="o.value"
