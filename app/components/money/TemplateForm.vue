@@ -39,8 +39,8 @@ const form = reactive({
 const errors = reactive<Record<string, string>>({});
 
 const TYPES = [
-  { value: 'expense', label: 'Pengeluaran' },
   { value: 'income', label: 'Pemasukan' },
+  { value: 'expense', label: 'Pengeluaran' },
   { value: 'transfer', label: 'Transfer' },
 ] as const;
 

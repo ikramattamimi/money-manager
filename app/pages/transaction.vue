@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import FormPage from '@/components/layout/FormPage.vue';
-import TransactionComposer from '@/components/money/TransactionComposer.vue';
+import Toaster from '@/components/base/Toaster.vue';
+import IosAlert from '@/components/ios/IosAlert.vue';
+import TransactionForm from '@/components/money/TransactionForm.vue';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 
-// Form transaksi sebagai halaman penuh di HP (bukan modal), seperti Realbyte.
+// Form transaksi sebagai halaman penuh di HP (mockup form-*), masuk dari bawah
+// lewat plugin page-transition. Bar atas (Batal · jenis · bintang) milik form.
 // Isian diambil dari useTxEditor; dibuka langsung = transaksi baru.
 definePageMeta({ layout: false });
 
@@ -19,15 +21,17 @@ useHead({ title: () => `${title.value} · Money Manager` });
 </script>
 
 <template>
-  <FormPage :title="title" title-id="tx-page-title" @back="editor.close()">
-    <TransactionComposer
+  <div data-page-stage class="flex min-h-dvh flex-col bg-background">
+    <TransactionForm
       :key="editor.session.value"
-      class="flex-1"
+      class="mx-auto w-full max-w-[560px] flex-1"
       layout="page"
       :transaction="editor.transaction.value"
       :draft="editor.draft.value"
       title-id="tx-page-title"
       @close="editor.close()"
     />
-  </FormPage>
+    <Toaster />
+    <IosAlert />
+  </div>
 </template>

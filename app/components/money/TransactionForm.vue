@@ -1,34 +1,65 @@
 <script setup lang="ts">
-import { Trash2, X, Zap } from '@lucide/vue';
-import AmountInput from '@/components/base/AmountInput.vue';
-import FormField from '@/components/base/FormField.vue';
-import GridPicker from '@/components/data/GridPicker.vue';
+import {
+  ArrowDownUp,
+  ArrowLeftRight,
+  Camera,
+  FileText,
+  Minus,
+  Plus,
+  Repeat,
+  Star,
+} from '@lucide/vue';
+import { TONE_CLASS } from '@/components/data/tone';
+import Dock from '@/components/ios/Dock.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import IosSwitch from '@/components/ios/IosSwitch.vue';
+import Segmented from '@/components/ios/Segmented.vue';
+import ChoiceGrid from '@/components/money/ChoiceGrid.vue';
+import DatePanel from '@/components/money/DatePanel.vue';
+import Keypad from '@/components/money/Keypad.vue';
 import LinkSection from '@/components/money/LinkSection.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import { TONE_TEXT } from '@/components/data/tone';
-import { Button } from '@/components/ui/button';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { parseQuick } from '@/features/quick-add/parser';
+import type { Draft, DraftLink } from '@/features/quick-add/types';
 import { useQuickLists } from '@/features/quick-add/useQuickLists';
 import { useSuggest } from '@/features/quick-add/useSuggest';
-import type { Draft, DraftLink } from '@/features/quick-add/types';
-import type { Transaction, TxInput, TxType } from '@/features/transactions/api';
+import { installmentPlan } from '@/features/recurring/installment';
+import {
+  INSTALLMENT_MONTHS,
+  REPEAT_OPTIONS,
+  repeatRule,
+  type RepeatOption,
+} from '@/features/recurring/repeat';
+import { useRecurringMutations } from '@/features/recurring/useRecurring';
 import { useTemplateMutations } from '@/features/templates/useTemplates';
+import type { Transaction, TxInput, TxType } from '@/features/transactions/api';
+import {
+  evaluate,
+  expressionLabel,
+  fromAmount,
+  hasOperator,
+  keyFromKeyboard,
+  press as pressKey,
+  type CalcKey,
+} from '@/features/transactions/calculator';
+import { dayParts } from '@/features/transactions/grouping';
 import { useLastChoice } from '@/features/transactions/useLastChoice';
 import { usePickerItems } from '@/features/transactions/usePickerItems';
 import { useTransactionMutations } from '@/features/transactions/useTransactions';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 import { formatRupiah } from '@/lib/format';
-import { fromLocalInput, toLocalInput } from '@/lib/time';
+import { fromLocalInput, MONTHS_SHORT, toLocalInput } from '@/lib/time';
 import { uuid } from '@/lib/uuid';
 
-// Form lengkap tambah/edit transaksi: jenis, nominal, tanggal & jam (WIB),
-// akun, kategori atau akun tujuan + biaya, catatan, keterangan.
-// `layout="page"` untuk halaman penuh di HP: judul dari halaman, grid pilihan
-// menempel di bawah layar seperti keyboard. `dialog` (iPad/desktop): grid
-// tampil di dalam form.
+// Form catat/ubah transaksi gaya Realbyte (mockup form-*): baris label kiri,
+// nilai kanan; panel bawah seperti keyboard berisi papan angka berkalkulator,
+// grid kategori/akun, atau kalender. Alur otomatis Nominal → Kategori → Akun →
+// Catatan. `layout="page"` (HP): bar atas Batal · jenis · bintang, panel
+// menempel di bawah layar. `dialog` (iPad/desktop): panel di dalam form,
+// papan angka juga bisa diketik dari keyboard.
 const props = withDefaults(
   defineProps<{
     transaction: Transaction | null;
@@ -48,48 +79,66 @@ const categories = useCategories();
 const mutations = useTransactionMutations();
 const last = useLastChoice();
 const toast = useToast();
+const editor = useTxEditor();
 
 const editing = computed(() => !!props.transaction);
 const isAdjustment = computed(() => !!props.transaction?.is_adjustment);
 
 const form = reactive({
   type: 'expense' as TxType,
-  amount: 0,
-  occurred: toLocalInput(new Date()),
+  date: '',
+  time: '',
   accountId: '',
   toAccountId: '',
-  fee: 0,
   categoryId: '',
   note: '',
   description: '',
 });
-const errors = reactive<Record<string, string>>({});
+/** Nominal dan biaya transfer sebagai token kalkulator */
+const tokens = ref<string[]>([]);
+const feeTokens = ref<string[]>([]);
+const feeOn = ref(false);
+const amount = computed(() => evaluate(tokens.value));
+const fee = computed(() => (feeOn.value ? evaluate(feeTokens.value) : 0));
 
 // Kaitan reimburse/utang (fase 10 T6): pemasukan → pengeluaran yang digantinya
 const links = ref<DraftLink[]>([]);
+const linkError = ref('');
 const linkPayload = (list: { expenseId: string; amount: number }[]) =>
   JSON.stringify(list.map((l) => ({ expenseId: l.expenseId, amount: l.amount })));
 let initialLinks = '[]';
 
-// Kolom tanggal hanya sampai menit. Kalau tidak diubah, pakai waktu asli
-// (dengan detik) supaya urutan transaksi di menit yang sama tidak bergeser.
+// Waktu asli (dengan detik) dipakai kalau tanggal/jam tidak diubah, supaya
+// urutan transaksi di menit yang sama tidak bergeser
 let original = { input: '', iso: '' };
+const localInput = () => `${form.date}T${form.time}`;
+function setOccurred(value: string | Date) {
+  const local = toLocalInput(value);
+  form.date = local.slice(0, 10);
+  form.time = local.slice(11, 16);
+}
+
+type Panel = 'keypad' | 'fee' | 'category' | 'account' | 'to' | 'date';
+const panel = ref<Panel | null>(null);
+const repeat = ref<RepeatOption>('none');
+const installment = ref<number | null>(null);
 
 function load() {
   const tx = props.transaction;
   if (tx) {
     Object.assign(form, {
       type: tx.type,
-      amount: tx.amount,
-      occurred: toLocalInput(tx.occurred_at),
       accountId: tx.account_id,
       toAccountId: tx.to_account_id ?? '',
-      fee: tx.fee,
       categoryId: tx.category_id ?? '',
       note: tx.note,
       description: tx.description,
     });
-    original = { input: form.occurred, iso: tx.occurred_at };
+    setOccurred(tx.occurred_at);
+    tokens.value = fromAmount(tx.amount);
+    feeTokens.value = fromAmount(tx.fee);
+    feeOn.value = tx.fee > 0;
+    original = { input: localInput(), iso: tx.occurred_at };
     links.value =
       tx.type === 'income'
         ? (tx.linked ?? []).map((l) => ({
@@ -101,6 +150,7 @@ function load() {
           }))
         : [];
     initialLinks = linkPayload(links.value);
+    panel.value = null;
   } else {
     const d = props.draft;
     const type = d?.type ?? 'expense';
@@ -108,20 +158,25 @@ function load() {
     const occurred = d?.occurredAt ? new Date(d.occurredAt) : new Date();
     Object.assign(form, {
       type,
-      amount: d?.amount ?? 0,
-      occurred: toLocalInput(occurred),
       accountId: d?.accountId ?? remembered.accountId ?? accounts.value[0]?.id ?? '',
       toAccountId: d?.toAccountId ?? remembered.toAccountId ?? '',
-      fee: 0,
-      categoryId: d?.categoryId ?? remembered.categoryId ?? '',
+      categoryId: d?.categoryId ?? (d ? '' : (remembered.categoryId ?? '')),
       note: d?.note ? d.note[0]!.toUpperCase() + d.note.slice(1) : '',
       description: '',
     });
-    original = { input: form.occurred, iso: occurred.toISOString() };
+    setOccurred(occurred);
+    tokens.value = fromAmount(d?.amount ?? 0);
+    feeTokens.value = [];
+    feeOn.value = false;
+    original = { input: localInput(), iso: occurred.toISOString() };
     links.value = d?.links ? d.links.map((l) => ({ ...l })) : [];
     initialLinks = '[]';
+    // Mulai dari langkah pertama yang belum terisi
+    panel.value = !amount.value ? 'keypad' : null;
   }
-  for (const key of Object.keys(errors)) Reflect.deleteProperty(errors, key);
+  repeat.value = 'none';
+  installment.value = null;
+  linkError.value = '';
 }
 watch(() => [props.transaction, props.draft], load, { immediate: true });
 
@@ -133,17 +188,38 @@ watch(
     const current = categories.byId.value.get(form.categoryId);
     if (current && current.kind !== type) form.categoryId = '';
     if (!form.categoryId && type !== 'transfer') form.categoryId = last.get(type).categoryId ?? '';
+    if (type !== 'expense') installment.value = null;
+    if (panel.value === 'category' && type === 'transfer') panel.value = 'account';
   },
 );
 
+// ---------- jenis transaksi: pil dengan sorotan meluncur ----------
 const TYPES = [
-  { value: 'expense', label: 'Pengeluaran' },
-  { value: 'income', label: 'Pemasukan' },
-  { value: 'transfer', label: 'Transfer' },
+  { value: 'income', label: 'Pemasukan', icon: Plus, tone: 'text-inc' },
+  { value: 'expense', label: 'Pengeluaran', icon: Minus, tone: 'text-exp' },
+  { value: 'transfer', label: 'Transfer', icon: ArrowLeftRight, tone: 'text-foreground' },
 ] as const;
+const pill = ref<HTMLElement>();
+const pillReady = ref(false);
+const hlStyle = ref<Record<string, string>>({});
+function placePill() {
+  const btn = pill.value?.querySelector<HTMLElement>('[aria-checked="true"]');
+  if (!btn) return;
+  hlStyle.value = { width: `${btn.offsetWidth}px`, transform: `translateX(${btn.offsetLeft}px)` };
+}
+watch(
+  () => form.type,
+  () => nextTick(placePill),
+);
+onMounted(() =>
+  nextTick(() => {
+    placePill();
+    // Posisi awal tanpa animasi, baru kemudian meluncur
+    requestAnimationFrame(() => (pillReady.value = true));
+  }),
+);
 
-// Akun/kategori yang sudah diarsipkan tidak ada di pilihan. Saat mengedit
-// transaksi lama yang memakainya, tetap tampilkan supaya tidak terhapus diam-diam.
+// ---------- pilihan kategori & akun ----------
 const archivedAccounts = computed(() => {
   const tx = props.transaction;
   const ids = new Set([tx?.account_id, tx?.to_account_id]);
@@ -156,30 +232,6 @@ const archivedCategory = computed(() => {
   const c = categories.byId.value.get(props.transaction?.category_id ?? '');
   return c?.archived && c.kind === form.type ? c : null;
 });
-
-// ---------- grid pilihan kategori & akun (gaya Realbyte) ----------
-type Picker = 'category' | 'account' | 'to';
-const picker = ref<Picker | null>(null);
-const PICKER_TITLE: Record<Picker, string> = {
-  category: 'Kategori',
-  account: 'Akun',
-  to: 'Akun tujuan',
-};
-
-function openPicker(which: Picker) {
-  picker.value = picker.value === which ? null : which;
-  // Tutup keyboard supaya grid tidak tertutup
-  if (!picker.value) return;
-  (document.activeElement as HTMLElement | null)?.blur();
-  // Di halaman HP grid menutupi separuh bawah: geser kolomnya ke atas grid
-  if (props.layout === 'page')
-    nextTick(() =>
-      document
-        .getElementById(`tx-${which}`)
-        ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
-    );
-}
-
 const pickerItems = usePickerItems();
 const categoryItems = computed(() =>
   form.type === 'transfer' ? [] : pickerItems.categoryItems(form.type, archivedCategory.value),
@@ -187,137 +239,262 @@ const categoryItems = computed(() =>
 const accountItems = (exclude?: string) =>
   pickerItems.accountItems(exclude, archivedAccounts.value);
 
-// ---------- ketik cepat (halaman HP, transaksi baru) ----------
-// Ketikan seperti "kopi 25rb gopay" mengisi kolom di bawahnya; kolom tetap
-// bisa diubah manual setelahnya.
+const noteInput = ref<HTMLInputElement>();
+const touched = reactive({ account: false, category: false });
+
+/** Urutan langkah seperti Realbyte */
+const steps = computed<Panel[]>(() =>
+  form.type === 'transfer' ? ['keypad', 'account', 'to'] : ['keypad', 'category', 'account'],
+);
+const stepIndex = computed(() => (panel.value ? steps.value.indexOf(panel.value) : -1));
+
+/** Lanjut ke langkah berikutnya yang dibutuhkan; habis = fokus ke Catatan */
+function advance(from: Panel) {
+  const order = steps.value;
+  const next = order[order.indexOf(from) + 1];
+  if (next) {
+    panel.value = next;
+    return;
+  }
+  panel.value = null;
+  // Fokus langsung di dalam ketukan supaya keyboard iOS ikut muncul
+  if (!editing.value) noteInput.value?.focus();
+}
+
+function choose(id: string) {
+  if (panel.value === 'category') {
+    form.categoryId = id;
+    touched.category = true;
+    advance('category');
+  } else if (panel.value === 'account') {
+    form.accountId = id;
+    touched.account = true;
+    if (form.toAccountId === id) form.toAccountId = '';
+    advance('account');
+  } else if (panel.value === 'to') {
+    form.toAccountId = id;
+    advance('to');
+  }
+}
+
+function openPanel(which: Panel) {
+  (document.activeElement as HTMLElement | null)?.blur();
+  panel.value = panel.value === which ? null : which;
+}
+
+// ---------- papan angka ----------
+function onKey(key: CalcKey) {
+  const target = panel.value === 'fee' ? feeTokens : tokens;
+  if (key === '=' && !hasOperator(target.value)) {
+    if (panel.value === 'fee') panel.value = null;
+    else if (amount.value > 0) advance('keypad');
+    return;
+  }
+  target.value = pressKey(target.value, key);
+}
+// Keyboard fisik (iPad/desktop) saat papan angka terbuka
+function onKeydown(event: KeyboardEvent) {
+  if (panel.value !== 'keypad' && panel.value !== 'fee') return;
+  if ((event.target as HTMLElement).closest('input, textarea, select')) return;
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const key = event.key === 'Enter' ? '=' : keyFromKeyboard(event.key);
+  if (!key) return;
+  event.preventDefault();
+  onKey(key);
+}
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
+
+const expr = computed(() =>
+  expressionLabel(panel.value === 'fee' ? feeTokens.value : tokens.value),
+);
+
+// ---------- ketik cepat dari Shortcut iOS (/add?text=…) ----------
 const quickLists = useQuickLists();
 const quickText = ref('');
-const quickNote = ref('');
-/** Yang terbaca langsung dari ketikan; saran riwayat tidak menimpanya */
-const quickParsed = reactive({ type: false, account: false, category: false });
-/** Dipilih manual lewat grid setelah mengetik; saran riwayat tidak menimpanya */
-const quickTouched = reactive({ account: false, category: false });
-
+const prefill = useState('tx:prefill', () => '');
 function applyQuick(value: string) {
   quickText.value = value;
   const p = parseQuick(value, {
     accounts: quickLists.accounts.value,
     categories: quickLists.categories.value,
   });
-  quickNote.value = p.note;
-  Object.assign(quickParsed, { type: !!p.type, account: !!p.accountId, category: !!p.categoryId });
   if (p.type) form.type = p.type;
-  form.amount = p.amount;
+  tokens.value = fromAmount(p.amount);
   form.note = p.note ? p.note[0]!.toUpperCase() + p.note.slice(1) : '';
   if (p.accountId) form.accountId = p.accountId;
   if (p.toAccountId) form.toAccountId = p.toAccountId;
-  if (p.categoryId) form.categoryId = p.categoryId;
-  if (p.occurredAt) {
-    form.occurred = toLocalInput(p.occurredAt);
-    original = { input: form.occurred, iso: p.occurredAt };
+  if (p.categoryId) {
+    form.categoryId = p.categoryId;
+    touched.category = true;
   }
+  if (p.occurredAt) {
+    setOccurred(p.occurredAt);
+    original = { input: localInput(), iso: p.occurredAt };
+  }
+  panel.value = p.amount ? null : 'keypad';
 }
-
-// Saran dari riwayat buku (fase 6 T2) untuk catatan yang diketik
-const suggestion = useSuggest(quickNote);
-
-// Teks dari /add?text=... (Shortcut iOS) diisikan sekali ke kolom ketik
-const prefill = useState('tx:prefill', () => '');
-if (props.layout === 'page' && !props.transaction && prefill.value) {
+if (!props.transaction && prefill.value) {
   const text = prefill.value;
   prefill.value = '';
   applyQuick(text);
 }
-// Akun/kategori dimuat belakangan: baca ulang ketikan supaya alias dikenali
 watch([quickLists.accounts, quickLists.categories], () => {
-  if (quickText.value && !quickTouched.account && !quickTouched.category)
-    applyQuick(quickText.value);
+  if (quickText.value && !touched.account && !touched.category) applyQuick(quickText.value);
 });
+
+// Saran dari riwayat buku: catatan yang diketik mengisi kategori/akun yang
+// belum dipilih sendiri (pengaturan "Isi otomatis catatan" di mockup)
+const suggestNote = computed(() => (editing.value ? '' : form.note));
+const suggestion = useSuggest(suggestNote);
 watch(suggestion, (s) => {
-  if (!s || !quickText.value) return;
-  if (s.type === 'income' && !quickParsed.type && form.type === 'expense') form.type = 'income';
+  if (!s || editing.value) return;
   const category = s.category_id ? categories.byId.value.get(s.category_id) : undefined;
-  if (category && category.kind === form.type && !quickParsed.category && !quickTouched.category)
-    form.categoryId = category.id;
-  if (s.account_id && !quickParsed.account && !quickTouched.account) form.accountId = s.account_id;
+  if (category && category.kind === form.type && !touched.category) form.categoryId = category.id;
+  if (s.account_id && !touched.account) form.accountId = s.account_id;
 });
 const suggestedAmount = computed(() =>
-  quickText.value && !form.amount && suggestion.value?.amount ? suggestion.value.amount : 0,
+  !editing.value && !amount.value && suggestion.value?.amount ? suggestion.value.amount : 0,
 );
 
-// Mengetik di kolom lain menutup grid (keyboard yang ganti muncul)
-function closePickerOnInput(event: FocusEvent) {
-  if ((event.target as HTMLElement).matches('input')) picker.value = null;
-}
-
-// Urutan seperti Realbyte: kategori → akun → selesai
-function choose(id: string) {
-  const which = picker.value;
-  if (which === 'category') {
-    form.categoryId = id;
-    quickTouched.category = true;
-    picker.value = form.accountId ? null : 'account';
-  } else if (which === 'account') {
-    form.accountId = id;
-    quickTouched.account = true;
-    if (form.toAccountId === id) form.toAccountId = '';
-    picker.value = form.type === 'transfer' && !form.toAccountId ? 'to' : null;
-  } else if (which === 'to') {
-    form.toAccountId = id;
-    picker.value = null;
-  }
-}
-
+// ---------- tampilan baris ----------
+const dateLabel = computed(() => {
+  if (!form.date) return '';
+  const p = dayParts(form.date);
+  return `${p.weekday}, ${p.num} ${MONTHS_SHORT[Number(form.date.slice(5, 7)) - 1]} ${form.date.slice(0, 4)}`;
+});
 const categoryStyle = computed(() => (form.categoryId ? categories.style(form.categoryId) : null));
 const categoryText = computed(() =>
-  form.categoryId ? categories.label(form.categoryId, true) : 'Tanpa kategori',
+  form.categoryId ? categories.label(form.categoryId, true) : '',
 );
 const accountName = (id: string) => accountById.value.get(id)?.name ?? '';
+const AMOUNT_TONE = { expense: 'text-exp', income: 'text-inc', transfer: 'text-foreground' };
 
-function validate() {
-  for (const key of Object.keys(errors)) Reflect.deleteProperty(errors, key);
-  if (form.amount <= 0) errors.amount = 'Isi nominal lebih dari 0.';
-  if (!form.accountId) errors.accountId = 'Pilih akun.';
-  if (form.type === 'transfer') {
-    if (!form.toAccountId) errors.toAccountId = 'Pilih akun tujuan.';
-    else if (form.toAccountId === form.accountId)
-      errors.toAccountId = 'Akun tujuan harus berbeda dari akun asal.';
-  }
-  if (!form.occurred) errors.occurred = 'Isi tanggal dan jam.';
-  if (form.type === 'income' && links.value.length) {
-    const total = links.value.reduce((s, l) => s + l.amount, 0);
-    if (links.value.some((l) => l.amount <= 0)) errors.links = 'Isi nominal tiap kaitan.';
-    else if (links.value.some((l) => l.max !== null && l.amount > l.max))
-      errors.links = 'Nominal kaitan melebihi sisa pengeluarannya.';
-    else if (total > form.amount) errors.links = 'Total kaitan melebihi nominal pemasukan.';
-  }
-  return Object.keys(errors).length === 0;
+const canSave = computed(
+  () =>
+    canEdit.value &&
+    amount.value > 0 &&
+    !!form.accountId &&
+    (form.type !== 'transfer' || (!!form.toAccountId && form.toAccountId !== form.accountId)) &&
+    !!form.date,
+);
+
+// ---------- ulangi & cicilan ----------
+const repeatOpen = ref(false);
+const installmentOpen = ref(false);
+const repeatShort = computed(() =>
+  installment.value
+    ? `${installment.value}×`
+    : (REPEAT_OPTIONS.find((o) => o.value === repeat.value)?.short ?? ''),
+);
+const repeatLabel = computed(() =>
+  installment.value
+    ? `Cicilan ${installment.value} bulan`
+    : (REPEAT_OPTIONS.find((o) => o.value === repeat.value)?.label ?? 'Tidak'),
+);
+function pickRepeat(option: RepeatOption) {
+  repeat.value = option;
+  installment.value = null;
+  repeatOpen.value = false;
+}
+function openInstallment() {
+  repeatOpen.value = false;
+  installmentOpen.value = true;
+}
+const installmentRows = computed(() =>
+  INSTALLMENT_MONTHS.map((months) => {
+    const plan = installmentPlan(amount.value, months, form.date, Number(form.date.slice(8)));
+    return { months, plan };
+  }),
+);
+function pickInstallment(months: number | null) {
+  installment.value = months;
+  if (months) repeat.value = 'none';
+  installmentOpen.value = false;
 }
 
+// ---------- simpan ----------
 function payload(): Omit<TxInput, 'id' | 'book_id'> {
   const transfer = form.type === 'transfer';
+  const input = localInput();
   return {
     type: form.type,
-    amount: form.amount,
-    occurred_at: form.occurred === original.input ? original.iso : fromLocalInput(form.occurred),
+    amount: amount.value,
+    occurred_at: input === original.input ? original.iso : fromLocalInput(input),
     account_id: form.accountId,
     to_account_id: transfer ? form.toAccountId : null,
-    fee: transfer ? form.fee : 0,
+    fee: transfer ? fee.value : 0,
     category_id: transfer ? null : form.categoryId || null,
     note: form.note.trim(),
     description: form.description.trim(),
   };
 }
 
+function validateLinks() {
+  linkError.value = '';
+  if (form.type !== 'income' || !links.value.length) return true;
+  const total = links.value.reduce((s, l) => s + l.amount, 0);
+  if (links.value.some((l) => l.amount <= 0)) linkError.value = 'Isi nominal tiap kaitan.';
+  else if (links.value.some((l) => l.max !== null && l.amount > l.max))
+    linkError.value = 'Nominal kaitan melebihi sisa pengeluarannya.';
+  else if (total > amount.value) linkError.value = 'Total kaitan melebihi nominal pemasukan.';
+  return !linkError.value;
+}
+
+const recurring = useRecurringMutations();
+/** Aturan berulang/cicilan untuk transaksi baru; transaksi sekarang = kejadian pertama */
+function saveRepeat(data: Omit<TxInput, 'id' | 'book_id'>): { amount: number; label: string } {
+  const name = (data.note || categories.label(data.category_id) || 'Transaksi').slice(0, 60);
+  const base = {
+    book_id: bookId.value!,
+    type: data.type,
+    account_id: data.account_id,
+    to_account_id: data.to_account_id,
+    fee: data.fee ?? 0,
+    category_id: data.category_id,
+    note: data.note,
+    description: data.description ?? '',
+    auto_post: true,
+    active: true,
+  };
+  if (installment.value) {
+    const day = Number(form.date.slice(8));
+    const plan = installmentPlan(data.amount, installment.value, form.date, day);
+    if (!plan) return { amount: data.amount, label: '' };
+    const first = repeatRule('monthly', form.date)!;
+    recurring.create.mutate({
+      ...base,
+      name: `${name} (cicilan)`,
+      amount: plan.amount,
+      frequency: 'monthly',
+      interval: 1,
+      day_of_month: day,
+      start_on: first.start_on,
+      next_run_on: first.start_on,
+      end_on: plan.endOn,
+    });
+    return { amount: plan.amount, label: ` · cicilan ${installment.value}×` };
+  }
+  const rule = repeatRule(repeat.value, form.date);
+  if (!rule) return { amount: data.amount, label: '' };
+  recurring.create.mutate({
+    ...base,
+    name,
+    amount: data.amount,
+    ...rule,
+    next_run_on: rule.start_on,
+  });
+  return { amount: data.amount, label: ` · ${repeatLabel.value.toLowerCase()}` };
+}
+
 function save(again = false) {
-  if (!validate() || !bookId.value) return;
+  if (!canSave.value || !bookId.value || !validateLinks()) return;
   const data = payload();
   last.remember(form.type, {
     accountId: form.accountId,
     toAccountId: form.toAccountId || null,
     categoryId: form.categoryId || null,
   });
-
   const nextLinks = form.type === 'income' ? links.value : [];
   const linksChanged = linkPayload(nextLinks) !== initialLinks;
 
@@ -336,8 +513,11 @@ function save(again = false) {
     return;
   }
 
+  // Cicilan: transaksi pertama sebesar cicilan per bulan
+  const repeated = saveRepeat(data);
   const input: TxInput = {
     ...data,
+    amount: repeated.amount,
     id: uuid(),
     book_id: bookId.value,
     source: 'manual',
@@ -350,28 +530,31 @@ function save(again = false) {
         // Pesan galat sudah ditampilkan lewat toast
       });
   else mutations.create.mutate(input);
-  toast.show(`Tersimpan · ${formatRupiah(input.amount)}`, () =>
-    mutations.remove.mutate({ ...input, fee: input.fee ?? 0 } as Transaction),
+  const p = dayParts(form.date);
+  toast.show(
+    `Tersimpan di ${p.num} ${MONTHS_SHORT[Number(form.date.slice(5, 7)) - 1]}${repeated.label}`,
+    () => mutations.remove.mutate({ ...input, fee: input.fee ?? 0 } as Transaction),
   );
   if (again) {
-    quickText.value = '';
-    quickNote.value = '';
-    Object.assign(quickTouched, { account: false, category: false });
-    form.amount = 0;
+    // Catat lagi: tanggal, jam, jenis, dan akun tetap; mulai dari nominal
+    tokens.value = [];
+    feeTokens.value = [];
+    feeOn.value = false;
     form.note = '';
     form.description = '';
     links.value = [];
-    // Mode beruntun: kembali ke kolom ketik (halaman HP) atau nominal
-    nextTick(() =>
-      (document.getElementById('tx-quick') ?? document.getElementById('tx-amount'))?.focus(),
-    );
+    repeat.value = 'none';
+    installment.value = null;
+    touched.category = false;
+    quickText.value = '';
+    panel.value = 'keypad';
   } else {
     emit('close');
   }
 }
 
-// Pengeluaran ini diganti: buka form pemasukan baru yang sudah terkait
-const editor = useTxEditor();
+// ---------- aksi lain ----------
+/** Pengeluaran ini diganti: buka form pemasukan baru yang sudah terkait */
 function recordReimbursement(remaining: number) {
   const tx = props.transaction;
   if (!tx) return;
@@ -396,12 +579,30 @@ function remove() {
   emit('close');
 }
 
-// Simpan isian saat ini sebagai template (fase 6 T4): satu tap di Catat cepat
+/** Salin (mockup form-copy): transaksi baru dengan isian sama, tanggal hari ini atau asli */
+const copyOpen = ref(false);
+function copy(sameDate: boolean) {
+  copyOpen.value = false;
+  const data = payload();
+  editor.create({
+    type: data.type,
+    amount: data.amount,
+    accountId: data.account_id,
+    toAccountId: data.to_account_id ?? null,
+    categoryId: data.category_id ?? null,
+    note: data.note ?? '',
+    occurredAt: sameDate ? (data.occurred_at ?? null) : null,
+  });
+}
+
+/** Bintang di bar atas: simpan isian sekarang sebagai bookmark (tabel templates) */
 const templateMutations = useTemplateMutations();
-function saveAsTemplate() {
-  if (!bookId.value) return;
+const starred = ref(false);
+function saveAsBookmark() {
+  if (!bookId.value || starred.value) return;
   const data = payload();
   const name = (data.note || categories.label(data.category_id) || 'Transaksi').slice(0, 60);
+  starred.value = true;
   templateMutations.create.mutate(
     {
       book_id: bookId.value,
@@ -414,299 +615,652 @@ function saveAsTemplate() {
       note: data.note,
       description: data.description,
     },
-    { onSuccess: () => toast.show(`Bookmark ${name} dibuat`) },
+    {
+      onSuccess: () => toast.show(`Bookmark ${name} dibuat`),
+      onError: () => (starred.value = false),
+    },
   );
 }
+
+/** Pintasan impor (mockup .impshort): pindah ke halaman impor */
+function importFrom(source: 'photo' | 'bank') {
+  emit('close');
+  navigateTo(`/settings/import/${source}`);
+}
+
+function swapAccounts() {
+  if (!form.toAccountId) return;
+  [form.accountId, form.toAccountId] = [form.toAccountId, form.accountId];
+}
+
+const PANEL_TITLE: Record<Panel, string> = {
+  keypad: 'Nominal',
+  fee: 'Biaya transfer',
+  category: 'Kategori',
+  account: 'Akun',
+  to: 'Ke akun',
+  date: 'Tanggal & jam',
+};
+const panelTitle = computed(() =>
+  panel.value === 'account' && form.type === 'transfer'
+    ? 'Dari akun'
+    : panel.value
+      ? PANEL_TITLE[panel.value]
+      : '',
+);
 </script>
 
 <template>
   <form
-    :class="['flex flex-col gap-3.5', layout === 'page' && picker && 'pb-[58dvh]']"
+    class="tx-form flex flex-col"
     novalidate
+    :aria-labelledby="titleId"
     @submit.prevent="save()"
-    @focusin="closePickerOnInput"
   >
-    <div v-if="layout === 'dialog' && !bare" class="flex items-center gap-2">
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
+    <!-- Bar atas halaman HP: Batal · jenis · bintang -->
+    <header
+      v-if="layout === 'page'"
+      class="sticky top-0 z-30 bg-card pt-[env(safe-area-inset-top,0px)] shadow-[0_0.5px_0_var(--sep)]"
+    >
+      <h1 :id="titleId" class="sr-only">
         {{ isAdjustment ? 'Koreksi saldo' : editing ? 'Ubah transaksi' : 'Transaksi baru' }}
-      </h2>
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        type="button"
-        @click="emit('close')"
-      >
-        <X />
-      </Button>
+      </h1>
+      <div class="flex h-11 items-center gap-1 px-1">
+        <button
+          type="button"
+          class="h-11 px-3 text-bar text-primary-accent active:opacity-50"
+          @click="emit('close')"
+        >
+          Batal
+        </button>
+        <div class="flex min-w-0 flex-1 justify-center">
+          <div
+            v-if="!isAdjustment"
+            ref="pill"
+            role="radiogroup"
+            aria-label="Jenis transaksi"
+            :data-ready="pillReady || undefined"
+            class="tx-pill relative flex gap-0.5 rounded-full bg-fill p-0.5"
+          >
+            <span
+              class="tx-pill-hl absolute left-0 top-0.5 h-8 rounded-full bg-[var(--seg-on)]"
+              :style="hlStyle"
+              aria-hidden="true"
+            />
+            <button
+              v-for="t in TYPES"
+              :key="t.value"
+              type="button"
+              role="radio"
+              :aria-checked="form.type === t.value"
+              :aria-label="t.label"
+              :class="[
+                'tx-pill-btn relative flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] text-[13.5px] font-semibold active:scale-95',
+                form.type === t.value ? t.tone : 'text-ter',
+              ]"
+              @click="form.type = t.value"
+            >
+              <component :is="t.icon" class="size-[18px]" stroke-width="2.3" aria-hidden="true" />
+              <span v-if="form.type === t.value">{{ t.label }}</span>
+            </button>
+          </div>
+          <b v-else class="text-bar font-semibold">Koreksi saldo</b>
+        </div>
+        <button
+          v-if="!isAdjustment && canEdit"
+          type="button"
+          :aria-label="starred ? 'Sudah jadi bookmark' : 'Simpan sebagai bookmark'"
+          :aria-pressed="starred"
+          :disabled="!amount && !form.note"
+          class="grid size-11 place-items-center rounded-xl text-primary-accent active:scale-90 active:bg-fill-press disabled:opacity-30"
+          @click="saveAsBookmark"
+        >
+          <Star class="size-[21px]" :fill="starred ? 'currentColor' : 'none'" aria-hidden="true" />
+        </button>
+        <span v-else class="w-11" />
+      </div>
+    </header>
+
+    <!-- Dialog: jenis di dalam form -->
+    <div v-if="layout === 'dialog' && !isAdjustment" class="pb-3.5">
+      <Segmented
+        :model-value="form.type"
+        :options="TYPES.map((t) => ({ value: t.value, label: t.label }))"
+        label="Jenis transaksi"
+        @update:model-value="(v) => (form.type = v as TxType)"
+      />
     </div>
 
     <p
       v-if="isAdjustment"
-      class="m-0 rounded-xl bg-surface-2 px-3 py-2.5 text-meta text-muted-foreground"
+      class="mx-4 mt-3.5 rounded-xl bg-card px-4 py-3 text-meta text-muted-foreground"
     >
       Transaksi ini dibuat oleh "Sesuaikan saldo" dan tidak dihitung di statistik. Untuk mengubah
       saldo lagi, pakai Sesuaikan saldo di halaman akun.
     </p>
 
-    <template v-else>
-      <FormField
-        v-if="layout === 'page' && !editing"
-        label="Ketik saja"
-        for="tx-quick"
-        hint="mis. bensin 100rb kemarin bca · bca ke gopay 99rb · + gaji 5jt bca"
+    <div
+      v-else
+      :class="[
+        'overflow-hidden bg-card',
+        layout === 'dialog' ? 'rounded-group' : 'mt-0',
+        layout === 'page' && panel && 'pb-[360px]',
+      ]"
+    >
+      <!-- Tanggal + ulangi -->
+      <div :class="['tx-row', panel === 'date' && 'is-on']">
+        <span class="tx-label">Tanggal</span>
+        <button
+          type="button"
+          :aria-expanded="panel === 'date'"
+          :class="[
+            'flex min-h-[52px] min-w-0 flex-1 items-center gap-2 text-left text-row font-medium',
+            panel === 'date' && 'text-primary-accent',
+          ]"
+          @click="openPanel('date')"
+        >
+          <span class="truncate">{{ dateLabel }}</span>
+          <span :class="panel === 'date' ? '' : 'text-muted-foreground'"
+            >· {{ form.time.replace(':', '.') }}</span
+          >
+        </button>
+        <div v-if="!editing" class="relative">
+          <button
+            type="button"
+            :aria-label="`Ulangi: ${repeatLabel}`"
+            aria-haspopup="menu"
+            :aria-expanded="repeatOpen"
+            :class="[
+              'tx-press relative grid size-11 place-items-center rounded-xl active:scale-90',
+              repeatShort ? 'bg-primary-soft text-primary-accent' : 'text-ter',
+            ]"
+            @click="repeatOpen = !repeatOpen"
+          >
+            <Repeat class="size-5" stroke-width="2.1" aria-hidden="true" />
+            <span
+              v-if="repeatShort"
+              class="absolute right-px top-[3px] grid h-4 min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[9.5px] font-bold text-primary-foreground"
+              >{{ repeatShort }}</span
+            >
+          </button>
+          <template v-if="repeatOpen">
+            <div class="fixed inset-0 z-[19]" aria-hidden="true" @click="repeatOpen = false" />
+            <div
+              role="menu"
+              aria-label="Ulangi"
+              class="tx-menu absolute right-0 top-12 z-20 min-w-[210px] overflow-hidden rounded-[13px]"
+            >
+              <button
+                v-for="o in REPEAT_OPTIONS"
+                :key="o.value"
+                type="button"
+                role="menuitemradio"
+                :aria-checked="!installment && repeat === o.value"
+                class="flex h-[42px] w-full items-center gap-2.5 px-3.5 text-left text-row active:bg-[var(--glass-press)]"
+                @click="pickRepeat(o.value)"
+              >
+                <span class="w-4 font-bold text-primary-accent">{{
+                  !installment && repeat === o.value ? '✓' : ''
+                }}</span
+                >{{ o.label }}
+              </button>
+              <template v-if="form.type === 'expense'">
+                <div class="h-1.5 bg-[var(--glass-press)]" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="flex h-[42px] w-full items-center gap-2.5 px-3.5 text-left text-row active:bg-[var(--glass-press)]"
+                  @click="openInstallment"
+                >
+                  <span class="w-4 font-bold text-primary-accent">{{ installment ? '✓' : '' }}</span
+                  >Cicilan…
+                </button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Nominal -->
+      <button
+        type="button"
+        :aria-expanded="panel === 'keypad'"
+        :class="['tx-row w-full text-left', panel === 'keypad' && 'is-on']"
+        @click="openPanel('keypad')"
       >
-        <input
-          id="tx-quick"
-          :value="quickText"
-          type="text"
-          class="field-input"
-          placeholder="kopi 25rb gopay"
-          autocomplete="off"
-          autocapitalize="off"
-          enterkeyhint="done"
-          @input="applyQuick(($event.target as HTMLInputElement).value)"
-        />
-      </FormField>
+        <span class="tx-label">Nominal</span>
+        <span class="flex min-h-[66px] flex-1 flex-col justify-center gap-px">
+          <span class="min-h-4 text-meta text-muted-foreground">{{
+            panel === 'keypad' ? expr : ''
+          }}</span>
+          <span
+            :class="[
+              'flex items-center text-[26px] font-bold leading-[1.1] tracking-[-0.03em]',
+              AMOUNT_TONE[form.type],
+            ]"
+          >
+            {{ formatRupiah(amount) }}
+            <span v-if="panel === 'keypad'" class="tx-caret" aria-hidden="true" />
+          </span>
+        </span>
+      </button>
       <button
         v-if="suggestedAmount"
         type="button"
-        class="press -mt-2 self-start rounded-lg bg-primary-soft px-2.5 py-1 text-meta font-semibold text-primary-ink"
-        @click="form.amount = suggestedAmount"
+        class="mx-4 mb-2 self-start rounded-lg bg-primary-soft px-2.5 py-1 text-meta font-semibold text-primary-accent"
+        @click="tokens = fromAmount(suggestedAmount)"
       >
         Biasanya {{ formatRupiah(suggestedAmount) }} · pakai
       </button>
 
-      <SegmentedControl v-model="form.type" :options="TYPES" label="Jenis transaksi" />
-
-      <div class="grid gap-3 sm:grid-cols-2">
-        <FormField label="Nominal" for="tx-amount" :error="errors.amount">
-          <AmountInput id="tx-amount" v-model="form.amount" :invalid="!!errors.amount" />
-        </FormField>
-        <FormField label="Tanggal & jam" for="tx-occurred" :error="errors.occurred">
-          <input
-            id="tx-occurred"
-            v-model="form.occurred"
-            type="datetime-local"
-            class="field-input"
-          />
-        </FormField>
-      </div>
-
-      <div class="grid gap-3 sm:grid-cols-2">
-        <FormField v-if="form.type !== 'transfer'" label="Kategori" for="tx-category">
-          <button
-            id="tx-category"
-            type="button"
-            :class="['field-input picker-field scroll-mt-24', picker === 'category' && 'is-open']"
-            :aria-expanded="picker === 'category'"
-            @click="openPicker('category')"
-          >
-            <component
-              :is="categoryStyle.icon"
+      <!-- Kategori & akun, atau Dari/Ke untuk transfer -->
+      <template v-if="form.type !== 'transfer'">
+        <button
+          type="button"
+          :aria-expanded="panel === 'category'"
+          :class="['tx-row w-full text-left', panel === 'category' && 'is-on']"
+          @click="openPanel('category')"
+        >
+          <span class="tx-label">Kategori</span>
+          <span class="flex min-h-[52px] min-w-0 flex-1 items-center gap-2 text-row font-medium">
+            <span
               v-if="categoryStyle"
-              :class="['size-4 shrink-0', TONE_TEXT[categoryStyle.tone]]"
+              :class="[
+                'grid size-[26px] shrink-0 place-items-center rounded-lg',
+                TONE_CLASS[categoryStyle.tone],
+              ]"
               aria-hidden="true"
-            />
-            <span :class="['truncate', !form.categoryId && 'text-faint']">{{ categoryText }}</span>
-          </button>
-        </FormField>
-
-        <FormField
-          :label="form.type === 'transfer' ? 'Dari akun' : 'Akun'"
-          for="tx-account"
-          :error="errors.accountId"
-        >
-          <button
-            id="tx-account"
-            type="button"
-            :class="['field-input picker-field scroll-mt-24', picker === 'account' && 'is-open']"
-            :aria-expanded="picker === 'account'"
-            :aria-invalid="!!errors.accountId || undefined"
-            @click="openPicker('account')"
-          >
-            <span :class="['truncate', !form.accountId && 'text-faint']">
-              {{ accountName(form.accountId) || 'Pilih akun' }}
-            </span>
-          </button>
-        </FormField>
-
-        <FormField
-          v-if="form.type === 'transfer'"
-          label="Ke akun"
-          for="tx-to"
-          :error="errors.toAccountId"
-        >
-          <button
-            id="tx-to"
-            type="button"
-            :class="['field-input picker-field scroll-mt-24', picker === 'to' && 'is-open']"
-            :aria-expanded="picker === 'to'"
-            :aria-invalid="!!errors.toAccountId || undefined"
-            @click="openPicker('to')"
-          >
-            <span :class="['truncate', !form.toAccountId && 'text-faint']">
-              {{ accountName(form.toAccountId) || 'Pilih akun tujuan' }}
-            </span>
-          </button>
-        </FormField>
-      </div>
-
-      <!-- Grid pilihan: di dialog tampil di sini, di halaman HP menempel di bawah -->
-      <Transition :name="layout === 'page' ? 'dock' : ''">
-        <section
-          v-if="picker"
-          :class="
-            layout === 'page'
-              ? 'fixed inset-x-0 bottom-0 z-40 flex max-h-[56dvh] flex-col border-t bg-card shadow-float'
-              : 'overflow-hidden rounded-xl border'
-          "
-          :aria-label="PICKER_TITLE[picker]"
-        >
-          <div class="flex items-center gap-2 border-b bg-surface-2 py-1 pl-3.5 pr-1">
-            <b class="flex-1 text-label">{{ PICKER_TITLE[picker] }}</b>
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              class="press-icon"
-              :aria-label="`Tutup pilihan ${PICKER_TITLE[picker].toLowerCase()}`"
-              @click="picker = null"
             >
-              <X />
-            </Button>
-          </div>
-          <div
-            :class="[
-              'overflow-y-auto overscroll-contain',
-              layout === 'page' && 'pb-[env(safe-area-inset-bottom,0px)]',
-            ]"
+              <component :is="categoryStyle.icon" class="size-[14px]" />
+            </span>
+            <span v-if="categoryText" class="truncate">{{ categoryText }}</span>
+            <span v-else class="font-normal text-ter">Pilih kategori</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          :aria-expanded="panel === 'account'"
+          :class="['tx-row w-full text-left', panel === 'account' && 'is-on']"
+          @click="openPanel('account')"
+        >
+          <span class="tx-label">Akun</span>
+          <span class="flex min-h-[52px] min-w-0 flex-1 items-center truncate text-row font-medium">
+            {{ accountName(form.accountId) || 'Pilih akun' }}
+          </span>
+        </button>
+      </template>
+      <template v-else>
+        <div class="relative">
+          <button
+            type="button"
+            :aria-expanded="panel === 'account'"
+            :class="['tx-row w-full pr-16 text-left', panel === 'account' && 'is-on']"
+            @click="openPanel('account')"
           >
-            <GridPicker
-              v-if="picker === 'category'"
-              :key="`cat-${form.type}`"
-              :items="categoryItems"
-              :model-value="form.categoryId"
-              label="Pilih kategori"
-              @select="choose"
-            />
-            <GridPicker
-              v-else
-              :key="picker"
-              :items="accountItems(picker === 'to' ? form.accountId : undefined)"
-              :model-value="picker === 'to' ? form.toAccountId : form.accountId"
-              :label="picker === 'to' ? 'Pilih akun tujuan' : 'Pilih akun'"
-              @select="choose"
-            />
-          </div>
-        </section>
-      </Transition>
+            <span class="tx-label">Dari</span>
+            <span
+              class="flex min-h-[52px] min-w-0 flex-1 items-center truncate text-row font-medium"
+            >
+              {{ accountName(form.accountId) || 'Pilih akun asal' }}
+            </span>
+          </button>
+          <button
+            type="button"
+            :aria-expanded="panel === 'to'"
+            :class="['tx-row w-full pr-16 text-left', panel === 'to' && 'is-on']"
+            @click="openPanel('to')"
+          >
+            <span class="tx-label">Ke</span>
+            <span
+              v-if="form.toAccountId"
+              class="flex min-h-[52px] min-w-0 flex-1 items-center truncate text-row font-medium"
+              >{{ accountName(form.toAccountId) }}</span
+            >
+            <span v-else class="flex min-h-[52px] flex-1 items-center text-row text-ter"
+              >Pilih akun tujuan</span
+            >
+          </button>
+          <button
+            type="button"
+            aria-label="Tukar akun asal dan tujuan"
+            :disabled="!form.toAccountId"
+            class="tx-swap absolute right-3.5 top-1/2 z-[2] -mt-[18px] grid size-9 place-items-center rounded-full bg-card text-primary-accent active:scale-90 disabled:opacity-40"
+            @click="swapAccounts"
+          >
+            <ArrowDownUp class="size-[18px]" stroke-width="2.2" aria-hidden="true" />
+          </button>
+        </div>
+        <div class="tx-row">
+          <span class="tx-label">Biaya</span>
+          <span class="flex-1 text-[14px] text-muted-foreground">{{
+            feeOn
+              ? `${formatRupiah(fee)} dari ${accountName(form.accountId) || 'akun asal'}`
+              : 'Tanpa biaya admin'
+          }}</span>
+          <IosSwitch
+            v-model="feeOn"
+            label="Catat biaya transfer"
+            class="mr-2"
+            @update:model-value="(on) => on && !fee && (panel = 'fee')"
+          />
+        </div>
+        <button
+          v-if="feeOn"
+          type="button"
+          :aria-expanded="panel === 'fee'"
+          :class="['tx-row w-full text-left', panel === 'fee' && 'is-on']"
+          @click="openPanel('fee')"
+        >
+          <span class="tx-label">Nominal biaya</span>
+          <span class="flex min-h-[52px] flex-1 items-center text-row font-medium">{{
+            formatRupiah(fee)
+          }}</span>
+        </button>
+      </template>
 
-      <FormField
-        v-if="form.type === 'transfer'"
-        label="Biaya admin"
-        for="tx-fee"
-        hint="Mengurangi akun asal, tidak masuk ke akun tujuan."
-      >
-        <AmountInput id="tx-fee" v-model="form.fee" />
-      </FormField>
-
-      <FormField label="Catatan" for="tx-note" hint="Toko atau tempat, mis. Indomaret.">
+      <!-- Catatan & keterangan -->
+      <label class="tx-row">
+        <span class="tx-label">Catatan</span>
         <input
-          id="tx-note"
+          ref="noteInput"
           v-model="form.note"
           type="text"
           maxlength="120"
-          class="field-input"
           autocomplete="off"
+          enterkeyhint="done"
+          placeholder="Indomaret, Budi, Tokopedia"
+          class="h-[50px] min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-ter"
+          @focus="panel = null"
         />
-      </FormField>
-      <FormField label="Keterangan" for="tx-desc">
+      </label>
+      <label class="tx-row">
+        <span class="tx-label">Keterangan</span>
         <input
-          id="tx-desc"
           v-model="form.description"
           type="text"
           maxlength="240"
-          class="field-input"
           autocomplete="off"
+          placeholder="Detail tambahan"
+          class="h-[50px] min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-ter"
+          @focus="panel = null"
         />
-      </FormField>
+      </label>
 
+      <!-- Pintasan impor (transaksi baru di HP) -->
+      <div
+        v-if="!editing && layout === 'page'"
+        class="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]"
+      >
+        <button
+          type="button"
+          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-fill px-3 text-meta font-semibold active:scale-95"
+          @click="importFrom('photo')"
+        >
+          <Camera class="size-4" aria-hidden="true" />Dari foto struk
+        </button>
+        <button
+          type="button"
+          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-fill px-3 text-meta font-semibold active:scale-95"
+          @click="importFrom('bank')"
+        >
+          <FileText class="size-4" aria-hidden="true" />Dari mutasi bank
+        </button>
+      </div>
+    </div>
+
+    <div v-if="!isAdjustment" :class="layout === 'page' ? 'px-4' : ''">
       <LinkSection
         v-if="form.type === 'income'"
         v-model:links="links"
+        class="mt-3.5"
         kind="income"
         :transaction="transaction"
-        :amount="form.amount"
-        :error="errors.links"
-        @fill-amount="(total) => (form.amount = total)"
+        :amount="amount"
+        :error="linkError"
+        @fill-amount="(total) => (tokens = fromAmount(total))"
       />
       <LinkSection
         v-else-if="form.type === 'expense' && transaction?.type === 'expense'"
         v-model:links="links"
+        class="mt-3.5"
         kind="expense"
         :transaction="transaction"
-        :amount="form.amount"
+        :amount="amount"
         @reimburse="recordReimbursement"
       />
-    </template>
-
-    <div
-      v-if="canEdit"
-      :class="['flex flex-wrap items-center gap-2 pt-1', layout === 'page' && 'form-page-actions']"
-    >
-      <Button v-if="editing" type="button" variant="ghost-danger" size="touch" @click="remove">
-        <Trash2 />Hapus
-      </Button>
-      <Button
-        v-if="editing && !isAdjustment"
-        type="button"
-        variant="ghost"
-        size="touch"
-        @click="saveAsTemplate"
-      >
-        <Zap />Jadikan bookmark
-      </Button>
-      <span class="flex-1" />
-      <template v-if="!isAdjustment">
-        <Button v-if="!editing" type="button" variant="secondary" size="touch" @click="save(true)"
-          >Simpan &amp; lagi</Button
-        >
-        <Button type="submit" size="touch">{{ editing ? 'Simpan perubahan' : 'Simpan' }}</Button>
-      </template>
     </div>
+
+    <!-- Tombol -->
+    <div
+      v-if="canEdit && !panel"
+      :class="['flex flex-col gap-2.5 pt-[18px]', layout === 'page' ? 'px-4 pb-10' : '']"
+    >
+      <div v-if="!isAdjustment" class="flex gap-2.5">
+        <IosButton type="submit" class="flex-1" :disabled="!canSave">{{
+          editing ? 'Simpan perubahan' : 'Simpan'
+        }}</IosButton>
+        <IosButton
+          v-if="!editing"
+          variant="gray"
+          class="w-[120px]"
+          :disabled="!canSave"
+          @click="save(true)"
+          >Catat lagi</IosButton
+        >
+      </div>
+      <div v-if="editing" class="flex gap-2.5">
+        <IosButton v-if="!isAdjustment" variant="gray" class="flex-1" @click="copyOpen = true"
+          >Salin</IosButton
+        >
+        <IosButton variant="gray" class="flex-1 !text-exp" @click="remove">Hapus</IosButton>
+      </div>
+    </div>
+
+    <!-- Panel: menempel di bawah (HP) atau di dalam form (dialog) -->
+    <component
+      :is="layout === 'page' ? Dock : 'div'"
+      v-if="panel"
+      v-bind="
+        layout === 'page'
+          ? {
+              title: panelTitle,
+              hint: panel === 'keypad' || panel === 'fee' ? '+ − × ÷ bisa dipakai' : '',
+              steps: stepIndex >= 0 ? { count: steps.length, active: stepIndex } : undefined,
+              auto: panel === 'date',
+            }
+          : { class: 'mt-3.5 overflow-hidden rounded-group bg-[var(--kb-bg)]' }
+      "
+      @close="panel = null"
+    >
+      <div
+        v-if="layout === 'dialog'"
+        class="flex h-11 items-center bg-[var(--kb-head)] px-4 shadow-[inset_0_-0.5px_0_var(--kb-head-line)]"
+      >
+        <b class="flex-1 text-body font-semibold">{{ panelTitle }}</b>
+        <button
+          type="button"
+          class="text-meta font-semibold text-primary-accent"
+          @click="panel = null"
+        >
+          Selesai
+        </button>
+      </div>
+      <Keypad
+        v-if="panel === 'keypad' || panel === 'fee'"
+        :has-operator="hasOperator(panel === 'fee' ? feeTokens : tokens)"
+        @press="onKey"
+      />
+      <ChoiceGrid
+        v-else-if="panel === 'category'"
+        :key="`cat-${form.type}`"
+        :items="categoryItems"
+        :model-value="form.categoryId"
+        label="Pilih kategori"
+        @select="choose"
+      />
+      <ChoiceGrid
+        v-else-if="panel === 'account' || panel === 'to'"
+        :key="panel"
+        :items="accountItems(panel === 'to' ? form.accountId : undefined)"
+        :model-value="panel === 'to' ? form.toAccountId : form.accountId"
+        :label="panel === 'to' ? 'Pilih akun tujuan' : 'Pilih akun'"
+        @select="choose"
+      />
+      <DatePanel v-else-if="panel === 'date'" v-model:date="form.date" v-model:time="form.time" />
+    </component>
+
+    <!-- Cicilan -->
+    <IosSheet v-model:open="installmentOpen" title="Cicilan">
+      <p class="mb-2 mt-0 text-meta text-muted-foreground">
+        Nominal {{ formatRupiah(amount) }} dibagi rata; cicilan pertama dicatat sekarang, sisanya
+        tiap bulan di tanggal {{ Number(form.date.slice(8)) }}.
+      </p>
+      <button
+        v-for="r in installmentRows"
+        :key="r.months"
+        type="button"
+        :disabled="!r.plan"
+        class="flex h-[50px] w-full items-center gap-2.5 px-1 text-left text-row shadow-[inset_0_-0.5px_0_var(--sep)] disabled:opacity-40"
+        @click="pickInstallment(r.months)"
+      >
+        <span class="flex-1">{{ r.months }} bulan</span>
+        <small class="text-[14px] text-muted-foreground">{{
+          r.plan ? `${formatRupiah(r.plan.amount)}/bulan` : 'Isi nominal dulu'
+        }}</small>
+        <b v-if="installment === r.months" class="text-primary-accent">✓</b>
+      </button>
+      <template #footer>
+        <IosButton block variant="gray" @click="pickInstallment(null)">Tanpa cicilan</IosButton>
+      </template>
+    </IosSheet>
+
+    <!-- Salin -->
+    <IosSheet v-model:open="copyOpen" title="Salin transaksi">
+      <button
+        type="button"
+        class="flex h-[50px] w-full items-center px-1 text-left text-row shadow-[inset_0_-0.5px_0_var(--sep)]"
+        @click="copy(false)"
+      >
+        Salin dengan tanggal hari ini
+      </button>
+      <button
+        type="button"
+        class="flex h-[50px] w-full items-center gap-2.5 px-1 text-left text-row"
+        @click="copy(true)"
+      >
+        <span class="flex-1">Salin dengan tanggal asli</span>
+        <small class="text-[14px] text-muted-foreground">{{ dateLabel }}</small>
+      </button>
+      <template #footer>
+        <IosButton block variant="gray" @click="copyOpen = false">Batal</IosButton>
+      </template>
+    </IosSheet>
   </form>
 </template>
 
 <style scoped>
-.picker-field {
+/* Baris form (mockup .fr/.fl): label 80px kiri, nilai kanan, garis dari 16px */
+.tx-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  text-align: left;
-  cursor: pointer;
+  min-height: 52px;
+  padding: 0 8px 0 16px;
+  background: var(--card);
 }
-.picker-field.is-open {
-  border-color: var(--primary-accent);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+.tx-row::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 0;
+  bottom: 0;
+  height: 0.5px;
+  background: var(--sep);
 }
-
-/* Grid menempel di bawah seperti keyboard: masuk 280ms, keluar 200ms */
-.dock-enter-active {
-  transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+/* Baris aktif: label beraksen + garis aksen 2px di bawah nilai */
+.tx-row.is-on::after {
+  left: 104px;
+  right: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary-accent);
 }
-.dock-leave-active {
-  transition: transform 200ms ease-in;
+.tx-label {
+  width: 80px;
+  flex-shrink: 0;
+  font-size: 15px;
+  color: var(--muted-foreground);
 }
-.dock-enter-from,
-.dock-leave-to {
-  transform: translateY(100%);
+.tx-row.is-on .tx-label {
+  color: var(--primary-accent);
+}
+.tx-caret {
+  display: inline-block;
+  width: 2px;
+  height: 25px;
+  margin-left: 3px;
+  border-radius: 2px;
+  background: var(--primary-accent);
+  animation: tx-blink 1.1s steps(1) infinite;
+}
+@keyframes tx-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.tx-pill-hl {
+  box-shadow: var(--shadow-seg);
+}
+.tx-pill[data-ready] .tx-pill-hl {
+  transition:
+    transform 250ms var(--ease-out),
+    width 250ms var(--ease-out);
+}
+.tx-pill-btn,
+.tx-press,
+.tx-swap {
+  transition: transform 140ms var(--ease-out);
+}
+.tx-swap {
+  box-shadow:
+    0 0 0 0.5px var(--sep),
+    var(--shadow-seg);
+}
+.tx-menu {
+  background: var(--glass-menu);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    var(--shadow-menu),
+    0 0 0 0.5px var(--glass-menu-line);
+  transform-origin: right top;
+  transition:
+    transform 200ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}
+@starting-style {
+  .tx-menu {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+.tx-menu button + button {
+  box-shadow: inset 0 0.5px 0 var(--glass-menu-line);
 }
 @media (prefers-reduced-motion: reduce) {
-  .dock-enter-active,
-  .dock-leave-active {
+  .tx-pill[data-ready] .tx-pill-hl {
     transition: none;
+  }
+  .tx-menu {
+    transition: opacity 150ms ease;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tx-menu {
+    background: var(--glass-menu-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 </style>

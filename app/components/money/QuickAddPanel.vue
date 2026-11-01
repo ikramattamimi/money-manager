@@ -50,8 +50,8 @@ const toast = useToast();
 const input = ref<HTMLInputElement>();
 
 const TYPES = [
-  { value: 'expense', label: 'Pengeluaran' },
   { value: 'income', label: 'Pemasukan' },
+  { value: 'expense', label: 'Pengeluaran' },
   { value: 'transfer', label: 'Transfer' },
 ] as const;
 const type = computed({
