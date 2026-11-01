@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ArrowLeft, Download, FileSpreadsheet, RefreshCw } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import FormField from '@/components/base/FormField.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
+import { Download, FileSpreadsheet } from '@lucide/vue';
+import FieldRow from '@/components/data/FieldRow.vue';
+import { FIELD_INPUT } from '@/components/data/field';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useExportExcel } from '@/features/export/useExport';
 import { fromLocalInput, jakartaParts, MONTHS_LONG, periodOf, periodRange } from '@/lib/time';
 
 // Ekspor transaksi ke Excel dengan kolom gaya Realbyte, supaya bisa dibuka di
-// Excel/Numbers atau diimpor balik ke buku lain.
+// Excel/Numbers atau diimpor balik ke buku lain lewat Impor Realbyte.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Ekspor Excel · Money Manager' });
 
@@ -82,57 +83,76 @@ function download() {
     },
   );
 }
+
+const DATE_INPUT = `${FIELD_INPUT} appearance-none [&::-webkit-date-and-time-value]:text-right`;
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[620px]">
-    <PageHeader title="Ekspor Excel">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-      </template>
-    </PageHeader>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar
+      title="Ekspor Excel"
+      back="Lainnya"
+      back-to="/more"
+      line
+      class="sticky top-0 md:static"
+    />
 
-    <Card class="mt-3.5 flex flex-col gap-4 p-3.5">
-      <div class="flex items-start gap-3">
-        <ToneIcon :icon="FileSpreadsheet" tone="ok" size="sm" />
-        <p class="m-0 text-meta text-muted-foreground">
-          File .xlsx dengan kolom seperti ekspor Realbyte: tanggal & jam, akun, kategori, catatan,
-          nominal. Transfer ditulis dua baris (keluar dan masuk). Bisa diimpor balik lewat Impor
-          Realbyte.
-        </p>
-      </div>
-
-      <SegmentedControl v-model="range" :options="RANGES" label="Rentang" />
-
-      <div v-if="range === 'custom'" class="grid grid-cols-2 gap-3">
-        <FormField label="Dari" for="export-from">
-          <input id="export-from" v-model="from" type="date" :max="to" class="field-input" />
-        </FormField>
-        <FormField
-          label="Sampai"
-          for="export-to"
-          :error="bounds ? '' : 'Tanggal akhir harus setelah tanggal awal.'"
+    <div class="pb-8">
+      <GroupedList class="mt-3.5">
+        <GroupRow
+          title="File .xlsx gaya Realbyte"
+          subtitle="Tanggal & jam, akun, kategori, catatan, nominal"
+          :inset="58"
         >
-          <input
-            id="export-to"
-            v-model="to"
-            type="date"
-            :min="from"
-            :max="todayInput"
-            class="field-input"
-          />
-        </FormField>
-      </div>
+          <template #icon
+            ><ToneIcon :icon="FileSpreadsheet" tone="green" size="sm" solid
+          /></template>
+        </GroupRow>
+      </GroupedList>
+      <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
+        Transfer ditulis dua baris (keluar dan masuk). Bisa dibuka di Excel atau Numbers, dan
+        diimpor balik lewat Impor Realbyte.
+      </p>
 
-      <Button size="touch" :disabled="!bounds || exporter.isPending.value" @click="download">
-        <component
-          :is="exporter.isPending.value ? RefreshCw : Download"
-          :class="exporter.isPending.value && 'animate-spin'"
+      <GroupedList label="Rentang">
+        <GroupRow>
+          <Segmented v-model="range" :options="RANGES" label="Rentang" />
+        </GroupRow>
+        <template v-if="range === 'custom'">
+          <FieldRow label="Dari" for="export-from" :label-width="64">
+            <input id="export-from" v-model="from" type="date" :max="to" :class="DATE_INPUT" />
+          </FieldRow>
+          <FieldRow
+            label="Sampai"
+            for="export-to"
+            :label-width="64"
+            :error="bounds ? '' : 'Tanggal akhir harus setelah tanggal awal.'"
+          >
+            <input
+              id="export-to"
+              v-model="to"
+              type="date"
+              :min="from"
+              :max="todayInput"
+              :class="DATE_INPUT"
+            />
+          </FieldRow>
+        </template>
+        <GroupRow
+          v-else-if="bounds"
+          title="Periode"
+          :value="range === 'all' ? 'Semua transaksi' : bounds.label"
         />
-        {{ exporter.isPending.value ? 'Menyiapkan file…' : 'Unduh Excel' }}
-      </Button>
-    </Card>
+      </GroupedList>
+
+      <div class="px-4 pt-4">
+        <IosButton block :disabled="!bounds || exporter.isPending.value" @click="download">
+          <Download aria-hidden="true" />
+          {{ exporter.isPending.value ? 'Menyiapkan file…' : 'Unduh Excel' }}
+        </IosButton>
+      </div>
+    </div>
   </div>
 </template>

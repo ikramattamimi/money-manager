@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { Repeat } from '@lucide/vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import { Button } from '@/components/ui/button';
+import Chip from '@/components/ios/Chip.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { usePendingRecurring, useRecurringMutations } from '@/features/recurring/useRecurring';
 import { formatRupiah } from '@/lib/format';
 import { dayLabel } from '@/lib/time';
 
-// Draf transaksi berulang "tanya dulu" yang sudah jatuh tempo, di atas daftar
-// Transaksi. Catat = pakai nominal aturan; nominal lain lewat menu aturannya.
+// Draf Ulangi "tanya dulu" yang sudah jatuh tempo, di atas daftar Transaksi.
+// Catat = pakai nominal aturan; nominal lain lewat Lainnya → Ulangi & cicilan.
 const { canEdit } = useActiveBook();
 const pending = usePendingRecurring();
 const mutations = useRecurringMutations();
@@ -22,18 +22,18 @@ const due = (date: string) => dayLabel(`${date}T07:00:00+07:00`);
 </script>
 
 <template>
-  <ListGroup
+  <GroupedList
     v-if="pending.data.value?.length"
     label="Perlu dikonfirmasi"
-    :aside="`${pending.data.value.length} transaksi berulang`"
+    :aside="`${pending.data.value.length} ulangi`"
   >
-    <ListRow
+    <GroupRow
       v-for="p in pending.data.value"
       :key="p.id"
       :title="p.rule.name"
       :subtitle="`${due(p.due_on)} · ${formatRupiah(p.rule.amount)}`"
     >
-      <template #lead>
+      <template #icon>
         <ToneIcon
           v-bind="
             p.rule.category_id
@@ -43,21 +43,12 @@ const due = (date: string) => dayLabel(`${date}T07:00:00+07:00`);
           size="sm"
         />
       </template>
-      <template #end>
-        <div v-if="canEdit" class="flex gap-1">
-          <Button variant="ghost" size="default" :disabled="busy" @click="mutations.skip.mutate(p)">
-            Lewati
-          </Button>
-          <Button
-            variant="soft"
-            size="default"
-            :disabled="busy"
-            @click="mutations.confirm.mutate({ pending: p })"
-          >
-            Catat
-          </Button>
+      <template v-if="canEdit" #end>
+        <div :class="['flex shrink-0 gap-1.5', busy && 'pointer-events-none opacity-50']">
+          <Chip @click="mutations.skip.mutate(p)">Lewati</Chip>
+          <Chip on @click="mutations.confirm.mutate({ pending: p })">Catat</Chip>
         </div>
       </template>
-    </ListRow>
-  </ListGroup>
+    </GroupRow>
+  </GroupedList>
 </template>

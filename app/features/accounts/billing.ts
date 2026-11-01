@@ -103,3 +103,21 @@ export function cardBill(
     owed === 0 ? 'none' : remaining === 0 ? 'paid' : today > last.due ? 'overdue' : 'open';
   return { current, currentCharges, last, owed, paid: Math.min(paid, owed), remaining, status };
 }
+
+/** Tagihan kartu dari akun; null kalau tanggal cetak/jatuh tempo belum diatur */
+export function accountBill(
+  account: { balance: number; statement_day: number | null; due_day: number | null },
+  rows: LedgerLike[],
+  today: string,
+): CardBill | null {
+  if (!account.statement_day || !account.due_day) return null;
+  return cardBill(rows, account.balance, today, account.statement_day, account.due_day);
+}
+
+/** Rekening pembayar: asal transfer terakhir ke kartu ini (riwayat terbaru dulu) */
+export function lastPayer(
+  rows: { type: string; account_id: string; to_account_id: string | null }[],
+  cardId: string,
+): string | null {
+  return rows.find((r) => r.type === 'transfer' && r.to_account_id === cardId)?.account_id ?? null;
+}

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import FormPage from '@/components/layout/FormPage.vue';
 import AccountTotalForm from '@/components/money/AccountTotalForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 
-// Tambah total akun sebagai halaman penuh di HP (iPad/desktop: dialog)
+// Tambah total akun sebagai halaman penuh di HP (mockup total-form; iPad/desktop: dialog)
 definePageMeta({ layout: false });
 useHead({ title: 'Total baru · Money Manager' });
 
@@ -12,6 +13,7 @@ const back = () => closePage('/accounts/totals');
 
 <template>
   <FormPage title="Total baru" title-id="total-page-title" @back="back">
-    <AccountTotalForm :total="null" page class="flex-1" title-id="total-page-title" @close="back" />
+    <template #action><FormPageSave form="total-page-title-form" /></template>
+    <AccountTotalForm :total="null" page title-id="total-page-title" @close="back" />
   </FormPage>
 </template>

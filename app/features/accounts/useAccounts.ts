@@ -100,10 +100,16 @@ export function useAccounts() {
   };
 }
 
-export function useAccountLedger(accountId: Readonly<Ref<string>>) {
+/** Riwayat akun terbaru dulu; `limit` lebih besar dipakai kalau saldo per bulan dihitung dari sini */
+export function useAccountLedger(
+  accountId: Readonly<Ref<string>>,
+  limit: Readonly<Ref<number>> = ref(200),
+  enabled: Readonly<Ref<boolean>> = ref(true),
+) {
   return useQuery({
-    queryKey: computed(() => accountKeys.ledger(accountId.value)),
-    queryFn: () => accountsApi.ledger(accountId.value, 200),
+    queryKey: computed(() => accountKeys.ledger(accountId.value, limit.value)),
+    queryFn: () => accountsApi.ledger(accountId.value, limit.value),
+    enabled,
   });
 }
 

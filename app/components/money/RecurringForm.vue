@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { Trash2, X } from '@lucide/vue';
-import AmountInput from '@/components/base/AmountInput.vue';
-import FormField from '@/components/base/FormField.vue';
-import Switch from '@/components/base/Switch.vue';
-import GridPicker from '@/components/data/GridPicker.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import { TONE_TEXT } from '@/components/data/tone';
-import { Button } from '@/components/ui/button';
+import FieldRow from '@/components/data/FieldRow.vue';
+import FormGroup from '@/components/data/FormGroup.vue';
+import InlineAmount from '@/components/data/InlineAmount.vue';
+import ToneIcon from '@/components/data/ToneIcon.vue';
+import { FIELD_BUTTON, FIELD_INPUT } from '@/components/data/field';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import IosSwitch from '@/components/ios/IosSwitch.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
@@ -16,10 +18,14 @@ import { FREQUENCY_LABEL, useRecurringMutations } from '@/features/recurring/use
 import type { TxType } from '@/features/transactions/api';
 import { usePickerItems } from '@/features/transactions/usePickerItems';
 import { dayKey } from '@/lib/time';
+import ChoiceGrid from './ChoiceGrid.vue';
+import FormDialogHeader from './FormDialogHeader.vue';
 
-// Aturan transaksi berulang. Dicatat oleh database setiap pagi 07.00 WIB
+// Aturan Ulangi & cicilan. Dicatat oleh database setiap pagi 07.00 WIB
 // (pg_cron), tidak bergantung pada app dibuka. "Tanya dulu" = masuk daftar
-// Perlu dikonfirmasi di halaman Transaksi.
+// Perlu dikonfirmasi di halaman Transaksi. Kategori/akun dipilih di lembar
+// bawah dengan grid 4 kolom. `page` = di dalam FormPage (Simpan di bar
+// halaman, form id `${titleId}-form`); selain itu kepala dialog sendiri.
 const props = defineProps<{ rule: RecurringRule | null; titleId: string; page?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -29,6 +35,7 @@ const categories = useCategories();
 const pickerItems = usePickerItems();
 const mutations = useRecurringMutations();
 const toast = useToast();
+const alert = useAlert();
 
 const r = props.rule;
 const today = dayKey(new Date());
@@ -103,6 +110,10 @@ watch(
 
 type Picker = 'category' | 'account' | 'to';
 const picker = ref<Picker | null>(null);
+const pickerOpen = computed({
+  get: () => picker.value !== null,
+  set: (v) => !v && (picker.value = null),
+});
 const PICKER_TITLE: Record<Picker, string> = {
   category: 'Kategori',
   account: 'Akun',
@@ -113,6 +124,13 @@ const items = computed(() => {
     return form.type === 'transfer' ? [] : pickerItems.categoryItems(form.type);
   return pickerItems.accountItems(picker.value === 'to' ? form.accountId : null);
 });
+const pickerValue = computed(() =>
+  picker.value === 'category'
+    ? form.categoryId
+    : picker.value === 'to'
+      ? form.toAccountId
+      : form.accountId,
+);
 function choose(id: string) {
   if (picker.value === 'category') form.categoryId = id;
   else if (picker.value === 'account') {
@@ -181,52 +199,53 @@ function save() {
   emit('close');
 }
 
-// Hapus: transaksi yang sudah tercatat tetap ada. Dua kali tap supaya tidak
-// tidak sengaja (membuat ulang aturan bisa mencatat ulang tanggal lama).
-const confirmDelete = ref(false);
-function remove() {
+// Hapus: transaksi yang sudah tercatat tetap ada. Tidak bisa diurungkan
+// (membuat ulang aturan bisa mencatat ulang tanggal lama), jadi lewat dialog.
+async function remove() {
   if (!r) return;
-  if (!confirmDelete.value) {
-    confirmDelete.value = true;
-    return;
-  }
+  const ok = await alert.confirm({
+    title: `Hapus ${r.name}?`,
+    body: 'Aturan berhenti mencatat. Transaksi yang sudah tercatat tetap ada. Ini tidak bisa diurungkan.',
+    okLabel: 'Hapus',
+    danger: true,
+  });
+  if (!ok) return;
   mutations.remove.mutate(r.id, { onSuccess: () => toast.show(`${r.name} dihapus`) });
   emit('close');
 }
+
+const DATE_INPUT = `${FIELD_INPUT} appearance-none [&::-webkit-date-and-time-value]:text-right`;
+const NUM_INPUT = `${FIELD_INPUT} max-w-[80px]`;
 </script>
 
 <template>
-  <form class="flex flex-col gap-3.5" novalidate @submit.prevent="save">
-    <div v-if="!page" class="flex items-center gap-2">
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ rule ? 'Ubah transaksi berulang' : 'Transaksi berulang baru' }}
-      </h2>
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        type="button"
-        @click="emit('close')"
+  <form
+    :id="`${titleId}-form`"
+    class="flex flex-col gap-3.5 pb-4"
+    novalidate
+    @submit.prevent="save"
+  >
+    <FormDialogHeader
+      v-if="!page"
+      :title="rule ? 'Ubah ulangi' : 'Ulangi baru'"
+      :title-id="titleId"
+      @close="emit('close')"
+    />
+
+    <Segmented v-model="form.type" :options="TYPES" label="Jenis transaksi" class="mt-1" />
+
+    <FormGroup v-if="!rule && form.type === 'expense'" :page="page">
+      <GroupRow
+        title="Cicilan"
+        subtitle="Total dibagi rata per bulan, berhenti sendiri setelah cicilan terakhir"
       >
-        <X />
-      </Button>
-    </div>
-
-    <SegmentedControl v-model="form.type" :options="TYPES" label="Jenis transaksi" />
-
-    <template v-if="!rule && form.type === 'expense'">
-      <Switch
-        id="rr-installment"
-        v-model="installment.on"
-        label="Cicilan"
-        description="Total dibagi rata per bulan dan berhenti sendiri setelah cicilan terakhir."
-      />
-      <div v-if="installment.on" class="grid grid-cols-2 gap-3">
-        <FormField label="Total cicilan" for="rr-total" :error="errors.installment">
-          <AmountInput id="rr-total" v-model="installment.total" />
-        </FormField>
-        <FormField label="Berapa bulan" for="rr-months">
+        <template #end><IosSwitch v-model="installment.on" label="Cicilan" /></template>
+      </GroupRow>
+      <template v-if="installment.on">
+        <FieldRow label="Total" for="rr-total" :error="errors.installment">
+          <InlineAmount id="rr-total" v-model="installment.total" />
+        </FieldRow>
+        <FieldRow label="Berapa bulan" for="rr-months" :label-width="120">
           <input
             id="rr-months"
             v-model.number="installment.months"
@@ -234,214 +253,168 @@ function remove() {
             inputmode="numeric"
             min="2"
             max="60"
-            class="field-input"
+            :class="NUM_INPUT"
           />
-        </FormField>
-        <p v-if="plan" class="col-span-2 m-0 -mt-1.5 text-xs text-muted-foreground">
-          {{ installment.months }} × {{ plan.amount.toLocaleString('id-ID') }}, terakhir
-          {{ plan.endOn.split('-').reverse().join('/') }}.<template v-if="plan.rounding">
-            Total tercatat {{ (plan.amount * installment.months).toLocaleString('id-ID') }} (selisih
-            pembulatan {{ Math.abs(plan.rounding).toLocaleString('id-ID') }}).</template
-          >
-        </p>
-      </div>
-    </template>
+        </FieldRow>
+      </template>
+      <template v-if="plan" #foot>
+        {{ installment.months }} × {{ plan.amount.toLocaleString('id-ID') }}, terakhir
+        {{ plan.endOn.split('-').reverse().join('/') }}.<template v-if="plan.rounding">
+          Total tercatat {{ (plan.amount * installment.months).toLocaleString('id-ID') }} (selisih
+          pembulatan {{ Math.abs(plan.rounding).toLocaleString('id-ID') }}).</template
+        >
+      </template>
+    </FormGroup>
 
-    <div class="grid gap-3 sm:grid-cols-2">
-      <FormField label="Nama" for="rr-name" :error="errors.name">
+    <FormGroup :page="page">
+      <FieldRow label="Nama" for="rr-name" :error="errors.name">
         <input
           id="rr-name"
           v-model="form.name"
           type="text"
           maxlength="60"
-          class="field-input"
+          :class="FIELD_INPUT"
           autocomplete="off"
           placeholder="mis. Kos, Spotify"
           :aria-invalid="!!errors.name || undefined"
         />
-      </FormField>
-      <FormField label="Nominal" for="rr-amount" :error="errors.amount">
-        <AmountInput id="rr-amount" v-model="form.amount" :invalid="!!errors.amount" />
-      </FormField>
-    </div>
-
-    <div class="grid gap-3 sm:grid-cols-2">
-      <FormField v-if="form.type !== 'transfer'" label="Kategori" for="rr-category">
+      </FieldRow>
+      <FieldRow label="Nominal" for="rr-amount" :error="errors.amount">
+        <InlineAmount id="rr-amount" v-model="form.amount" :invalid="!!errors.amount" />
+      </FieldRow>
+      <FieldRow v-if="form.type !== 'transfer'" label="Kategori" for="rr-category">
         <button
           id="rr-category"
           type="button"
-          class="field-input flex items-center gap-2 text-left"
-          @click="picker = picker === 'category' ? null : 'category'"
+          :class="[FIELD_BUTTON, !form.categoryId && 'text-muted-foreground']"
+          @click="picker = 'category'"
         >
-          <component
-            :is="categoryStyle.icon"
+          <ToneIcon
             v-if="categoryStyle"
-            :class="['size-4 shrink-0', TONE_TEXT[categoryStyle.tone]]"
-            aria-hidden="true"
+            :icon="categoryStyle.icon"
+            :tone="categoryStyle.tone"
+            size="xs"
           />
-          <span :class="['truncate', !form.categoryId && 'text-faint']">
-            {{ form.categoryId ? categories.label(form.categoryId, true) : 'Tanpa kategori' }}
-          </span>
+          <span class="truncate">{{
+            form.categoryId ? categories.label(form.categoryId, true) : 'Tanpa kategori'
+          }}</span>
         </button>
-      </FormField>
-      <FormField
-        :label="form.type === 'transfer' ? 'Dari akun' : 'Akun'"
+      </FieldRow>
+      <FieldRow
+        :label="form.type === 'transfer' ? 'Dari' : 'Akun'"
         for="rr-account"
         :error="errors.accountId"
       >
         <button
           id="rr-account"
           type="button"
-          class="field-input flex items-center text-left"
-          @click="picker = picker === 'account' ? null : 'account'"
+          :class="[FIELD_BUTTON, !form.accountId && 'text-muted-foreground']"
+          @click="picker = 'account'"
         >
-          <span :class="['truncate', !form.accountId && 'text-faint']">{{
-            accountName(form.accountId) || 'Pilih akun'
-          }}</span>
+          <span class="truncate">{{ accountName(form.accountId) || 'Pilih akun' }}</span>
         </button>
-      </FormField>
-      <FormField
-        v-if="form.type === 'transfer'"
-        label="Ke akun"
-        for="rr-to"
-        :error="errors.toAccountId"
-      >
-        <button
-          id="rr-to"
-          type="button"
-          class="field-input flex items-center text-left"
-          @click="picker = picker === 'to' ? null : 'to'"
-        >
-          <span :class="['truncate', !form.toAccountId && 'text-faint']">{{
-            accountName(form.toAccountId) || 'Pilih akun tujuan'
-          }}</span>
-        </button>
-      </FormField>
-    </div>
+      </FieldRow>
+      <template v-if="form.type === 'transfer'">
+        <FieldRow label="Ke" for="rr-to" :error="errors.toAccountId">
+          <button
+            id="rr-to"
+            type="button"
+            :class="[FIELD_BUTTON, !form.toAccountId && 'text-muted-foreground']"
+            @click="picker = 'to'"
+          >
+            <span class="truncate">{{ accountName(form.toAccountId) || 'Pilih akun tujuan' }}</span>
+          </button>
+        </FieldRow>
+        <FieldRow label="Biaya admin" for="rr-fee" :label-width="112">
+          <InlineAmount id="rr-fee" v-model="form.fee" />
+        </FieldRow>
+      </template>
+    </FormGroup>
 
-    <section
-      v-if="picker"
-      class="overflow-hidden rounded-xl border"
-      :aria-label="PICKER_TITLE[picker]"
-    >
-      <div class="flex items-center gap-2 border-b bg-surface-2 py-1 pl-3.5 pr-1">
-        <b class="flex-1 text-label">{{ PICKER_TITLE[picker] }}</b>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          class="press-icon"
-          aria-label="Tutup pilihan"
-          @click="picker = null"
-        >
-          <X />
-        </Button>
-      </div>
-      <div class="max-h-[46dvh] overflow-y-auto overscroll-contain">
-        <GridPicker
+    <FormGroup label="Jadwal" :page="page" :foot="`${summary}.`">
+      <GroupRow>
+        <Segmented v-model="form.frequency" :options="FREQUENCIES" label="Frekuensi" />
+      </GroupRow>
+      <FieldRow
+        :label="`Setiap (${FREQUENCY_LABEL[form.frequency].unit})`"
+        for="rr-interval"
+        :error="errors.interval"
+        :label-width="150"
+      >
+        <input
+          id="rr-interval"
+          v-model.number="form.interval"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          max="365"
+          :class="NUM_INPUT"
+        />
+      </FieldRow>
+      <FieldRow
+        v-if="form.frequency === 'monthly'"
+        label="Tanggal"
+        for="rr-day"
+        :error="errors.dayOfMonth"
+      >
+        <input
+          id="rr-day"
+          v-model.number="form.dayOfMonth"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          max="31"
+          :class="NUM_INPUT"
+        />
+      </FieldRow>
+      <FieldRow label="Mulai" for="rr-start" :error="errors.startOn">
+        <input id="rr-start" v-model="form.startOn" type="date" :class="DATE_INPUT" />
+      </FieldRow>
+      <FieldRow label="Sampai" for="rr-end" :error="errors.endOn">
+        <input
+          id="rr-end"
+          v-model="form.endOn"
+          type="date"
+          :min="form.startOn"
+          :class="[DATE_INPUT, !form.endOn && 'text-ter']"
+        />
+      </FieldRow>
+    </FormGroup>
+
+    <FormGroup :page="page">
+      <GroupRow title="Catat otomatis" subtitle="Matikan untuk ditanya dulu di halaman Transaksi">
+        <template #end><IosSwitch v-model="form.autoPost" label="Catat otomatis" /></template>
+      </GroupRow>
+      <GroupRow v-if="rule" title="Aktif" subtitle="Matikan untuk berhenti sementara">
+        <template #end><IosSwitch v-model="form.active" label="Aktif" /></template>
+      </GroupRow>
+      <FieldRow label="Catatan" for="rr-note">
+        <input
+          id="rr-note"
+          v-model="form.note"
+          type="text"
+          maxlength="120"
+          :class="FIELD_INPUT"
+          autocomplete="off"
+          placeholder="Kosong = pakai nama"
+        />
+      </FieldRow>
+    </FormGroup>
+
+    <IosButton v-if="rule" variant="red" block class="mt-2" @click="remove">Hapus aturan</IosButton>
+
+    <IosSheet v-model:open="pickerOpen" :title="picker ? PICKER_TITLE[picker] : ''">
+      <div class="overflow-hidden rounded-[14px] bg-[var(--kb-bg)]">
+        <ChoiceGrid
+          v-if="picker"
           :key="picker + form.type"
           :items="items"
-          :model-value="
-            picker === 'category'
-              ? form.categoryId
-              : picker === 'to'
-                ? form.toAccountId
-                : form.accountId
-          "
+          :model-value="pickerValue"
           :label="PICKER_TITLE[picker]"
+          class="pb-1.5!"
           @select="choose"
         />
       </div>
-    </section>
-
-    <FormField v-if="form.type === 'transfer'" label="Biaya admin" for="rr-fee">
-      <AmountInput id="rr-fee" v-model="form.fee" />
-    </FormField>
-
-    <fieldset class="m-0 flex flex-col gap-3 rounded-xl border p-3">
-      <legend class="px-1 text-label font-semibold">Jadwal</legend>
-      <SegmentedControl v-model="form.frequency" :options="FREQUENCIES" label="Frekuensi" />
-      <div class="grid grid-cols-2 gap-3">
-        <FormField
-          :label="`Setiap berapa ${FREQUENCY_LABEL[form.frequency].unit}`"
-          for="rr-interval"
-          :error="errors.interval"
-        >
-          <input
-            id="rr-interval"
-            v-model.number="form.interval"
-            type="number"
-            inputmode="numeric"
-            min="1"
-            max="365"
-            class="field-input"
-          />
-        </FormField>
-        <FormField
-          v-if="form.frequency === 'monthly'"
-          label="Tanggal"
-          for="rr-day"
-          :error="errors.dayOfMonth"
-        >
-          <input
-            id="rr-day"
-            v-model.number="form.dayOfMonth"
-            type="number"
-            inputmode="numeric"
-            min="1"
-            max="31"
-            class="field-input"
-          />
-        </FormField>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <FormField label="Mulai" for="rr-start" :error="errors.startOn">
-          <input id="rr-start" v-model="form.startOn" type="date" class="field-input" />
-        </FormField>
-        <FormField label="Sampai (opsional)" for="rr-end" :error="errors.endOn">
-          <input
-            id="rr-end"
-            v-model="form.endOn"
-            type="date"
-            :min="form.startOn"
-            class="field-input"
-          />
-        </FormField>
-      </div>
-      <p class="m-0 text-meta text-muted-foreground">{{ summary }}.</p>
-    </fieldset>
-
-    <Switch
-      id="rr-auto"
-      v-model="form.autoPost"
-      label="Catat otomatis"
-      description="Matikan untuk ditanya dulu di halaman Transaksi (cocok kalau nominalnya bisa berubah)."
-    />
-    <Switch
-      v-if="rule"
-      id="rr-active"
-      v-model="form.active"
-      label="Aktif"
-      description="Matikan untuk berhenti sementara."
-    />
-
-    <FormField label="Catatan" for="rr-note" hint="Kosong = pakai nama.">
-      <input
-        id="rr-note"
-        v-model="form.note"
-        type="text"
-        maxlength="120"
-        class="field-input"
-        autocomplete="off"
-      />
-    </FormField>
-
-    <div :class="['flex flex-wrap items-center gap-2 pt-1', page && 'form-page-actions']">
-      <Button v-if="rule" type="button" variant="ghost-danger" size="touch" @click="remove">
-        <Trash2 />{{ confirmDelete ? 'Yakin hapus?' : 'Hapus' }}
-      </Button>
-      <span class="flex-1" />
-      <Button type="submit" size="touch">{{ rule ? 'Simpan perubahan' : 'Tambah' }}</Button>
-    </div>
+    </IosSheet>
   </form>
 </template>

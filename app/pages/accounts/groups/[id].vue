@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { FolderOpen } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
 import AccountGroupForm from '@/components/money/AccountGroupForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 
 // Ubah grup akun sebagai halaman penuh di HP (iPad/desktop: dialog)
@@ -21,16 +19,16 @@ const back = () => closePage('/accounts/groups');
 
 <template>
   <FormPage title="Ubah grup" title-id="group-page-title" @back="back">
-    <Skeleton v-if="groups.isPending.value" :rows="3" />
+    <template v-if="group" #action><FormPageSave form="group-page-title-form" /></template>
+    <EmptyCard v-if="groups.isPending.value" title="Memuat grup…" class="!mx-0" />
     <AccountGroupForm
       v-else-if="group"
       :key="group.id"
       :group="group"
       page
-      class="flex-1"
       title-id="group-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="FolderOpen" title="Grup tidak ditemukan" /></Card>
+    <EmptyCard v-else title="Grup tidak ditemukan" class="!mx-0" />
   </FormPage>
 </template>

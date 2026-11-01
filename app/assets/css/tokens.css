@@ -136,29 +136,6 @@
   --scrim: rgba(0, 0, 0, 0.3);
   --nav-dim: rgba(0, 0, 0, 0.1);
 
-  /* Tema lama (opnamix): hanya untuk halaman yang belum digambar ulang, dihapus di R8 */
-  --grad-hero:
-    radial-gradient(90% 170% at 100% 0%, rgba(130, 170, 255, 0.5), transparent 60%),
-    linear-gradient(118deg, #0a2466 0%, #1543c2 58%, #3b6cf2 100%);
-  --grad-side: linear-gradient(185deg, #0a2160 0%, #123a9e 58%, #2556d6 100%);
-  --grad-stripe: rgba(255, 255, 255, 0.035);
-  --grad-ink: #123a9e;
-  --glass: rgba(255, 255, 255, 0.11);
-  --glass-2: rgba(255, 255, 255, 0.2);
-  --glass-line: rgba(255, 255, 255, 0.16);
-  --glass-shade: rgba(0, 0, 0, 0.18);
-  --on-grad: #ffffff;
-  --on-grad-2: rgba(255, 255, 255, 0.76);
-  --on-grad-3: rgba(255, 255, 255, 0.5);
-  --dot-ok: #4ade80;
-  --dot-warn: #fbbf24;
-  --dot-bad: #fb7185;
-  --lg-fill: rgba(255, 255, 255, 0.55);
-  --lg-rim-hi: rgba(255, 255, 255, 0.95);
-  --lg-rim-lo: rgba(255, 255, 255, 0.3);
-  --lg-shadow: 0 12px 32px -10px rgba(10, 20, 50, 0.28), 0 2px 6px -2px rgba(10, 20, 50, 0.12);
-  --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
-
   color-scheme: light;
 }
 
@@ -266,16 +243,6 @@
   --scrim: rgba(0, 0, 0, 0.5);
   --nav-dim: rgba(0, 0, 0, 0.35);
 
-  --grad-hero:
-    radial-gradient(90% 170% at 100% 0%, rgba(90, 130, 255, 0.3), transparent 60%),
-    linear-gradient(118deg, #0b1430 0%, #142a66 60%, #2445a8 100%);
-  --grad-side: linear-gradient(185deg, #0a0f1f 0%, #0f1c42 60%, #172e6c 100%);
-  --lg-fill: rgba(30, 35, 46, 0.55);
-  --lg-rim-hi: rgba(255, 255, 255, 0.35);
-  --lg-rim-lo: rgba(255, 255, 255, 0.05);
-  --lg-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.7), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
-  --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.18), inset 0 -1px 1px rgba(255, 255, 255, 0.05);
-
   color-scheme: dark;
 }
 
@@ -326,21 +293,7 @@
   --color-r4: var(--r4);
   --color-r5: var(--r5);
   --color-r6: var(--r6);
-  --color-glass: var(--glass);
-  --color-glass-2: var(--glass-2);
-  --color-glass-line: var(--glass-line);
-  --color-glass-shade: var(--glass-shade);
-  --color-on-grad: var(--on-grad);
-  --color-on-grad-2: var(--on-grad-2);
-  --color-on-grad-3: var(--on-grad-3);
-  --color-grad-ink: var(--grad-ink);
-  --color-dot-ok: var(--dot-ok);
-  --color-dot-warn: var(--dot-warn);
-  --color-dot-bad: var(--dot-bad);
   --color-scrim: var(--scrim);
-
-  --background-image-grad-hero: var(--grad-hero);
-  --background-image-grad-side: var(--grad-side);
 
   --shadow-card: var(--shadow-card);
   --shadow-float: var(--shadow-float);

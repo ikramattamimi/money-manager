@@ -1,32 +1,26 @@
 <script setup lang="ts">
 import {
-  ArrowLeft,
   ArrowLeftRight,
-  Camera,
   CircleAlert,
   CircleCheck,
   CircleHelp,
-  FileText,
-  History,
-  ImagePlus,
-  RefreshCw,
+  FileDown,
+  Plus,
   Sparkles,
   Tag,
-  Upload,
   X,
 } from '@lucide/vue';
 import type { BankCommitResult, ReconciledRow, ReconcileStatus } from '#shared/types/bank';
-import Card from '@/components/base/Card.vue';
-import CardHead from '@/components/base/CardHead.vue';
-import Overlay from '@/components/base/Overlay.vue';
-import GridPicker from '@/components/data/GridPicker.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import BankRow from './BankRow.vue';
-import { Button } from '@/components/ui/button';
+import Chip from '@/components/ios/Chip.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import SectionHeader from '@/components/ios/SectionHeader.vue';
+import Segmented from '@/components/ios/Segmented.vue';
+import ChoiceGrid from './ChoiceGrid.vue';
+import GlassBar from '@/components/data/GlassBar.vue';
+import ImportRow from './ImportRow.vue';
+import ImportStage from './ImportStage.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
@@ -42,11 +36,12 @@ import { formatRupiah } from '@/lib/format';
 import { compressImage } from '@/lib/imageCompression';
 import { MONTHS_SHORT } from '@/lib/time';
 
-// Impor mutasi: pilih akun → unggah PDF mutasi bank, atau foto struk/screenshot
-// riwayat (dibaca Claude di server, fase 11) → cocokkan → simpan yang baru.
-// File hanya dibaca di server selama permintaan; tidak disimpan.
-// Foto baru dikirim setelah user menekan "Baca dengan AI" (tindakan eksplisit).
-// `embedded`: dipasang di tab form Tambah transaksi (tanpa kepala halaman).
+// Impor mutasi (mockup import-bank*/import-photo*): sumber Bank/Foto, chip
+// akun, area pilih PDF atau deret foto → membaca → pratinjau dengan tab
+// Baru/Transfer/Ragu/Tercatat (ketuk baris = lembar kategori, geser kiri =
+// lewati) → bar Simpan → progres → selesai. File hanya dibaca di server
+// selama permintaan; foto baru dikirim setelah "Baca dengan AI" ditekan.
+// `embedded`: dipasang di panel catat (iPad/desktop), tanpa bar navigasi.
 const props = defineProps<{ source: 'pdf' | 'photo'; embedded?: boolean }>();
 const emit = defineEmits<{ done: [] }>();
 const isPhoto = computed(() => props.source === 'photo');
@@ -57,6 +52,21 @@ const categories = useCategories();
 const pickerItems = usePickerItems();
 const flow = useBankImport(props.source);
 const toast = useToast();
+
+// Sumber Bank/Foto: dua halaman, segmented mengganti halaman tanpa riwayat baru
+const SOURCES = [
+  { value: 'pdf', label: 'Mutasi bank' },
+  { value: 'photo', label: 'Foto struk' },
+] as const;
+const sourceModel = computed({
+  get: () => props.source,
+  set: (value: 'pdf' | 'photo') => {
+    if (value !== props.source)
+      navigateTo(value === 'photo' ? '/settings/import/photo' : '/settings/import/bank', {
+        replace: true,
+      });
+  },
+});
 
 // ---------- 1. akun & file ----------
 const LAST_ACCOUNT = 'mm-bank-account';
@@ -77,6 +87,7 @@ watch(
 );
 watch(accountId, (id) => {
   if (!id) return;
+  needAccount.value = false;
   try {
     const all = JSON.parse(localStorage.getItem(LAST_ACCOUNT) ?? '{}');
     localStorage.setItem(LAST_ACCOUNT, JSON.stringify({ ...all, [bookId.value ?? '']: id }));
@@ -87,6 +98,8 @@ watch(accountId, (id) => {
 
 const result = ref<BankCommitResult | null>(null);
 const preview = computed(() => flow.preview.data.value ?? null);
+const compressing = ref(false);
+const busy = computed(() => compressing.value || flow.preview.isPending.value);
 const step = computed(() =>
   result.value
     ? 'done'
@@ -94,7 +107,9 @@ const step = computed(() =>
       ? 'saving'
       : preview.value
         ? 'review'
-        : 'pick',
+        : busy.value
+          ? 'reading'
+          : 'pick',
 );
 
 const input = ref<HTMLInputElement>();
@@ -121,16 +136,14 @@ onBeforeUnmount(() => urlOf.forEach((url) => URL.revokeObjectURL(url)));
 function removePhoto(index: number) {
   photos.value = photos.value.filter((_, i) => i !== index);
 }
-const compressing = ref(false);
-const busy = computed(() => compressing.value || flow.preview.isPending.value);
 
 // Tombol tetap bisa diketuk tanpa akun: tunjukkan apa yang kurang, jangan diam saja
 const needAccount = ref(false);
-const accountGrid = ref<HTMLElement>();
+const accountChips = ref<HTMLElement>();
 function withAccount(run: () => void) {
   if (accountId.value) return run();
   needAccount.value = true;
-  accountGrid.value?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  accountChips.value?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 function choose(event: Event) {
@@ -194,6 +207,10 @@ const TAB_LABEL: Record<ReconcileStatus, string> = {
   tercatat: 'Tercatat',
 };
 const tab = ref<ReconcileStatus>('baru');
+watch(tab, () => {
+  selecting.value = false;
+  selected.value = new Set();
+});
 const byStatus = computed(() => {
   const map = new Map<ReconcileStatus, ReconciledRow[]>(TAB_ORDER.map((s) => [s, []]));
   for (const r of preview.value?.rows ?? []) map.get(r.status)!.push(r);
@@ -279,7 +296,7 @@ function toggleInclude(r: ReconciledRow) {
   c.include = !c.include;
 }
 
-// ---------- sheet pilihan kategori / akun ----------
+// ---------- lembar pilihan kategori / akun ----------
 const pickerOpen = ref(false);
 const pickerRows = ref<ReconciledRow[]>([]);
 const pickerMode = ref<'category' | 'account'>('category');
@@ -287,8 +304,15 @@ const pickerDirection = computed(() => pickerRows.value[0]?.direction ?? 'out');
 const pickerTitle = computed(() =>
   pickerRows.value.length > 1
     ? `${pickerMode.value === 'category' ? 'Kategori' : 'Akun lawan'} untuk ${pickerRows.value.length} baris`
-    : (pickerRows.value[0]?.note ?? ''),
+    : pickerRows.value[0]?.note || pickerRows.value[0]?.counterparty || 'Kategori',
 );
+const pickerModes = computed(() => [
+  {
+    value: 'category' as const,
+    label: pickerDirection.value === 'in' ? 'Pemasukan' : 'Pengeluaran',
+  },
+  { value: 'account' as const, label: 'Transfer' },
+]);
 
 function openPicker(rows: ReconciledRow[], mode?: 'category' | 'account') {
   if (!rows.length) return;
@@ -410,17 +434,20 @@ function finish() {
 </script>
 
 <template>
-  <div :class="!embedded && 'mx-auto md:max-w-[720px]'">
-    <PageHeader v-if="!embedded" :title="isPhoto ? 'Baca foto struk' : 'Impor mutasi bank'">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-        <HeaderButton @click="navigateTo('/settings/import/history')">
-          <History aria-hidden="true" />Riwayat
-        </HeaderButton>
-      </template>
-    </PageHeader>
+  <div
+    :class="
+      !embedded &&
+      '-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:rounded-2xl'
+    "
+  >
+    <NavBar
+      v-if="!embedded"
+      :title="isPhoto ? 'Foto struk' : 'Mutasi bank'"
+      back="Impor"
+      back-to="/settings/import"
+      line
+      class="sticky top-0 md:static md:rounded-t-2xl"
+    />
 
     <input
       ref="input"
@@ -435,356 +462,387 @@ function finish() {
 
     <!-- ---------- 1. akun & file ---------- -->
     <template v-if="step === 'pick'">
-      <Card :class="['flex flex-col gap-3 px-3.5 py-4', !embedded && 'mt-3.5']">
-        <div class="flex items-start gap-3">
-          <ToneIcon :icon="isPhoto ? Camera : FileText" tone="primary" size="sm" />
-          <p v-if="isPhoto" class="m-0 text-meta text-muted-foreground">
-            Foto struk belanja atau screenshot riwayat GoPay, ShopeePay, dan dompet digital lain
-            yang tidak punya ekspor. Bisa beberapa foto sekaligus (maksimal {{ MAX_PHOTOS }}). Foto
-            dibaca AI hanya setelah kamu menekan Baca dengan AI, tidak disimpan, dan hasilnya tetap
-            kamu periksa sebelum disimpan.
-          </p>
-          <p v-else class="m-0 text-meta text-muted-foreground">
-            Unduh mutasi PDF dari aplikasi bank (rekening koran SeaBank atau riwayat Kantong Jago),
-            lalu pilih di sini. Yang sudah tercatat dikenali, yang belum tinggal disimpan. Kata
-            sandi internet banking tidak pernah diminta.
-          </p>
-        </div>
-      </Card>
+      <div v-if="!embedded" class="px-4 pt-3">
+        <Segmented v-model="sourceModel" :options="SOURCES" label="Sumber" />
+      </div>
 
-      <ListGroup
-        :label="isPhoto ? 'Transaksi di foto ini dari akun' : 'Mutasi ini untuk akun'"
-        :aside="accounts.name(accountId) || 'belum dipilih'"
-        :aside-class="needAccount && !accountId ? 'text-bad font-semibold' : ''"
+      <SectionHeader
+        :label="isPhoto ? 'Transaksi di foto dari akun' : 'Mutasi ini untuk akun'"
+        :class="embedded && 'px-1!'"
       >
+        <template #aside>
+          <span
+            :class="['shrink-0 normal-case', needAccount && !accountId && 'font-semibold text-exp']"
+            >{{ accounts.name(accountId) || 'belum dipilih' }}</span
+          >
+        </template>
+      </SectionHeader>
+      <div
+        ref="accountChips"
+        :class="['flex flex-wrap gap-2', embedded ? 'px-0' : 'px-4']"
+        role="group"
+        aria-label="Akun mutasi"
+      >
+        <Chip
+          v-for="a in accounts.active.value"
+          :key="a.id"
+          size="lg"
+          :on="a.id === accountId"
+          @click="accountId = a.id"
+          >{{ a.name }}</Chip
+        >
+      </div>
+      <p
+        v-if="needAccount && !accountId"
+        class="mx-8 mb-0 mt-2 text-meta font-medium text-exp"
+        role="alert"
+      >
+        Pilih dulu akunnya di atas.
+      </p>
+
+      <!-- PDF: area pilih file -->
+      <button
+        v-if="!isPhoto"
+        type="button"
+        :disabled="!canEdit"
+        :class="[
+          'imp-drop flex flex-col items-center gap-2 rounded-[20px] border-[1.5px] border-dashed border-[var(--chevron)] bg-card px-4 py-7 text-center disabled:opacity-50',
+          embedded ? 'mt-4 w-full' : 'mx-4 mt-4 w-[calc(100%-32px)]',
+        ]"
+        @click="withAccount(() => input?.click())"
+      >
+        <span
+          class="mb-1 grid size-16 place-items-center rounded-[18px] bg-primary-soft text-primary-accent [&_svg]:size-7"
+          aria-hidden="true"
+        >
+          <FileDown stroke-width="1.9" />
+        </span>
+        <b class="text-row font-semibold">Pilih PDF mutasi</b>
+        <span class="text-meta text-muted-foreground"
+          >SeaBank dan Jago. File dibaca lalu dibuang, kata sandi bank tidak pernah diminta.</span
+        >
+      </button>
+
+      <!-- Foto: deret foto, belum dikirim sampai Baca dengan AI -->
+      <template v-else>
         <div
-          ref="accountGrid"
           :class="[
-            'overflow-hidden rounded-[10px]',
-            needAccount && !accountId && 'ring-2 ring-bad/60',
+            'flex gap-2.5 overflow-x-auto pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+            embedded ? 'px-0' : 'px-4',
           ]"
         >
-          <GridPicker
-            :items="pickerItems.accountItems()"
-            :model-value="accountId"
-            label="Pilih akun mutasi"
-            @select="(id) => (accountId = id)"
-          />
+          <span
+            v-for="(url, i) in photoUrls"
+            :key="url"
+            class="relative h-[132px] w-24 shrink-0 overflow-hidden rounded-[14px] bg-fill shadow-[inset_0_0_0_0.5px_var(--sep)]"
+          >
+            <img
+              :src="url"
+              :alt="`Foto ${i + 1}: ${photos[i]?.name ?? ''}`"
+              class="size-full object-cover"
+            />
+            <button
+              type="button"
+              class="absolute right-1.5 top-1.5 grid size-[26px] place-items-center rounded-full bg-scrim text-white active:scale-90 [&_svg]:size-3.5"
+              :aria-label="`Hapus foto ${i + 1}`"
+              @click="removePhoto(i)"
+            >
+              <X stroke-width="2.6" aria-hidden="true" />
+            </button>
+          </span>
+          <button
+            v-if="photos.length < MAX_PHOTOS"
+            type="button"
+            :disabled="!canEdit"
+            class="imp-drop flex h-[132px] w-24 shrink-0 flex-col items-center justify-center gap-0.5 rounded-[14px] border-[1.5px] border-dashed border-[var(--chevron)] text-primary-accent disabled:opacity-50"
+            aria-label="Tambah foto"
+            @click="withAccount(() => input?.click())"
+          >
+            <Plus class="size-7" stroke-width="2" aria-hidden="true" />
+            <span class="text-[12px] font-semibold">Foto</span>
+          </button>
         </div>
-      </ListGroup>
+        <p
+          :class="[
+            'mb-0 mt-2 text-meta leading-[1.45] text-muted-foreground',
+            embedded ? 'mx-1' : 'mx-8',
+          ]"
+        >
+          <template v-if="photos.length"
+            ><b class="text-foreground">{{ photos.length }} foto dipilih.</b> Belum dikirim. Periksa
+            dulu fotonya.</template
+          >
+          <template v-else
+            >Struk belanja atau screenshot riwayat GoPay, ShopeePay, dan dompet digital lain.
+            Maksimal {{ MAX_PHOTOS }} foto sekali baca.</template
+          >
+        </p>
+        <div :class="embedded ? 'pt-3' : 'px-4 pt-3'">
+          <IosButton block :disabled="!canEdit || !photos.length" @click="withAccount(readPhoto)">
+            <Sparkles aria-hidden="true" />{{
+              photos.length > 1 ? `Baca ${photos.length} foto dengan AI` : 'Baca dengan AI'
+            }}
+          </IosButton>
+        </div>
+        <p
+          :class="[
+            'mb-0 mt-2 text-meta leading-[1.45] text-muted-foreground',
+            embedded ? 'mx-1' : 'mx-8',
+          ]"
+        >
+          Foto dikirim ke AI hanya setelah kamu menekan tombol ini, dan tidak disimpan.
+        </p>
+      </template>
 
       <p
         v-if="flow.preview.error.value"
-        class="mt-3 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2 text-meta text-bad"
+        :class="[
+          'mt-3 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2 text-meta text-exp',
+          !embedded && 'mx-4',
+        ]"
         role="alert"
       >
         <CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
         {{ flow.preview.error.value.message }}
       </p>
-      <!-- Foto terpilih: pratinjau + tombol baca (gambar belum dikirim ke mana pun) -->
-      <Card v-if="isPhoto && photos.length" class="mt-3.5 flex flex-col gap-2.5 p-2.5">
-        <div class="flex items-baseline justify-between gap-2 px-1">
-          <b class="text-label font-semibold">{{ photos.length }} foto dipilih</b>
-          <small class="text-xs text-muted-foreground">Belum dikirim. Periksa dulu fotonya.</small>
-        </div>
-        <ul class="m-0 grid list-none grid-cols-4 gap-2 p-0 sm:grid-cols-5">
-          <li v-for="(url, i) in photoUrls" :key="url" class="relative">
-            <img
-              :src="url"
-              :alt="`Foto ${i + 1}: ${photos[i]?.name ?? ''}`"
-              class="aspect-square w-full rounded-lg bg-surface-2 object-cover"
-            />
-            <button
-              type="button"
-              class="press-icon absolute -right-1.5 -top-1.5 grid size-7 place-items-center rounded-full border bg-card text-muted-foreground shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5"
-              :aria-label="`Hapus foto ${i + 1}`"
-              :disabled="busy"
-              @click="removePhoto(i)"
-            >
-              <X aria-hidden="true" />
-            </button>
-          </li>
-          <li v-if="photos.length < MAX_PHOTOS">
-            <button
-              type="button"
-              class="press flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-medium text-muted-foreground hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-5"
-              :disabled="busy"
-              @click="input?.click()"
-            >
-              <ImagePlus aria-hidden="true" />Tambah
-            </button>
-          </li>
-        </ul>
-      </Card>
-      <div class="mt-4 flex flex-col items-stretch gap-2">
-        <p
-          v-if="needAccount && !accountId"
-          class="m-0 text-center text-meta font-medium text-bad"
-          role="alert"
-        >
-          Pilih dulu akunnya di atas: ketuk grup, lalu akun.
-        </p>
-        <Button
-          v-if="isPhoto && photos.length"
-          size="touch"
-          :disabled="!canEdit || busy"
-          @click="withAccount(readPhoto)"
-        >
-          <component :is="busy ? RefreshCw : Sparkles" :class="busy && 'animate-spin'" />
-          {{
-            busy
-              ? `Membaca ${photos.length > 1 ? `${photos.length} foto` : 'foto'}…`
-              : photos.length > 1
-                ? `Baca ${photos.length} foto dengan AI`
-                : 'Baca dengan AI'
-          }}
-        </Button>
-        <Button
-          v-else
-          size="touch"
-          :disabled="!canEdit || busy"
-          @click="withAccount(() => input?.click())"
-        >
-          <component
-            :is="busy ? RefreshCw : isPhoto ? Camera : Upload"
-            :class="busy && 'animate-spin'"
-          />
-          {{ busy ? 'Membaca mutasi…' : isPhoto ? 'Pilih atau ambil foto' : 'Pilih file PDF' }}
-        </Button>
-        <p v-if="!canEdit" class="m-0 text-center text-xs text-muted-foreground">
-          Peranmu di buku ini hanya melihat, jadi tidak bisa mengimpor.
-        </p>
-      </div>
+      <p
+        v-if="!canEdit"
+        :class="['mb-0 mt-2 text-meta text-muted-foreground', embedded ? 'mx-1' : 'mx-8']"
+      >
+        Peranmu di buku ini hanya melihat, jadi tidak bisa mengimpor.
+      </p>
+      <div v-if="!embedded" class="h-6" />
     </template>
+
+    <!-- ---------- membaca ---------- -->
+    <ImportStage
+      v-else-if="step === 'reading'"
+      state="reading"
+      :class="embedded && 'mx-0!'"
+      :title="
+        isPhoto
+          ? `Membaca ${photos.length > 1 ? `${photos.length} foto` : 'foto'}`
+          : 'Membaca mutasi'
+      "
+      :text="
+        isPhoto
+          ? 'AI membaca tanggal, nominal, dan catatan…'
+          : 'Mencocokkan dengan catatan yang sudah ada…'
+      "
+    />
 
     <!-- ---------- 2. pencocokan ---------- -->
     <template v-else-if="step === 'review' && preview">
-      <Card class="mt-3.5">
-        <CardHead :title="`${BANK_LABEL[preview.bank]} → ${accounts.name(accountId)}`">
-          <Button variant="ghost" size="default" @click="startOver">{{
-            isPhoto ? 'Ganti foto' : 'Ganti file'
-          }}</Button>
-        </CardHead>
-        <div class="flex flex-col gap-1.5 px-3.5 pb-3.5 text-meta">
-          <p class="m-0 text-muted-foreground">
-            {{ n(preview.rows.length) }} transaksi<template v-if="periodLabel">
-              · {{ periodLabel }}</template
-            >
-          </p>
-          <p class="m-0 tabular-nums">
-            Masuk <b class="text-primary-accent">{{ rp(preview.totals.in) }}</b> · Keluar
-            <b class="text-bad">{{ rp(preview.totals.out) }}</b>
-            <span v-if="totalsMatch" class="ml-1 text-ok">· cocok dengan file</span>
-            <span v-else-if="totalsMatch === false" class="ml-1 text-warn"
-              >· beda dengan total di file, periksa lagi</span
-            >
-          </p>
-          <p v-if="lastBalance != null && appBalance != null" class="m-0 text-muted-foreground">
-            Saldo akhir di file {{ rp(lastBalance) }} · di aplikasi {{ rp(appBalance) }}
-          </p>
-          <p v-if="isPhoto" class="m-0 text-xs text-muted-foreground">
-            Dibaca AI, jadi periksa nominal dan tanggalnya sebelum menyimpan.<template
-              v-if="preview.quotaLeft != null"
-            >
-              Sisa {{ preview.quotaLeft }} foto hari ini.</template
-            >
-          </p>
-          <p
-            v-for="p in unreadPhotos"
-            :key="p.name"
-            class="m-0 flex items-start gap-1.5 text-xs text-warn"
+      <div
+        :class="[
+          'mt-3 flex flex-col gap-[3px] rounded-group bg-card px-4 py-3',
+          !embedded && 'mx-4',
+        ]"
+      >
+        <div class="flex items-start gap-2">
+          <b class="min-w-0 flex-1 text-row font-semibold"
+            >{{ BANK_LABEL[preview.bank] }} → {{ accounts.name(accountId) }}</b
           >
-            <CircleAlert class="mt-px size-3.5 shrink-0" aria-hidden="true" />
-            <span
-              ><b class="font-semibold">{{ p.name }}</b> tidak terbaca: {{ p.error }}</span
-            >
-          </p>
+          <Chip @click="startOver">Ganti</Chip>
         </div>
-      </Card>
+        <span class="text-meta text-muted-foreground"
+          >{{ n(preview.rows.length) }} transaksi<template v-if="periodLabel">
+            · {{ periodLabel }}</template
+          ></span
+        >
+        <span class="text-[14px]">
+          Masuk <b class="text-inc">{{ rp(preview.totals.in) }}</b> · Keluar
+          <b class="text-exp">{{ rp(preview.totals.out) }}</b>
+          <span v-if="totalsMatch" class="text-ok"> · cocok dengan file</span>
+        </span>
+        <span
+          v-if="totalsMatch === false"
+          class="mt-1.5 rounded-[9px] bg-warn-soft px-[9px] py-[7px] text-meta leading-[1.4]"
+          >Total hasil baca beda dengan total di file, periksa lagi.</span
+        >
+        <span
+          v-if="lastBalance != null && appBalance != null && lastBalance !== appBalance"
+          class="mt-1.5 rounded-[9px] bg-warn-soft px-[9px] py-[7px] text-meta leading-[1.4]"
+          >Saldo akhir di file {{ rp(lastBalance) }}, di aplikasi {{ rp(appBalance) }}.</span
+        >
+        <span v-if="isPhoto" class="text-meta text-muted-foreground">
+          Dibaca AI, jadi periksa nominal dan tanggalnya sebelum menyimpan.<template
+            v-if="preview.quotaLeft != null"
+          >
+            Sisa {{ preview.quotaLeft }} foto hari ini.</template
+          >
+        </span>
+        <span
+          v-for="p in unreadPhotos"
+          :key="p.name"
+          class="flex items-start gap-1.5 text-meta text-warn"
+        >
+          <CircleAlert class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          <span
+            ><b class="font-semibold">{{ p.name }}</b> tidak terbaca: {{ p.error }}</span
+          >
+        </span>
+      </div>
 
-      <SegmentedControl
-        v-if="tabs.length > 1"
-        v-model="tab"
-        :options="tabs"
-        label="Status mutasi"
-        class="mt-3.5"
-        @update:model-value="selecting = false"
-      />
-      <div class="mt-2.5 flex items-start gap-2 px-1">
-        <p class="m-0 flex-1 text-xs text-muted-foreground">{{ TAB_HINT[tab] }}</p>
-        <Button
+      <div :class="['pb-1.5 pt-3', !embedded && 'px-4']">
+        <Segmented v-if="tabs.length > 1" v-model="tab" :options="tabs" label="Status mutasi" />
+      </div>
+      <div :class="['flex items-start gap-2', embedded ? 'px-1' : 'pl-5 pr-3']">
+        <p class="m-0 flex-1 text-meta leading-[1.45] text-muted-foreground">
+          {{ TAB_HINT[tab] }}
+        </p>
+        <button
           v-if="tab !== 'tercatat'"
-          :variant="selecting ? 'soft' : 'ghost'"
-          size="sm"
+          type="button"
+          class="-mt-1 shrink-0 px-2 py-1 text-body font-semibold text-primary-accent active:opacity-50"
+          :aria-pressed="selecting"
           @click="toggleSelecting"
         >
           {{ selecting ? 'Selesai' : 'Pilih' }}
-        </Button>
+        </button>
       </div>
 
-      <ListGroup
-        v-for="[day, rows] in days"
-        :key="tab + day"
-        :label="dayLabel(day)"
-        :aside="`${rows.length}`"
-      >
-        <BankRow
-          v-for="r in rows"
-          :key="r.dedupeKey"
-          v-bind="rowView(r)"
-          :title="r.note || r.counterparty"
-          :amount="rp(r.amount)"
-          :direction="r.direction"
-          :included="r.status === 'tercatat' || choice(r).include"
-          :readonly="r.status === 'tercatat'"
-          :selecting="selecting"
-          :selected="selected.has(r.dedupeKey)"
-          @open="tapRow(r)"
-          @toggle="toggleInclude(r)"
+      <section v-for="[day, rows] in days" :key="tab + day">
+        <SectionHeader
+          :label="dayLabel(day)"
+          :aside="`${rows.length}`"
+          :class="embedded && 'px-1!'"
         />
-      </ListGroup>
+        <div :class="['overflow-hidden rounded-group bg-card', !embedded && 'mx-4']">
+          <ImportRow
+            v-for="r in rows"
+            :key="r.dedupeKey"
+            v-bind="rowView(r)"
+            :title="r.note || r.counterparty"
+            :amount="rp(r.amount)"
+            :direction="r.direction"
+            :included="r.status === 'tercatat' || choice(r).include"
+            :readonly="r.status === 'tercatat'"
+            :selecting="selecting"
+            :selected="selected.has(r.dedupeKey)"
+            @open="tapRow(r)"
+            @toggle="toggleInclude(r)"
+          />
+        </div>
+      </section>
 
-      <!-- Bilah simpan menempel di bawah -->
-      <div
-        :class="[
-          'sticky z-10 mt-5 flex flex-wrap items-center gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card',
-          embedded
-            ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] md:bottom-0'
-            : 'bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] md:bottom-4',
-        ]"
-      >
-        <template v-if="selecting">
-          <div class="flex w-full items-center gap-2">
-            <span class="flex-1 text-meta">{{ selected.size }} dipilih</span>
-            <Button variant="ghost" size="sm" @click="toggleAll">
-              {{ allSelected ? 'Batal pilih semua' : 'Pilih semua' }}
-            </Button>
-          </div>
-          <div class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-            <Button :disabled="!selected.size" @click="pickSelected('category')">
-              <Tag />Kategori
-            </Button>
-            <Button variant="secondary" :disabled="!selected.size" @click="pickSelected('account')">
-              <ArrowLeftRight />Jadikan transfer
-            </Button>
-            <Button variant="secondary" :disabled="!selected.size" @click="includeSelected(false)">
-              Lewati
-            </Button>
-            <Button variant="secondary" :disabled="!selected.size" @click="includeSelected(true)">
-              Pakai
-            </Button>
-          </div>
-        </template>
-        <template v-else>
-          <span class="flex-1 text-meta">
-            <template v-if="missingAccount">
-              <span class="text-warn">{{ missingAccount }} transfer belum ada akun lawannya</span>
-            </template>
-            <template v-else-if="included.length">
-              <b class="tabular-nums">{{ n(included.length) }}</b> akan disimpan
-            </template>
-            <template v-else>Tidak ada yang dipilih</template>
-          </span>
-          <Button
-            size="touch"
-            :disabled="!included.length || !!missingAccount || !canEdit"
-            @click="save"
-          >
-            Simpan {{ included.length ? n(included.length) : '' }}
-          </Button>
-        </template>
-      </div>
       <p
         v-if="flow.commit.error.value"
-        class="mt-3 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2 text-meta text-bad"
+        :class="[
+          'mt-3 flex items-start gap-1.5 rounded-xl bg-bad-soft px-3 py-2 text-meta text-exp',
+          !embedded && 'mx-4',
+        ]"
         role="alert"
       >
         <CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
         {{ flow.commit.error.value.message }}
       </p>
+
+      <GlassBar :embedded="embedded" :class="['flex-wrap', embedded && 'mx-0']">
+        <template v-if="selecting">
+          <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+            <b class="text-bar text-foreground">{{ selected.size }}</b> dipilih
+          </span>
+          <button
+            type="button"
+            class="px-2 py-1 text-body font-semibold text-primary-accent active:opacity-50"
+            @click="toggleAll"
+          >
+            {{ allSelected ? 'Batal pilih semua' : 'Pilih semua' }}
+          </button>
+          <div
+            :class="[
+              'flex w-full flex-wrap gap-2',
+              !selected.size && 'pointer-events-none opacity-40',
+            ]"
+            :aria-disabled="!selected.size || undefined"
+          >
+            <Chip size="lg" @click="pickSelected('category')"
+              ><Tag class="size-4" aria-hidden="true" />Kategori</Chip
+            >
+            <Chip size="lg" @click="pickSelected('account')"
+              ><ArrowLeftRight class="size-4" aria-hidden="true" />Transfer</Chip
+            >
+            <Chip size="lg" @click="includeSelected(false)">Lewati</Chip>
+            <Chip size="lg" @click="includeSelected(true)">Pakai</Chip>
+          </div>
+        </template>
+        <template v-else>
+          <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+            <template v-if="missingAccount">
+              <span class="text-warn">{{ missingAccount }} transfer belum ada akun lawannya</span>
+            </template>
+            <template v-else-if="included.length">
+              <b class="text-bar text-foreground">{{ n(included.length) }}</b> akan disimpan
+            </template>
+            <template v-else>Tidak ada yang dipilih</template>
+          </span>
+          <IosButton
+            class="w-[140px]"
+            :disabled="!included.length || !!missingAccount || !canEdit"
+            @click="save"
+            >Simpan</IosButton
+          >
+        </template>
+      </GlassBar>
     </template>
 
     <!-- ---------- 3. menyimpan ---------- -->
-    <Card
+    <ImportStage
       v-else-if="step === 'saving'"
-      class="mt-3.5 flex flex-col items-center gap-3 px-5 py-10 text-center"
-      aria-live="polite"
-    >
-      <RefreshCw class="size-6 animate-spin text-primary-accent" aria-hidden="true" />
-      <b class="text-panel">Menyimpan {{ n(included.length) }} transaksi…</b>
-    </Card>
+      state="saving"
+      :class="embedded && 'mx-0!'"
+      :title="`Menyimpan ${n(included.length)} transaksi`"
+      text="Mencocokkan dengan catatan yang sudah ada…"
+    />
 
     <!-- ---------- 4. hasil ---------- -->
-    <template v-else-if="step === 'done' && result">
-      <Card
-        class="mt-3.5 flex flex-col items-center gap-3 px-5 py-8 text-center"
-        aria-live="polite"
-      >
-        <ToneIcon :icon="CircleCheck" tone="ok" />
-        <b class="text-panel">
-          {{
-            result.inserted
-              ? `${n(result.inserted)} transaksi disimpan`
-              : 'Tidak ada transaksi baru'
-          }}
-        </b>
-        <p class="m-0 text-meta text-muted-foreground">
-          Bisa dibatalkan dari Riwayat impor.<template v-if="result.duplicates">
-            {{ n(result.duplicates) }} sudah pernah diimpor, dilewati.</template
-          >
-        </p>
-      </Card>
-      <div class="mt-3.5 flex flex-wrap justify-center gap-2">
-        <Button variant="secondary" size="touch" @click="finish">Lihat transaksi</Button>
-        <Button variant="ghost" size="touch" @click="startOver">{{
-          isPhoto ? 'Baca foto lain' : 'Impor mutasi lain'
-        }}</Button>
-      </div>
-    </template>
+    <ImportStage
+      v-else-if="step === 'done' && result"
+      state="done"
+      :class="embedded && 'mx-0!'"
+      :title="
+        result.inserted ? `${n(result.inserted)} transaksi tersimpan` : 'Tidak ada transaksi baru'
+      "
+      :text="`Bisa dibatalkan dari Riwayat impor.${result.duplicates ? ` ${n(result.duplicates)} sudah pernah diimpor, dilewati.` : ''}`"
+    >
+      <IosButton block @click="finish">Lihat transaksi</IosButton>
+      <IosButton block variant="gray" @click="startOver">{{
+        isPhoto ? 'Baca foto lain' : 'Impor lagi'
+      }}</IosButton>
+    </ImportStage>
 
-    <Overlay v-model:open="pickerOpen" labelledby="bank-picker-title">
-      <div class="flex flex-col gap-3">
-        <div class="flex items-center gap-2">
-          <h2 id="bank-picker-title" class="m-0 min-w-0 flex-1 truncate text-panel font-bold">
-            {{ pickerTitle }}
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="press-icon"
-            aria-label="Tutup pilihan"
-            @click="pickerOpen = false"
-          >
-            <X />
-          </Button>
-        </div>
-        <SegmentedControl
-          v-model="pickerMode"
-          :options="[
-            { value: 'category', label: pickerDirection === 'in' ? 'Pemasukan' : 'Pengeluaran' },
-            { value: 'account', label: 'Transfer' },
-          ]"
-          label="Jenis transaksi"
+    <IosSheet v-model:open="pickerOpen" :title="pickerTitle">
+      <Segmented v-model="pickerMode" :options="pickerModes" label="Jenis transaksi" />
+      <div class="mt-3 overflow-hidden rounded-[14px] bg-[var(--kb-bg)]">
+        <ChoiceGrid
+          v-if="pickerMode === 'category'"
+          :key="`cat-${pickerDirection}`"
+          :items="pickerCategoryItems"
+          :model-value="pickerValue"
+          label="Pilih kategori"
+          class="pb-1.5!"
+          @select="pick"
         />
-        <div class="max-h-[55dvh] overflow-y-auto overscroll-contain rounded-[10px]" data-no-drag>
-          <GridPicker
-            v-if="pickerMode === 'category'"
-            :key="`cat-${pickerDirection}`"
-            :items="pickerCategoryItems"
-            :model-value="pickerValue"
-            label="Pilih kategori"
-            @select="pick"
-          />
-          <GridPicker
-            v-else
-            key="acc"
-            :items="pickerAccountItems"
-            :model-value="pickerValue"
-            :label="pickerDirection === 'out' ? 'Transfer ke akun' : 'Transfer dari akun'"
-            @select="pick"
-          />
-        </div>
+        <ChoiceGrid
+          v-else
+          key="acc"
+          :items="pickerAccountItems"
+          :model-value="pickerValue"
+          :label="pickerDirection === 'out' ? 'Transfer ke akun' : 'Transfer dari akun'"
+          class="pb-1.5!"
+          @select="pick"
+        />
       </div>
-    </Overlay>
+    </IosSheet>
   </div>
 </template>
+
+<style scoped>
+.imp-drop {
+  transition: transform 160ms var(--ease-out);
+}
+.imp-drop:active {
+  transform: scale(0.98);
+}
+</style>

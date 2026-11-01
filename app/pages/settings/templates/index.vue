@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeft, Plus, Zap } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
+import { Plus } from '@lucide/vue';
 import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
 import TemplateForm from '@/components/money/TemplateForm.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
@@ -18,8 +16,9 @@ import type { Template } from '@/features/templates/api';
 import { useTemplates } from '@/features/templates/useTemplates';
 import { formatRupiah } from '@/lib/format';
 
-// Template (bookmark Realbyte): transaksi yang sering dicatat. Diurutkan dari
-// yang paling sering dipakai; muncul sebagai tombol di Catat cepat.
+// Kelola Bookmark (tabel templates): transaksi yang sering dicatat, urut dari
+// yang paling sering dipakai. Dipakai dari menu tahan tombol + → Dari
+// bookmark, atau bintang di form catat. Ketuk = ubah.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Bookmark · Money Manager' });
 
@@ -32,14 +31,17 @@ const style = (t: Template) =>
   t.type === 'transfer' ? TRANSFER_STYLE : categories.style(t.category_id);
 const subtitle = (t: Template) =>
   [
-    t.amount ? formatRupiah(t.amount) : 'Nominal saat dipakai',
     t.type === 'transfer'
       ? `${accounts.name(t.account_id)} → ${accounts.name(t.to_account_id)}`
-      : accounts.name(t.account_id) || 'Akun terakhir',
+      : [categories.label(t.category_id, true), accounts.name(t.account_id) || 'Akun terakhir']
+          .filter(Boolean)
+          .join(' · '),
     t.use_count ? `${t.use_count}× dipakai` : '',
   ]
     .filter(Boolean)
     .join(' · ');
+const tone = (t: Template) =>
+  t.type === 'income' ? 'inc' : t.type === 'expense' ? 'exp' : undefined;
 
 const { openAsPage } = useFormPage();
 const formOpen = ref(false);
@@ -56,42 +58,46 @@ function openForm(template: Template | null) {
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Bookmark">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-        <HeaderButton v-if="canEdit" @click="openForm(null)">
-          <Plus aria-hidden="true" />Bookmark
-        </HeaderButton>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Bookmark" back="Lainnya" back-to="/more" line class="sticky top-0 md:static">
+      <template v-if="canEdit" #right>
+        <IconButton label="Bookmark baru" accent @click="openForm(null)"><Plus /></IconButton>
       </template>
-    </PageHeader>
+    </NavBar>
 
-    <Card v-if="templates.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="4" /></Card>
-    <Card v-else-if="!templates.data.value?.length" class="mt-3.5">
-      <EmptyState
-        :icon="Zap"
+    <div class="pb-8">
+      <EmptyCard v-if="templates.isPending.value" title="Memuat…" />
+      <EmptyCard
+        v-else-if="!templates.data.value?.length"
         title="Belum ada bookmark"
-        description="Simpan transaksi yang sering dicatat (langganan, parkir, kos) supaya cukup satu tap."
+        description="Simpan transaksi yang sering dicatat (langganan, parkir, kos) supaya cukup satu ketuk. Bisa juga dari bintang di form catat."
       />
-    </Card>
-    <ListGroup
-      v-else
-      label="Paling sering dipakai"
-      :aside="`${templates.data.value.length} bookmark`"
-    >
-      <ListRow
-        v-for="t in templates.data.value"
-        :key="t.id"
-        :as="canEdit ? 'button' : 'div'"
-        :title="t.name"
-        :subtitle="subtitle(t)"
-        @click="openForm(t)"
-      >
-        <template #lead><ToneIcon v-bind="style(t)" /></template>
-      </ListRow>
-    </ListGroup>
+      <template v-else>
+        <GroupedList
+          label="Paling sering dipakai"
+          :aside="`${templates.data.value.length} bookmark`"
+        >
+          <GroupRow
+            v-for="t in templates.data.value"
+            :key="t.id"
+            :title="t.name"
+            :subtitle="subtitle(t)"
+            :value="t.amount ? formatRupiah(t.amount) : 'Isi nominal'"
+            :value-tone="t.amount ? tone(t) : undefined"
+            :chevron="canEdit"
+            v-on="canEdit ? { click: () => openForm(t) } : {}"
+          >
+            <template #icon><ToneIcon v-bind="style(t)" size="sm" /></template>
+          </GroupRow>
+        </GroupedList>
+        <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
+          Pakai lewat tahan tombol + → Dari bookmark. Bookmark tanpa nominal membuka papan angka
+          dulu.
+        </p>
+      </template>
+    </div>
 
     <Overlay v-model:open="formOpen" labelledby="template-form-title">
       <TemplateForm

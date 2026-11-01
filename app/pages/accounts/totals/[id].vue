@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { Sigma } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
 import AccountTotalForm from '@/components/money/AccountTotalForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 
-// Ubah total akun sebagai halaman penuh di HP (iPad/desktop: dialog)
+// Ubah total akun sebagai halaman penuh di HP (mockup total-form; iPad/desktop: dialog)
 definePageMeta({ layout: false });
 useHead({ title: 'Ubah total · Money Manager' });
 
@@ -23,16 +21,16 @@ const back = () => closePage('/accounts/totals');
 
 <template>
   <FormPage title="Ubah total" title-id="total-page-title" @back="back">
-    <Skeleton v-if="accountTotals.isPending.value" :rows="3" />
+    <template v-if="total" #action><FormPageSave form="total-page-title-form" /></template>
+    <EmptyCard v-if="accountTotals.isPending.value" title="Memuat total…" class="!mx-0" />
     <AccountTotalForm
       v-else-if="total"
       :key="total.id"
       :total="total"
       page
-      class="flex-1"
       title-id="total-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Sigma" title="Total tidak ditemukan" /></Card>
+    <EmptyCard v-else title="Total tidak ditemukan" class="!mx-0" />
   </FormPage>
 </template>

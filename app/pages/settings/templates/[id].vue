@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { Zap } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import TemplateForm from '@/components/money/TemplateForm.vue';
 import { useTemplates } from '@/features/templates/useTemplates';
 
-// Ubah template sebagai halaman penuh di HP (iPad/desktop: dialog)
+// Ubah bookmark sebagai halaman penuh di HP (iPad/desktop: dialog)
 definePageMeta({ layout: false });
 useHead({ title: 'Ubah bookmark · Money Manager' });
 
@@ -23,16 +21,15 @@ const back = () => closePage('/settings/templates');
 
 <template>
   <FormPage title="Ubah bookmark" title-id="template-page-title" @back="back">
-    <Skeleton v-if="templates.isPending.value" :rows="4" />
+    <template v-if="template" #action><FormPageSave form="template-page-title-form" /></template>
     <TemplateForm
-      v-else-if="template"
+      v-if="template"
       :key="template.id"
       :template="template"
       page
-      class="flex-1"
       title-id="template-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Zap" title="Bookmark tidak ditemukan" /></Card>
+    <EmptyCard v-else :title="templates.isPending.value ? 'Memuat…' : 'Bookmark tidak ditemukan'" />
   </FormPage>
 </template>

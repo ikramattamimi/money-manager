@@ -1,191 +1,238 @@
 <script setup lang="ts">
+import type { Component } from 'vue';
 import {
-  BookOpen,
-  ChevronRight,
-  Camera,
+  ChartPie,
+  CloudUpload,
   Download,
   History,
-  Landmark,
   LockKeyhole,
   LogOut,
-  Monitor,
-  Moon,
-  Sun,
-  Tag,
+  Palette,
   Repeat,
+  Settings,
+  Shapes,
+  Sigma,
   Smartphone,
+  Star,
   Upload,
   Wallet,
-  Zap,
 } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import SettingRow from '@/components/data/SettingRow.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import type { ThemePreference } from '@/composables/useTheme';
+import Avatar from '@/components/data/Avatar.vue';
+import ToneIcon from '@/components/data/ToneIcon.vue';
+import type { IosTone } from '@/components/data/tone';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import { useAccounts } from '@/features/accounts/useAccounts';
 import { useAuth } from '@/features/auth/useAuth';
 import { useActiveBook } from '@/features/books/useActiveBook';
+import { ROLE_LABEL, useBookMembers } from '@/features/books/useBookAdmin';
 import { useCategories } from '@/features/categories/useCategories';
+import { useImportHistory } from '@/features/import/useImport';
 import { useLock } from '@/features/lock/useLock';
 import { useProfile } from '@/features/profile/useProfile';
-import Avatar from '@/components/data/Avatar.vue';
+import { useRecurringRules } from '@/features/recurring/useRecurring';
+import { useTemplates } from '@/features/templates/useTemplates';
 
+// Lainnya (mockup more): judul besar, baris buku di atas, lalu grup
+// pengaturan dengan ikon solid berwarna seperti Pengaturan iOS. Nilai kanan
+// diambil dari data yang sudah dimuat. Baris yang belum ada fiturnya (Tag,
+// Mata uang, Ikon aplikasi) tidak ditampilkan.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Lainnya · Money Manager' });
 
-const { active: pinActive } = useLock();
-const profile = useProfile();
-
 const auth = useAuth();
-const { book, role } = useActiveBook();
+const profile = useProfile();
+const { book, bookId, role } = useActiveBook();
+const members = useBookMembers(bookId);
+const lock = useLock();
 const categories = useCategories();
+const accounts = useAccounts();
+const rules = useRecurringRules();
+const templates = useTemplates();
+const history = useImportHistory();
+const { preference } = useTheme();
 
-const ROLE_LABEL = { owner: 'Pemilik', editor: 'Editor', viewer: 'Hanya lihat' } as const;
-const categoryCount = computed(
-  () => (categories.data.value ?? []).filter((c) => !c.archived).length,
+const THEME_LABEL = { light: 'Terang', dark: 'Gelap', system: 'Sistem' } as const;
+const count = (n: number | undefined, unit = '') => (n ? `${n}${unit}` : '');
+
+const bookCaption = computed(() =>
+  [
+    role.value ? ROLE_LABEL[role.value] : '',
+    members.data.value ? `${members.data.value.length} anggota` : '',
+    'ganti buku, undang',
+  ]
+    .filter(Boolean)
+    .join(' · '),
 );
 
-const { preference, setTheme } = useTheme();
-const theme = computed({
-  get: () => preference.value,
-  set: (value: ThemePreference) => setTheme(value),
-});
-const THEMES = [
-  { value: 'light', label: 'Terang', icon: Sun },
-  { value: 'system', label: 'Sistem', icon: Monitor },
-  { value: 'dark', label: 'Gelap', icon: Moon },
-] as const;
+interface Row {
+  icon: Component;
+  tone: IosTone;
+  label: string;
+  value?: string;
+  to: string;
+}
+const groups = computed<{ label: string; rows: Row[] }[]>(() => [
+  {
+    label: 'Transaksi',
+    rows: [
+      { icon: Settings, tone: 'gray', label: 'Pengaturan transaksi', to: '/settings/transactions' },
+      {
+        icon: Repeat,
+        tone: 'purple',
+        label: 'Ulangi & cicilan',
+        value: count(rules.data.value?.filter((r) => r.active).length, ' aktif'),
+        to: '/settings/recurring',
+      },
+      {
+        icon: Star,
+        tone: 'orange',
+        label: 'Bookmark',
+        value: count(templates.data.value?.length),
+        to: '/settings/templates',
+      },
+    ],
+  },
+  {
+    label: 'Data',
+    rows: [
+      {
+        icon: Wallet,
+        tone: 'blue',
+        label: 'Akun & grup akun',
+        value: count(accounts.active.value.length, ' akun'),
+        to: '/accounts/groups',
+      },
+      {
+        icon: Sigma,
+        tone: 'indigo',
+        label: 'Total akun',
+        value: count(accounts.totalViews.value.length, ' total'),
+        to: '/accounts/totals',
+      },
+      {
+        icon: Shapes,
+        tone: 'green',
+        label: 'Kategori',
+        value: count((categories.data.value ?? []).filter((c) => !c.archived).length),
+        to: '/settings/categories',
+      },
+      { icon: ChartPie, tone: 'red', label: 'Budget', to: '/stats/budget' },
+    ],
+  },
+  {
+    label: 'Tampilan & keamanan',
+    rows: [
+      {
+        icon: Palette,
+        tone: 'pink',
+        label: 'Gaya & warna',
+        value: THEME_LABEL[preference.value],
+        to: '/settings/appearance',
+      },
+      {
+        icon: LockKeyhole,
+        tone: 'gray',
+        label: 'Kode sandi',
+        value: lock.active.value ? 'PIN' : 'Mati',
+        to: '/settings/lock',
+      },
+    ],
+  },
+  {
+    label: 'Cadangan & impor',
+    rows: [
+      {
+        icon: Download,
+        tone: 'green',
+        label: 'Impor data',
+        value: '3 sumber',
+        to: '/settings/import',
+      },
+      {
+        icon: History,
+        tone: 'orange',
+        label: 'Riwayat impor',
+        value: count(history.data.value?.length, ' impor'),
+        to: '/settings/import/history',
+      },
+      {
+        icon: CloudUpload,
+        tone: 'blue',
+        label: 'Backup & pulihkan',
+        value: 'File',
+        to: '/settings/backup',
+      },
+      { icon: Upload, tone: 'teal', label: 'Ekspor Excel', to: '/settings/export' },
+      { icon: Smartphone, tone: 'blue', label: 'Pintasan iOS', to: '/settings/shortcuts' },
+    ],
+  },
+]);
 
 async function logout() {
   await auth.signOut();
   await navigateTo('/login', { replace: true });
 }
-
-const SECTION =
-  'px-2.5 pb-1.5 pt-3.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground';
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[620px]">
-    <PageHeader title="Lainnya" />
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Lainnya" large class="sticky top-0 bg-background! md:static" />
 
-    <Card class="mt-3.5 p-1">
-      <button
-        type="button"
-        class="press flex w-full items-center gap-3 rounded-[10px] px-2.5 py-2.5 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        @click="navigateTo('/settings/profile')"
-      >
-        <Avatar :name="profile.displayName.value" :url="profile.avatarUrl.value" size="lg" />
-        <span class="flex min-w-0 flex-1 flex-col">
-          <b class="truncate text-label font-semibold">{{ profile.displayName.value }}</b>
-          <small class="truncate text-xs text-muted-foreground"
-            >{{ auth.user.value?.email }} · ubah profil</small
-          >
-        </span>
-        <ChevronRight class="size-4 text-faint" aria-hidden="true" />
-      </button>
-    </Card>
+    <div class="pb-6">
+      <GroupedList class="mt-1">
+        <GroupRow to="/settings/books" chevron class="min-h-[72px]" :inset="80">
+          <template #icon>
+            <span
+              class="grid size-[52px] shrink-0 place-items-center rounded-full bg-primary text-sheet font-bold text-primary-foreground"
+              aria-hidden="true"
+            >
+              {{ (book?.name ?? '?').slice(0, 2).toUpperCase() }}
+            </span>
+          </template>
+          <b class="truncate text-[18px] font-semibold tracking-[-0.01em]">{{
+            book?.name ?? 'Buku'
+          }}</b>
+          <span class="truncate text-meta text-muted-foreground">{{ bookCaption }}</span>
+        </GroupRow>
+      </GroupedList>
 
-    <div :class="SECTION">Buku</div>
-    <Card class="flex flex-col gap-0.5 p-1">
-      <SettingRow
-        :icon="BookOpen"
-        tone="primary"
-        :title="book?.name ?? '…'"
-        :subtitle="`Buku aktif${role ? ` · ${ROLE_LABEL[role]}` : ''} · ganti, undang anggota`"
-        @click="navigateTo('/settings/books')"
-      />
-    </Card>
+      <GroupedList v-for="g in groups" :key="g.label" :label="g.label">
+        <GroupRow
+          v-for="r in g.rows"
+          :key="r.label"
+          :to="r.to"
+          :title="r.label"
+          :value="r.value"
+          chevron
+        >
+          <template #icon><ToneIcon :icon="r.icon" :tone="r.tone" size="sm" solid /></template>
+        </GroupRow>
+      </GroupedList>
 
-    <div :class="SECTION">Input cepat</div>
-    <Card class="flex flex-col gap-0.5 p-1">
-      <SettingRow
-        :icon="Zap"
-        tone="warn"
-        title="Bookmark"
-        subtitle="Transaksi yang sering dicatat, satu tap"
-        @click="navigateTo('/settings/templates')"
-      />
-      <SettingRow
-        :icon="Repeat"
-        tone="ok"
-        title="Transaksi berulang"
-        subtitle="Langganan, kos, cicilan: tercatat otomatis"
-        @click="navigateTo('/settings/recurring')"
-      />
-      <SettingRow
-        :icon="Smartphone"
-        tone="primary"
-        title="Shortcut iPhone"
-        subtitle="Catat dari layar utama, Back Tap, atau Siri"
-        @click="navigateTo('/settings/shortcuts')"
-      />
-    </Card>
+      <GroupedList label="Profil">
+        <GroupRow to="/settings/profile" chevron :inset="64">
+          <template #icon>
+            <Avatar :name="profile.displayName.value" :url="profile.avatarUrl.value" />
+          </template>
+          <b class="truncate text-row font-medium tracking-[-0.01em]">{{
+            profile.displayName.value
+          }}</b>
+          <span class="truncate text-meta text-muted-foreground">{{
+            auth.user.value?.email ?? 'Profil'
+          }}</span>
+        </GroupRow>
+      </GroupedList>
 
-    <div :class="SECTION">Data</div>
-    <Card class="flex flex-col gap-0.5 p-1">
-      <SettingRow
-        :icon="Wallet"
-        title="Akun"
-        subtitle="Saldo, grup, urutan"
-        @click="navigateTo('/accounts')"
-      />
-      <SettingRow
-        :icon="Tag"
-        title="Kategori"
-        :subtitle="categoryCount ? `${categoryCount} kategori aktif` : undefined"
-        @click="navigateTo('/settings/categories')"
-      />
-      <SettingRow
-        :icon="Download"
-        tone="primary"
-        title="Impor dari Realbyte"
-        subtitle="File .xlsx ekspor Money Manager"
-        @click="navigateTo('/settings/import')"
-      />
-      <SettingRow
-        :icon="Landmark"
-        tone="primary"
-        title="Impor mutasi bank"
-        subtitle="PDF SeaBank atau Jago, dicocokkan otomatis"
-        @click="navigateTo('/settings/import/bank')"
-      />
-      <SettingRow
-        :icon="Camera"
-        tone="primary"
-        title="Baca foto struk"
-        subtitle="Struk atau screenshot GoPay, ShopeePay, dibaca AI"
-        @click="navigateTo('/settings/import/photo')"
-      />
-      <SettingRow
-        :icon="History"
-        title="Riwayat impor"
-        subtitle="Lihat atau batalkan impor"
-        @click="navigateTo('/settings/import/history')"
-      />
-      <SettingRow
-        :icon="Upload"
-        title="Ekspor Excel"
-        subtitle="Unduh transaksi sebagai .xlsx"
-        @click="navigateTo('/settings/export')"
-      />
-    </Card>
-
-    <div :class="SECTION">Keamanan</div>
-    <Card class="flex flex-col gap-0.5 p-1">
-      <SettingRow
-        :icon="LockKeyhole"
-        title="Kunci PIN"
-        :subtitle="pinActive ? 'Aktif di perangkat ini' : 'Minta PIN saat app dibuka'"
-        @click="navigateTo('/settings/lock')"
-      />
-    </Card>
-
-    <div :class="SECTION">Tampilan</div>
-    <SegmentedControl v-model="theme" :options="THEMES" label="Tema" />
-
-    <Card class="mt-3.5 p-1">
-      <SettingRow :icon="LogOut" title="Keluar" danger @click="logout" />
-    </Card>
+      <GroupedList class="mt-[18px]">
+        <GroupRow @click="logout">
+          <template #icon><ToneIcon :icon="LogOut" tone="red" size="sm" solid /></template>
+          <b class="text-row font-medium text-exp">Keluar</b>
+        </GroupRow>
+      </GroupedList>
+    </div>
   </div>
 </template>

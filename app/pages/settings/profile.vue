@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ArrowLeft, Camera, Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import FormField from '@/components/base/FormField.vue';
+import { Camera, Eye, EyeOff } from '@lucide/vue';
 import Avatar from '@/components/data/Avatar.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
+import FieldRow from '@/components/data/FieldRow.vue';
+import { FIELD_INPUT } from '@/components/data/field';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
 import { authApi } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/useAuth';
 import { useProfile, useProfileMutations } from '@/features/profile/useProfile';
 
-// Profil: nama tampilan dan foto. Keduanya terlihat oleh anggota buku yang
-// sama (daftar anggota, nama pencatat transaksi).
+// Profil: nama tampilan dan foto (terlihat oleh anggota buku yang sama di
+// daftar anggota dan nama pencatat), plus kata sandi opsional untuk masuk
+// tanpa kode email.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Profil · Money Manager' });
 
@@ -72,14 +74,10 @@ async function savePassword() {
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Profil">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-      </template>
-    </PageHeader>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Profil" back="Lainnya" back-to="/more" line class="sticky top-0 md:static" />
 
     <input
       ref="input"
@@ -91,81 +89,77 @@ async function savePassword() {
       @change="choose"
     />
 
-    <Card class="mt-3.5 flex flex-col items-center gap-3 px-5 py-6 text-center">
-      <button
-        type="button"
-        class="press relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label="Ganti foto profil"
-        :disabled="uploading"
-        @click="input?.click()"
-      >
-        <Avatar :name="profile.displayName.value" :url="profile.avatarUrl.value" size="xl" />
-        <span
-          class="absolute -bottom-0.5 -right-0.5 grid size-8 place-items-center rounded-full border-2 border-card bg-primary text-white"
+    <div class="pb-8">
+      <div class="flex flex-col items-center gap-2 px-5 pb-1 pt-6 text-center">
+        <button
+          type="button"
+          class="press relative rounded-full"
+          aria-label="Ganti foto profil"
+          :disabled="uploading"
+          @click="input?.click()"
         >
-          <component
-            :is="uploading ? RefreshCw : Camera"
-            :class="['size-4', uploading && 'animate-spin']"
+          <Avatar
+            :name="profile.displayName.value"
+            :url="profile.avatarUrl.value"
+            size="xl"
+            :class="uploading ? 'opacity-50' : ''"
           />
-        </span>
-      </button>
-      <div class="flex flex-col">
-        <b class="text-panel">{{ profile.displayName.value }}</b>
-        <small class="text-meta text-muted-foreground">{{ user?.email }}</small>
+          <span
+            class="absolute -bottom-0.5 -right-0.5 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_0_0_3px_var(--background)]"
+          >
+            <Camera class="size-4" aria-hidden="true" />
+          </span>
+        </button>
+        <b class="text-sheet font-bold tracking-[-0.02em]">{{ profile.displayName.value }}</b>
+        <span class="-mt-1.5 text-meta text-muted-foreground">{{ user?.email }}</span>
+        <div class="flex gap-4">
+          <button
+            type="button"
+            class="py-1 text-body text-primary-accent active:opacity-50 disabled:opacity-40"
+            :disabled="uploading"
+            @click="input?.click()"
+          >
+            {{ uploading ? 'Mengunggah…' : profile.avatarUrl.value ? 'Ganti foto' : 'Tambah foto' }}
+          </button>
+          <button
+            v-if="profile.avatarUrl.value"
+            type="button"
+            class="py-1 text-body text-exp active:opacity-50 disabled:opacity-40"
+            :disabled="mutations.remove.isPending.value"
+            @click="removePhoto"
+          >
+            Hapus foto
+          </button>
+        </div>
       </div>
-      <div class="flex flex-wrap justify-center gap-2">
-        <Button variant="secondary" :disabled="uploading" @click="input?.click()">
-          <Camera />{{ profile.avatarUrl.value ? 'Ganti foto' : 'Tambah foto' }}
-        </Button>
-        <Button
-          v-if="profile.avatarUrl.value"
-          variant="ghost-danger"
-          :disabled="mutations.remove.isPending.value"
-          @click="removePhoto"
-        >
-          <Trash2 />Hapus foto
-        </Button>
-      </div>
-    </Card>
 
-    <Card class="mt-3.5 p-3.5">
-      <!-- Label di atas, input dan tombol satu baris, petunjuk di bawah: tombol sejajar input -->
-      <form class="flex flex-col gap-1.5" @submit.prevent="saveName">
-        <label for="profile-name" class="text-label font-semibold">Nama</label>
-        <div class="flex items-center gap-2">
+      <GroupedList label="Nama">
+        <FieldRow label="Nama" for="profile-name" :label-width="64">
           <input
             id="profile-name"
             v-model="name"
             type="text"
             maxlength="60"
-            class="field-input min-w-0 flex-1"
+            enterkeyhint="done"
+            :class="FIELD_INPUT"
             autocomplete="name"
             placeholder="Nama panggilan"
+            @keydown.enter.prevent="saveName"
           />
-          <Button
-            type="submit"
-            size="touch"
-            variant="secondary"
-            :disabled="!nameChanged || mutations.rename.isPending.value"
-            >Simpan</Button
+          <button
+            v-if="nameChanged"
+            type="button"
+            class="shrink-0 text-body font-semibold text-primary-accent active:opacity-50 disabled:opacity-40"
+            :disabled="mutations.rename.isPending.value"
+            @click="saveName"
           >
-        </div>
-        <p class="m-0 text-xs text-muted-foreground">Terlihat oleh anggota buku yang sama.</p>
-      </form>
-    </Card>
+            Simpan
+          </button>
+        </FieldRow>
+      </GroupedList>
+      <p class="mx-8 mt-2 text-meta text-muted-foreground">Terlihat oleh anggota buku yang sama.</p>
 
-    <Card class="mt-3.5 p-3.5">
-      <form class="flex flex-col gap-3" @submit.prevent="savePassword">
-        <div class="flex items-start gap-3">
-          <KeyRound class="mt-0.5 size-5 shrink-0 text-primary-accent" aria-hidden="true" />
-          <div class="flex flex-col gap-0.5">
-            <b class="text-label">Kata sandi</b>
-            <p class="m-0 text-xs text-muted-foreground">
-              Opsional. Dengan kata sandi kamu bisa masuk tanpa menunggu kode email. Kode email
-              tetap bisa dipakai kapan saja, termasuk kalau lupa kata sandi.
-            </p>
-          </div>
-        </div>
+      <form @submit.prevent="savePassword">
         <!-- Kolom email tersembunyi supaya pengelola kata sandi menyimpan pasangan yang benar -->
         <input
           type="email"
@@ -177,45 +171,54 @@ async function savePassword() {
           aria-hidden="true"
           readonly
         />
-        <FormField label="Kata sandi baru" for="profile-password">
-          <div class="relative">
+        <GroupedList label="Kata sandi">
+          <FieldRow label="Baru" for="profile-password" :label-width="72">
             <input
               id="profile-password"
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
               autocomplete="new-password"
               minlength="8"
-              class="field-input pr-11!"
+              placeholder="Minimal 8 karakter"
+              :class="FIELD_INPUT"
             />
             <button
               type="button"
-              class="press absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="-my-1 -mr-1.5 grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground active:opacity-50"
               :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
               @click="showPassword = !showPassword"
             >
-              <component :is="showPassword ? EyeOff : Eye" class="size-4.5" aria-hidden="true" />
+              <component :is="showPassword ? EyeOff : Eye" class="size-[18px]" aria-hidden="true" />
             </button>
-          </div>
-        </FormField>
-        <FormField label="Ulangi kata sandi" for="profile-password-confirm">
-          <input
-            id="profile-password-confirm"
-            v-model="confirmPassword"
-            :type="showPassword ? 'text' : 'password'"
-            autocomplete="new-password"
-            class="field-input"
-          />
-        </FormField>
-        <p v-if="passwordError" class="m-0 text-meta text-bad" role="alert">{{ passwordError }}</p>
-        <Button
-          type="submit"
-          size="touch"
-          variant="secondary"
-          :disabled="savingPassword || !password || !confirmPassword"
-        >
-          {{ savingPassword ? 'Menyimpan…' : 'Simpan kata sandi' }}
-        </Button>
+          </FieldRow>
+          <FieldRow label="Ulangi" for="profile-password-confirm" :label-width="72">
+            <input
+              id="profile-password-confirm"
+              v-model="confirmPassword"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="new-password"
+              :class="FIELD_INPUT"
+            />
+          </FieldRow>
+          <GroupRow v-if="passwordError">
+            <span class="text-meta text-exp" role="alert">{{ passwordError }}</span>
+          </GroupRow>
+        </GroupedList>
+        <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
+          Opsional. Dengan kata sandi kamu bisa masuk tanpa menunggu kode email. Kode email tetap
+          bisa dipakai kapan saja, termasuk kalau lupa kata sandi.
+        </p>
+        <div class="px-4 pt-3">
+          <IosButton
+            type="submit"
+            block
+            variant="soft"
+            :disabled="savingPassword || !password || !confirmPassword"
+          >
+            {{ savingPassword ? 'Menyimpan…' : 'Simpan kata sandi' }}
+          </IosButton>
+        </div>
       </form>
-    </Card>
+    </div>
   </div>
 </template>

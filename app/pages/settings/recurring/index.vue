@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeft, Plus, Repeat } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
+import { Plus } from '@lucide/vue';
 import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
 import RecurringForm from '@/components/money/RecurringForm.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
@@ -19,9 +17,10 @@ import { FREQUENCY_LABEL, useRecurringRules } from '@/features/recurring/useRecu
 import { formatRupiah } from '@/lib/format';
 import { MONTHS_SHORT } from '@/lib/time';
 
-// Transaksi berulang: dicatat database setiap pagi 07.00 WIB, walau app tidak dibuka.
+// Ulangi & cicilan (tabel recurring_rules): dicatat database setiap pagi
+// 07.00 WIB walau app tidak dibuka. Ketuk = ubah aturan.
 definePageMeta({ layout: 'app' });
-useHead({ title: 'Transaksi berulang · Money Manager' });
+useHead({ title: 'Ulangi & cicilan · Money Manager' });
 
 const { canEdit } = useActiveBook();
 const rules = useRecurringRules();
@@ -57,6 +56,8 @@ const subtitle = (r: RecurringRule) =>
   ]
     .filter(Boolean)
     .join(' · ');
+const tone = (r: RecurringRule) =>
+  r.type === 'income' ? 'inc' : r.type === 'expense' ? 'exp' : undefined;
 
 const { openAsPage } = useFormPage();
 const formOpen = ref(false);
@@ -72,64 +73,65 @@ function openForm(rule: RecurringRule | null) {
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Transaksi berulang">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-        <HeaderButton v-if="canEdit" @click="openForm(null)"
-          ><Plus aria-hidden="true" />Aturan</HeaderButton
-        >
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar
+      title="Ulangi & cicilan"
+      back="Lainnya"
+      back-to="/more"
+      line
+      class="sticky top-0 md:static"
+    >
+      <template v-if="canEdit" #right>
+        <IconButton label="Aturan baru" accent @click="openForm(null)"><Plus /></IconButton>
       </template>
-    </PageHeader>
+    </NavBar>
 
-    <p class="mx-2.5 mt-3.5 text-meta text-muted-foreground">
-      Dicatat otomatis setiap pagi pukul 07.00 WIB, walaupun app tidak dibuka. Aturan "tanya dulu"
-      muncul di halaman Transaksi untuk dikonfirmasi.
-    </p>
+    <div class="pb-8">
+      <p class="mx-8 mb-0 mt-3.5 text-meta leading-[1.45] text-muted-foreground">
+        Dicatat otomatis setiap pagi pukul 07.00 WIB, walaupun app tidak dibuka. Aturan "tanya dulu"
+        muncul di halaman Transaksi untuk dikonfirmasi.
+      </p>
 
-    <Card v-if="rules.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="4" /></Card>
-    <Card v-else-if="!rules.data.value?.length" class="mt-3.5">
-      <EmptyState
-        :icon="Repeat"
-        title="Belum ada transaksi berulang"
-        description="Contoh: kos tiap tanggal 1, Spotify tiap bulan, gaji tiap tanggal 25."
+      <EmptyCard v-if="rules.isPending.value" title="Memuat…" />
+      <EmptyCard
+        v-else-if="!rules.data.value?.length"
+        title="Belum ada yang diulang"
+        description="Contoh: kos tiap tanggal 1, Spotify tiap bulan, gaji tiap tanggal 25, cicilan HP 12 bulan."
       />
-    </Card>
 
-    <template v-else>
-      <ListGroup v-if="active.length" label="Aktif" :aside="`${active.length} aturan`">
-        <ListRow
-          v-for="r in active"
-          :key="r.id"
-          :as="canEdit ? 'button' : 'div'"
-          :title="r.name"
-          :subtitle="subtitle(r)"
-          :value="formatRupiah(r.amount)"
-          :value-class="
-            r.type === 'income' ? 'text-primary-accent' : r.type === 'expense' ? 'text-bad' : ''
-          "
-          @click="openForm(r)"
-        >
-          <template #lead><ToneIcon v-bind="style(r)" /></template>
-        </ListRow>
-      </ListGroup>
-      <ListGroup v-if="inactive.length" label="Nonaktif atau selesai">
-        <ListRow
-          v-for="r in inactive"
-          :key="r.id"
-          :as="canEdit ? 'button' : 'div'"
-          :title="r.name"
-          :subtitle="subtitle(r)"
-          :value="formatRupiah(r.amount)"
-          class="opacity-70"
-          @click="openForm(r)"
-        >
-          <template #lead><ToneIcon v-bind="style(r)" /></template>
-        </ListRow>
-      </ListGroup>
-    </template>
+      <template v-else>
+        <GroupedList v-if="active.length" label="Aktif" :aside="`${active.length} aturan`">
+          <GroupRow
+            v-for="r in active"
+            :key="r.id"
+            :title="r.name"
+            :subtitle="subtitle(r)"
+            :value="formatRupiah(r.amount)"
+            :value-tone="tone(r)"
+            :chevron="canEdit"
+            v-on="canEdit ? { click: () => openForm(r) } : {}"
+          >
+            <template #icon><ToneIcon v-bind="style(r)" size="sm" /></template>
+          </GroupRow>
+        </GroupedList>
+        <GroupedList v-if="inactive.length" label="Nonaktif atau selesai">
+          <GroupRow
+            v-for="r in inactive"
+            :key="r.id"
+            :title="r.name"
+            :subtitle="subtitle(r)"
+            :value="formatRupiah(r.amount)"
+            :chevron="canEdit"
+            class="opacity-70"
+            v-on="canEdit ? { click: () => openForm(r) } : {}"
+          >
+            <template #icon><ToneIcon v-bind="style(r)" size="sm" /></template>
+          </GroupRow>
+        </GroupedList>
+      </template>
+    </div>
 
     <Overlay v-model:open="formOpen" labelledby="recurring-form-title">
       <RecurringForm

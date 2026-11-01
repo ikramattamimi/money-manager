@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Wallet } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
 import AccountForm from '@/components/money/AccountForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 
 // Ubah akun sebagai halaman penuh di HP (iPad/desktop: dialog)
@@ -22,16 +20,16 @@ const back = () => closePage(`/accounts/${id.value}`);
 
 <template>
   <FormPage title="Ubah akun" title-id="account-page-title" @back="back">
-    <Skeleton v-if="accounts.isPending.value" :rows="4" />
+    <template v-if="account" #action><FormPageSave form="account-page-title-form" /></template>
+    <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" class="!mx-0" />
     <AccountForm
       v-else-if="account"
       :key="account.id"
       :account="account"
       page
-      class="flex-1"
       title-id="account-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Wallet" title="Akun tidak ditemukan" /></Card>
+    <EmptyCard v-else title="Akun tidak ditemukan" class="!mx-0" />
   </FormPage>
 </template>

@@ -2,9 +2,7 @@
 import {
   ArrowLeftRight,
   Calendar,
-  Camera,
   Delete,
-  FileText,
   Hash,
   History,
   Keyboard,
@@ -14,17 +12,19 @@ import {
   X,
   Zap,
 } from '@lucide/vue';
-import { Button } from '@/components/ui/button';
-import ChoiceChip from '@/components/data/ChoiceChip.vue';
-import GridPicker, { type GridItem } from '@/components/data/GridPicker.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
+import type { GridItem } from '@/components/data/GridPicker.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
+import Chip from '@/components/ios/Chip.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import { useQuickAdd } from '@/features/quick-add/useQuickAdd';
 import type { QuickTemplate, TxType } from '@/features/quick-add/types';
 import { formatRupiah } from '@/lib/format';
+import ChoiceGrid from './ChoiceGrid.vue';
 import StatementImport from './StatementImport.vue';
 
-// Form catat transaksi. Satu komponen untuk tiga bentuk: sheet bawah (HP),
+// Ketik cepat (menu tahan tombol +). Satu komponen untuk tiga bentuk: sheet bawah (HP),
 // dialog tengah (iPad portrait), dan kartu inline di kolom kanan (>= 1024px).
 // Inline: setelah simpan isian dikosongkan dan fokus tetap di input.
 // `withImport` (iPad/desktop): tab Struk dan Mutasi membuka impor di panel ini juga.
@@ -32,9 +32,9 @@ const props = defineProps<{ inline?: boolean; titleId?: string; withImport?: boo
 const emit = defineEmits<{ close: []; saved: [] }>();
 
 const SOURCES = [
-  { value: 'quick', label: 'Cepat', icon: Zap },
-  { value: 'photo', label: 'Struk', icon: Camera },
-  { value: 'pdf', label: 'Mutasi', icon: FileText },
+  { value: 'quick', label: 'Ketik cepat' },
+  { value: 'photo', label: 'Struk' },
+  { value: 'pdf', label: 'Mutasi' },
 ] as const;
 const source = ref<'quick' | 'photo' | 'pdf'>('quick');
 
@@ -175,26 +175,17 @@ defineExpose({ focus });
 <template>
   <div class="flex flex-col gap-3">
     <div class="flex items-center gap-2">
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ inline && !withImport ? 'Catat cepat' : 'Catat transaksi' }}
+      <h2 :id="titleId" class="m-0 flex-1 text-sheet font-bold tracking-[-0.02em]">
+        {{ inline && !withImport ? 'Ketik cepat' : 'Catat transaksi' }}
       </h2>
-      <Button v-if="source === 'quick'" variant="secondary" size="default" @click="toggleMode">
-        <component :is="qa.mode.value === 'text' ? Hash : Keyboard" />
-        {{ qa.mode.value === 'text' ? 'Keypad' : 'Ketik' }}
-      </Button>
-      <Button
-        v-if="!inline"
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        @click="emit('close')"
-      >
-        <X />
-      </Button>
+      <Chip v-if="source === 'quick'" @click="toggleMode">
+        <component :is="qa.mode.value === 'text' ? Hash : Keyboard" class="size-4" />
+        {{ qa.mode.value === 'text' ? 'Papan angka' : 'Ketik' }}
+      </Chip>
+      <IconButton v-if="!inline" label="Tutup" @click="emit('close')"><X /></IconButton>
     </div>
 
-    <SegmentedControl
+    <Segmented
       v-if="withImport"
       v-model="source"
       :options="SOURCES"
@@ -211,16 +202,16 @@ defineExpose({ focus });
     />
 
     <template v-else>
-      <SegmentedControl v-model="type" :options="TYPES" label="Jenis transaksi" />
+      <Segmented v-model="type" :options="TYPES" label="Jenis transaksi" />
 
       <div class="flex items-baseline justify-center gap-1.5 pb-0.5 pt-1.5" aria-live="polite">
-        <span class="text-[15px] font-semibold text-muted-foreground">Rp</span>
+        <span class="text-body font-semibold text-muted-foreground">Rp</span>
         <b
           :class="[
-            'font-bold tracking-[-0.03em] tabular-nums',
-            inline ? 'text-[30px]' : 'text-4xl',
-            !qa.draft.value.amount && 'text-border-strong',
-            qa.draft.value.amount && qa.draft.value.type === 'income' && 'text-primary-accent',
+            'font-bold tracking-[-0.03em]',
+            inline ? 'text-[30px]' : 'text-[36px]',
+            !qa.draft.value.amount && 'text-ter',
+            qa.draft.value.amount && qa.draft.value.type === 'income' && 'text-inc',
           ]"
         >
           {{ formatRupiah(qa.draft.value.amount).replace('Rp ', '') }}
@@ -228,7 +219,7 @@ defineExpose({ focus });
       </div>
 
       <div v-if="qa.mode.value === 'text'">
-        <label for="quick-input" class="mb-1.5 block text-label font-semibold">Ketik saja</label>
+        <label for="quick-input" class="sr-only">Ketik saja</label>
         <input
           id="quick-input"
           ref="input"
@@ -238,13 +229,13 @@ defineExpose({ focus });
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-          placeholder="kopi 25rb gopay"
-          class="h-11 w-full rounded-[10px] border border-border-strong bg-card px-3 text-base outline-none placeholder:text-faint focus:border-primary-accent focus:ring-3 focus:ring-primary-soft"
+          placeholder="Ketik saja: kopi 25rb gopay"
+          class="h-12 w-full rounded-[12px] bg-fill px-3.5 text-row outline-none placeholder:text-ter focus:shadow-[0_0_0_2px_var(--primary-accent)]"
           @input="qa.setText(($event.target as HTMLInputElement).value)"
           @focus="picker = null"
           @keydown.enter.prevent="save()"
         />
-        <p class="m-0 mt-1.5 text-xs text-faint">
+        <p class="m-0 mt-1.5 px-1 text-meta leading-[1.45] text-muted-foreground">
           Bisa juga: <span class="font-mono">bensin 100rb kemarin</span>,
           <span class="font-mono">bca ke gopay 99rb</span>,
           <span class="font-mono">+ gaji 5jt bca</span>,
@@ -253,85 +244,95 @@ defineExpose({ focus });
       </div>
 
       <div class="flex flex-wrap gap-1.5">
-        <ChoiceChip
-          :icon="Wallet"
-          :label="accountName(qa.draft.value.accountId) ?? 'Akun'"
-          :filled="!!qa.draft.value.accountId"
+        <Chip
+          :on="!!qa.draft.value.accountId"
           :aria-expanded="picker === 'account'"
           @click="openPicker('account')"
-        />
-        <ChoiceChip
+        >
+          <Wallet class="size-3.5" aria-hidden="true" />{{
+            accountName(qa.draft.value.accountId) ?? 'Akun'
+          }}
+        </Chip>
+        <Chip
           v-if="qa.draft.value.type === 'transfer'"
-          :icon="ArrowLeftRight"
-          :label="accountName(qa.draft.value.toAccountId) ?? 'Ke akun'"
-          :filled="!!qa.draft.value.toAccountId"
+          :on="!!qa.draft.value.toAccountId"
           :aria-expanded="picker === 'to'"
           @click="openPicker('to')"
-        />
-        <ChoiceChip
+        >
+          <ArrowLeftRight class="size-3.5" aria-hidden="true" />{{
+            accountName(qa.draft.value.toAccountId) ?? 'Ke akun'
+          }}
+        </Chip>
+        <Chip
           v-else
-          :icon="category?.icon ?? Tag"
-          :label="category?.name ?? 'Kategori'"
-          :filled="!!category"
+          :on="!!category"
           :aria-expanded="picker === 'category'"
           @click="openPicker('category')"
-        />
-        <ChoiceChip :icon="Calendar" :label="qa.when.value" filled @click="qa.toggleDate()" />
-        <ChoiceChip
-          v-if="qa.draft.value.note"
-          :icon="PenLine"
-          :label="qa.draft.value.note"
-          filled
-        />
-        <ChoiceChip
-          v-if="qa.suggestedAmount.value"
-          :icon="History"
-          :label="`Biasanya ${formatRupiah(qa.suggestedAmount.value)}`"
-          @click="qa.setAmount(qa.suggestedAmount.value)"
-        />
+        >
+          <component :is="category?.icon ?? Tag" class="size-3.5" aria-hidden="true" />{{
+            category?.name ?? 'Kategori'
+          }}
+        </Chip>
+        <Chip on @click="qa.toggleDate()">
+          <Calendar class="size-3.5" aria-hidden="true" />{{ qa.when.value }}
+        </Chip>
+        <Chip v-if="qa.draft.value.note" on>
+          <PenLine class="size-3.5" aria-hidden="true" /><span class="max-w-[160px] truncate">{{
+            qa.draft.value.note
+          }}</span>
+        </Chip>
+        <Chip v-if="qa.suggestedAmount.value" @click="qa.setAmount(qa.suggestedAmount.value)">
+          <History class="size-3.5" aria-hidden="true" />Biasanya
+          {{ formatRupiah(qa.suggestedAmount.value) }}
+        </Chip>
       </div>
 
       <section
         v-if="picker"
-        class="overflow-hidden rounded-xl border"
+        class="overflow-hidden rounded-[14px] bg-[var(--kb-bg)]"
         :aria-label="PICKER_TITLE[picker]"
       >
-        <div class="flex items-center gap-2 border-b bg-surface-2 py-1 pl-3.5 pr-1">
-          <b class="flex-1 text-label">{{ PICKER_TITLE[picker] }}</b>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="press-icon"
-            :aria-label="`Tutup pilihan ${PICKER_TITLE[picker].toLowerCase()}`"
+        <div
+          class="flex h-11 items-center gap-2 bg-[var(--kb-head)] pl-4 pr-1 shadow-[inset_0_-0.5px_0_var(--kb-head-line)]"
+        >
+          <b class="flex-1 text-body font-semibold">{{ PICKER_TITLE[picker] }}</b>
+          <IconButton
+            :label="`Tutup pilihan ${PICKER_TITLE[picker].toLowerCase()}`"
             @click="picker = null"
           >
             <X />
-          </Button>
+          </IconButton>
         </div>
         <div class="max-h-[46dvh] overflow-y-auto overscroll-contain">
-          <GridPicker
+          <ChoiceGrid
             :key="picker + qa.draft.value.type"
             :items="pickerItems"
             :model-value="pickerValue"
             :label="PICKER_TITLE[picker]"
+            class="pb-1.5!"
             @select="choose"
           />
         </div>
       </section>
 
-      <div v-if="qa.mode.value === 'keypad'" class="grid grid-cols-3 gap-1.5">
+      <div
+        v-if="qa.mode.value === 'keypad'"
+        class="grid grid-cols-3 gap-1.5 rounded-[14px] bg-[var(--kb-bg)] p-1.5"
+      >
         <button
           v-for="key in KEYS"
           :key="key"
           type="button"
           :aria-label="key === 'del' ? 'Hapus angka' : undefined"
           :class="[
-            'press grid h-12.5 place-items-center rounded-[10px] bg-surface-2 font-semibold',
-            key === 'del' || key === '000' ? 'text-base text-muted-foreground' : 'text-[22px]',
+            'qa-key grid h-[50px] place-items-center rounded-[9px] shadow-[0_1px_0_var(--kb-shadow)]',
+            key === 'del' || key === '000'
+              ? 'bg-[var(--kb-fn)] text-bar text-foreground'
+              : 'bg-[var(--kb-key)] text-[24px]',
           ]"
           @click="qa.pressKey(key)"
         >
-          <Delete v-if="key === 'del'" class="size-5.5" aria-hidden="true" />
+          <Delete v-if="key === 'del'" class="size-[22px]" aria-hidden="true" />
           <template v-else>{{ key }}</template>
         </button>
       </div>
@@ -339,14 +340,14 @@ defineExpose({ focus });
       <button
         v-if="qa.source.openFull"
         type="button"
-        class="press -mt-1 self-start text-meta font-semibold text-primary-ink hover:underline"
+        class="-mt-0.5 self-start px-1 text-meta font-semibold text-primary-accent active:opacity-50"
         @click="openFull"
       >
         Form lengkap: tanggal, jam, keterangan, biaya transfer
       </button>
 
       <div v-if="qa.source.templates.value.length">
-        <div class="pb-1.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div class="px-1 pb-1.5 text-meta uppercase tracking-[0.02em] text-muted-foreground">
           Bookmark
         </div>
         <div
@@ -356,7 +357,7 @@ defineExpose({ focus });
             v-for="tpl in qa.source.templates.value"
             :key="tpl.id"
             type="button"
-            class="press inline-flex h-8.5 flex-none items-center gap-2 rounded-[10px] border bg-card py-0 pl-1.5 pr-3 text-meta font-semibold"
+            class="qa-tpl inline-flex h-[34px] flex-none items-center gap-2 rounded-full bg-fill py-0 pl-1.5 pr-3 text-meta font-semibold"
             @click="pickTemplate(tpl)"
           >
             <ToneIcon
@@ -370,13 +371,27 @@ defineExpose({ focus });
       </div>
 
       <div class="grid grid-cols-[auto_1fr] gap-2">
-        <Button variant="secondary" size="touch" :disabled="!qa.canSave.value" @click="save(true)"
-          >Simpan &amp; lagi</Button
+        <IosButton variant="gray" :disabled="!qa.canSave.value" @click="save(true)"
+          >Simpan &amp; lagi</IosButton
         >
-        <Button size="touch" :disabled="!qa.canSave.value" @click="save()">
+        <IosButton :disabled="!qa.canSave.value" @click="save()">
           {{ qa.canSave.value ? `Simpan ${formatRupiah(qa.draft.value.amount)}` : 'Simpan' }}
-        </Button>
+        </IosButton>
       </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.qa-key,
+.qa-tpl {
+  transition: transform 100ms var(--ease-out);
+}
+.qa-key:active,
+.qa-tpl:active {
+  transform: scale(0.95);
+}
+.qa-key:active {
+  background: var(--kb-key-press);
+}
+</style>

@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { Repeat } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import RecurringForm from '@/components/money/RecurringForm.vue';
 import { useRecurringRules } from '@/features/recurring/useRecurring';
 
-// Ubah transaksi berulang sebagai halaman penuh di HP (iPad/desktop: dialog)
+// Ubah aturan ulangi sebagai halaman penuh di HP (iPad/desktop: dialog)
 definePageMeta({ layout: false });
-useHead({ title: 'Ubah transaksi berulang · Money Manager' });
+useHead({ title: 'Ubah ulangi · Money Manager' });
 
 const route = useRoute();
 const rules = useRecurringRules();
@@ -22,17 +20,16 @@ const back = () => closePage('/settings/recurring');
 </script>
 
 <template>
-  <FormPage title="Ubah berulang" title-id="recurring-page-title" @back="back">
-    <Skeleton v-if="rules.isPending.value" :rows="5" />
+  <FormPage title="Ubah ulangi" title-id="recurring-page-title" @back="back">
+    <template v-if="rule" #action><FormPageSave form="recurring-page-title-form" /></template>
     <RecurringForm
-      v-else-if="rule"
+      v-if="rule"
       :key="rule.id"
       :rule="rule"
       page
-      class="flex-1"
       title-id="recurring-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Repeat" title="Aturan tidak ditemukan" /></Card>
+    <EmptyCard v-else :title="rules.isPending.value ? 'Memuat…' : 'Aturan tidak ditemukan'" />
   </FormPage>
 </template>

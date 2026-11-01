@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { ArrowLeft, LockKeyhole, ShieldCheck } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import FormField from '@/components/base/FormField.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
+import { LockKeyhole, ShieldCheck } from '@lucide/vue';
+import FieldRow from '@/components/data/FieldRow.vue';
+import { FIELD_INPUT } from '@/components/data/field';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import { isValidPin, PIN_TIMEOUTS } from '@/features/lock/pin';
 import { useLock } from '@/features/lock/useLock';
 
-// Pengaturan kunci PIN (fase 11 T2). PIN hanya tersimpan sebagai hash di
-// perangkat ini; perangkat lain punya PIN sendiri.
+// Kode sandi (kunci PIN). PIN hanya tersimpan sebagai hash di perangkat ini;
+// perangkat lain punya PIN sendiri. Face ID belum ada (catatan fitur).
 definePageMeta({ layout: 'app' });
-useHead({ title: 'Kunci PIN · Money Manager' });
+useHead({ title: 'Kode sandi · Money Manager' });
 
 const lock = useLock();
 const toast = useToast();
@@ -63,94 +65,103 @@ async function disable() {
     error.value = 'PIN salah.';
   }
 }
+
+const PIN_INPUT = `${FIELD_INPUT} tracking-[0.4em]`;
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Kunci PIN">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-      </template>
-    </PageHeader>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Kode sandi" back="Lainnya" back-to="/more" line class="sticky top-0 md:static" />
 
-    <Card class="mt-3.5 flex items-start gap-3 px-3.5 py-4">
-      <ToneIcon
-        :icon="lock.active.value ? ShieldCheck : LockKeyhole"
-        :tone="lock.active.value ? 'ok' : 'primary'"
-        size="sm"
-      />
-      <p class="m-0 text-meta text-muted-foreground">
+    <div class="pb-8">
+      <GroupedList class="mt-3.5">
+        <GroupRow
+          :title="lock.active.value ? 'Kunci PIN aktif' : 'Kunci PIN mati'"
+          :subtitle="
+            lock.active.value
+              ? 'Diminta saat app dibuka dan kembali dari latar belakang'
+              : 'Minta PIN 4–6 angka setiap app dibuka'
+          "
+          :inset="58"
+        >
+          <template #icon>
+            <ToneIcon
+              :icon="lock.active.value ? ShieldCheck : LockKeyhole"
+              :tone="lock.active.value ? 'green' : 'gray'"
+              size="sm"
+              solid
+            />
+          </template>
+        </GroupRow>
+        <GroupRow v-if="lock.active.value" @click="lock.lockNow()">
+          <b class="text-row font-medium text-primary-accent">Kunci sekarang</b>
+        </GroupRow>
+      </GroupedList>
+      <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
         <template v-if="lock.active.value">
-          <b class="text-foreground">Kunci PIN aktif.</b> App meminta PIN saat dibuka dan saat
-          kembali dari latar belakang. Lupa PIN? Pilih Lupa PIN di layar kunci, lalu masuk lagi
-          dengan kode email.
+          Lupa PIN? Pilih Lupa PIN di layar kunci, lalu masuk lagi dengan kode email.
         </template>
         <template v-else>
-          Minta PIN 4–6 angka setiap app dibuka, supaya catatan keuangan tidak terbuka saat HP
-          dipinjam orang. PIN hanya tersimpan (sebagai hash) di perangkat ini.
+          Supaya catatan keuangan tidak terbuka saat HP dipinjam orang. PIN hanya tersimpan (sebagai
+          hash) di perangkat ini.
         </template>
       </p>
-    </Card>
 
-    <Card v-if="!supported" class="mt-3.5 px-3.5 py-3 text-meta text-warn">
-      Kunci PIN butuh koneksi aman (HTTPS). Buka app dari alamat resminya untuk memasang PIN.
-    </Card>
+      <EmptyCard
+        v-if="!supported"
+        title="Butuh koneksi aman"
+        description="Kunci PIN butuh HTTPS. Buka app dari alamat resminya untuk memasang PIN."
+      />
 
-    <template v-else>
-      <div class="mt-4 flex flex-col gap-1.5">
-        <span class="px-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground"
-          >Kunci lagi setelah di latar belakang</span
-        >
-        <SegmentedControl v-model="timeout" :options="TIMEOUTS" label="Batas waktu kunci" />
-      </div>
-
-      <!-- Pasang PIN -->
-      <Card v-if="!lock.active.value" class="mt-4 p-3.5">
-        <form class="flex flex-col gap-3" @submit.prevent="enable">
-          <FormField label="PIN baru" for="pin-new" hint="4 sampai 6 angka.">
-            <input
-              id="pin-new"
-              :value="pin"
-              type="password"
-              inputmode="numeric"
-              autocomplete="new-password"
-              maxlength="6"
-              class="field-input tracking-[0.4em]"
-              @input="pin = digits(($event.target as HTMLInputElement).value)"
-            />
-          </FormField>
-          <FormField label="Ulangi PIN" for="pin-confirm">
-            <input
-              id="pin-confirm"
-              :value="confirm"
-              type="password"
-              inputmode="numeric"
-              autocomplete="new-password"
-              maxlength="6"
-              class="field-input tracking-[0.4em]"
-              @input="confirm = digits(($event.target as HTMLInputElement).value)"
-            />
-          </FormField>
-          <p v-if="error" class="m-0 text-meta text-bad" role="alert">{{ error }}</p>
-          <Button type="submit" size="touch" :disabled="saving || pin.length < 4"
-            >Pasang PIN</Button
-          >
-        </form>
-      </Card>
-
-      <!-- PIN aktif -->
       <template v-else>
-        <Card class="mt-4 flex flex-wrap items-center gap-2 p-3.5">
-          <span class="flex-1 text-meta">Kunci app sekarang tanpa menunggu.</span>
-          <Button variant="secondary" size="touch" @click="lock.lockNow()">
-            <LockKeyhole />Kunci sekarang
-          </Button>
-        </Card>
-        <Card class="mt-3.5 p-3.5">
-          <form class="flex flex-col gap-3" @submit.prevent="disable">
-            <FormField label="PIN sekarang" for="pin-current" hint="Untuk mematikan kunci PIN.">
+        <GroupedList label="Kunci lagi setelah di latar belakang">
+          <GroupRow>
+            <Segmented v-model="timeout" :options="TIMEOUTS" label="Batas waktu kunci" />
+          </GroupRow>
+        </GroupedList>
+
+        <!-- Pasang PIN -->
+        <form v-if="!lock.active.value" @submit.prevent="enable">
+          <GroupedList label="Pasang PIN">
+            <FieldRow label="PIN baru" for="pin-new">
+              <input
+                id="pin-new"
+                :value="pin"
+                type="password"
+                inputmode="numeric"
+                autocomplete="new-password"
+                maxlength="6"
+                placeholder="4–6 angka"
+                :class="PIN_INPUT"
+                @input="pin = digits(($event.target as HTMLInputElement).value)"
+              />
+            </FieldRow>
+            <FieldRow label="Ulangi PIN" for="pin-confirm" :error="error">
+              <input
+                id="pin-confirm"
+                :value="confirm"
+                type="password"
+                inputmode="numeric"
+                autocomplete="new-password"
+                maxlength="6"
+                :class="PIN_INPUT"
+                @input="confirm = digits(($event.target as HTMLInputElement).value)"
+              />
+            </FieldRow>
+          </GroupedList>
+          <div class="px-4 pt-3">
+            <IosButton type="submit" block :disabled="saving || pin.length < 4"
+              >Pasang PIN</IosButton
+            >
+          </div>
+        </form>
+
+        <!-- Matikan -->
+        <form v-else @submit.prevent="disable">
+          <GroupedList label="Matikan kunci PIN">
+            <FieldRow label="PIN sekarang" for="pin-current" :error="error" :label-width="112">
               <input
                 id="pin-current"
                 :value="current"
@@ -158,22 +169,18 @@ async function disable() {
                 inputmode="numeric"
                 autocomplete="current-password"
                 maxlength="6"
-                class="field-input tracking-[0.4em]"
+                :class="PIN_INPUT"
                 @input="current = digits(($event.target as HTMLInputElement).value)"
               />
-            </FormField>
-            <p v-if="error" class="m-0 text-meta text-bad" role="alert">{{ error }}</p>
-            <Button
-              type="submit"
-              variant="ghost-danger"
-              size="touch"
-              :disabled="current.length < 4"
+            </FieldRow>
+          </GroupedList>
+          <div class="px-4 pt-3">
+            <IosButton type="submit" block variant="red" :disabled="current.length < 4"
+              >Matikan kunci PIN</IosButton
             >
-              Matikan kunci PIN
-            </Button>
-          </form>
-        </Card>
+          </div>
+        </form>
       </template>
-    </template>
+    </div>
   </div>
 </template>

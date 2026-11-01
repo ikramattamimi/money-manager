@@ -1,22 +1,18 @@
 <script setup lang="ts">
-import { ArrowLeft, Scale } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
-import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
-import { groupStyle } from '@/features/accounts/style';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import GlassBar from '@/components/data/GlassBar.vue';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { formatRupiah } from '@/lib/format';
 
-// Setelah impor: ekspor Realbyte tidak berisi saldo awal, jadi saldo hasil
-// hitungan bisa berbeda. Isi saldo sebenarnya hari ini; akun yang diisi dan
-// berbeda mendapat transaksi koreksi (is_adjustment).
+// Cocokkan saldo (mockup import-balance): setelah impor Realbyte, saldo hasil
+// hitungan bisa berbeda karena ekspor tidak berisi saldo awal. Isi saldo
+// sebenarnya hari ini; akun yang diisi dan berbeda mendapat transaksi koreksi
+// (is_adjustment) yang tidak dihitung di statistik. Kosong = tidak diubah.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Cocokkan saldo · Money Manager' });
 
@@ -46,6 +42,18 @@ const actualOf = (id: string) => {
   const value = Number(e.text.replace(/\D/g, ''));
   return e.negative ? -value : value;
 };
+
+/** Keterangan baris: saldo tercatat, atau selisih kalau sudah diisi */
+function caption(id: string, balance: number) {
+  const actual = actualOf(id);
+  if (actual === null) return { text: `Tercatat ${formatRupiah(balance)}`, tone: '' };
+  const diff = actual - balance;
+  if (!diff) return { text: 'Sudah cocok', tone: 'text-ok' };
+  return {
+    text: `Koreksi ${diff > 0 ? '+' : '−'}${formatRupiah(Math.abs(diff))}`,
+    tone: diff > 0 ? 'text-inc' : 'text-exp',
+  };
+}
 
 const changes = computed(() =>
   grouped.value
@@ -78,70 +86,78 @@ async function save() {
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Cocokkan saldo">
-      <template #actions>
-        <HeaderButton label="Kembali ke impor" @click="navigateTo('/settings/import')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-      </template>
-    </PageHeader>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:rounded-2xl"
+  >
+    <NavBar
+      title="Cocokkan saldo"
+      back="Kembali"
+      back-to="/settings/import"
+      line
+      class="sticky top-0 md:static md:rounded-t-2xl"
+    />
 
-    <p class="mx-2.5 mt-3.5 text-meta text-muted-foreground">
-      Isi saldo yang sebenarnya hari ini (lihat di Realbyte atau aplikasi bank). Akun yang
-      dikosongkan tidak diubah. Selisihnya dicatat sebagai koreksi saldo dan tidak masuk statistik.
+    <p class="mx-8 mb-0 mt-3.5 text-meta leading-[1.45] text-muted-foreground">
+      Isi saldo sebenarnya hari ini (lihat di app bank atau dompetmu). Akun yang berbeda dapat
+      transaksi koreksi yang tidak dihitung di statistik. Kosongkan kalau sudah benar.
     </p>
 
-    <Card v-if="accounts.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="6" /></Card>
-    <Card v-else-if="!grouped.length" class="mt-3.5">
-      <EmptyState :icon="Scale" title="Belum ada akun" />
-    </Card>
+    <EmptyCard
+      v-if="!grouped.length"
+      :title="accounts.isPending.value ? 'Memuat akun…' : 'Belum ada akun'"
+    />
 
-    <ListGroup v-for="g in grouped" :key="g.id" :label="g.name" :aside="formatRupiah(g.sum)">
-      <ListRow
-        v-for="a in g.accounts"
-        :key="a.id"
-        :title="a.name"
-        :subtitle="`Tercatat ${formatRupiah(a.balance)}`"
-        class="items-center"
-      >
-        <template #lead><ToneIcon v-bind="groupStyle(g)" size="sm" /></template>
+    <GroupedList v-for="g in grouped" :key="g.id" :label="g.name" :aside="formatRupiah(g.sum)">
+      <GroupRow v-for="a in g.accounts" :key="a.id">
+        <label :for="`bal-${a.id}`" class="truncate text-row font-medium tracking-[-0.01em]">{{
+          a.name
+        }}</label>
+        <span
+          :class="['truncate text-meta', caption(a.id, a.balance).tone || 'text-muted-foreground']"
+          >{{ caption(a.id, a.balance).text }}</span
+        >
         <template #end>
-          <div class="flex items-center gap-1">
+          <div class="flex shrink-0 items-center gap-1">
             <button
               type="button"
-              class="press grid size-9 place-items-center rounded-[10px] border text-label font-bold tabular-nums"
-              :class="entry(a.id).negative ? 'border-bad text-bad' : 'text-muted-foreground'"
+              :class="[
+                'grid size-[38px] place-items-center rounded-[10px] text-bar font-bold active:opacity-60',
+                entry(a.id).negative ? 'bg-bad-soft text-exp' : 'bg-fill text-muted-foreground',
+              ]"
               :aria-pressed="entry(a.id).negative"
-              :aria-label="`Saldo ${a.name} negatif`"
+              :aria-label="`Saldo ${a.name} negatif (utang)`"
               @click="entry(a.id).negative = !entry(a.id).negative"
             >
               −
             </button>
-            <input
-              :value="entry(a.id).text"
-              type="text"
-              inputmode="numeric"
-              autocomplete="off"
-              :placeholder="Math.abs(a.balance).toLocaleString('id-ID')"
-              :aria-label="`Saldo sebenarnya ${a.name}`"
-              class="field-input h-9! w-[112px] px-2.5! text-right tabular-nums"
-              @input="onInput(a.id, $event)"
-            />
+            <span
+              class="flex h-[38px] w-[136px] items-center gap-1 rounded-[10px] bg-fill px-2.5 focus-within:shadow-[0_0_0_2px_var(--primary-accent)]"
+            >
+              <small class="text-[14px] text-muted-foreground">Rp</small>
+              <input
+                :id="`bal-${a.id}`"
+                :value="entry(a.id).text"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                :placeholder="Math.abs(a.balance).toLocaleString('id-ID')"
+                :aria-label="`Saldo sebenarnya ${a.name}`"
+                class="min-w-0 flex-1 bg-transparent text-right text-row font-semibold outline-none placeholder:font-medium placeholder:text-ter"
+                @input="onInput(a.id, $event)"
+              />
+            </span>
           </div>
         </template>
-      </ListRow>
-    </ListGroup>
+      </GroupRow>
+    </GroupedList>
 
-    <div class="mt-5 flex flex-wrap items-center gap-2">
-      <span class="flex-1 text-meta text-muted-foreground">
-        {{
-          changes.length ? `${changes.length} akun akan dikoreksi` : 'Belum ada saldo yang diubah'
-        }}
+    <GlassBar>
+      <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+        <b class="text-bar text-foreground">{{ changes.length }}</b> koreksi saldo
       </span>
-      <Button size="touch" :disabled="!changes.length || saving || !canEdit" @click="save">
-        {{ saving ? 'Menyimpan…' : 'Simpan koreksi' }}
-      </Button>
-    </div>
+      <IosButton class="w-[140px]" :disabled="!changes.length || saving || !canEdit" @click="save">
+        {{ saving ? 'Menyimpan…' : 'Simpan' }}
+      </IosButton>
+    </GlassBar>
   </div>
 </template>

@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { BookOpen, CircleAlert, LogOut } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
+import { BookOpen, CircleAlert } from '@lucide/vue';
 import Toaster from '@/components/base/Toaster.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import { Button } from '@/components/ui/button';
+import IosButton from '@/components/ios/IosButton.vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useAuth } from '@/features/auth/useAuth';
 import { booksApi } from '@/features/books/api';
@@ -55,75 +54,96 @@ async function switchAccount() {
 </script>
 
 <template>
-  <main class="grid min-h-dvh place-items-center bg-background px-4 py-10">
-    <Card class="flex w-full max-w-[420px] flex-col items-center gap-4 px-5 py-8 text-center">
+  <main
+    class="grid min-h-dvh place-items-center bg-background px-4 pb-[calc(env(safe-area-inset-bottom,0px)+24px)] pt-[calc(env(safe-area-inset-top,0px)+24px)]"
+  >
+    <section
+      class="flex w-full max-w-[400px] flex-col items-center gap-2.5 rounded-[20px] bg-card px-5 pb-6 pt-7 text-center"
+    >
       <template v-if="preview.isPending.value">
-        <p class="m-0 text-meta text-muted-foreground">Membuka undangan…</p>
+        <span class="inv-spin mb-1.5" aria-hidden="true" />
+        <p class="m-0 text-body text-muted-foreground" aria-live="polite">Membuka undangan…</p>
       </template>
 
       <template v-else-if="!invite">
-        <ToneIcon :icon="CircleAlert" tone="warn" />
-        <div class="flex flex-col gap-1">
-          <b class="text-panel">Undangan tidak ditemukan</b>
-          <p class="m-0 text-meta text-muted-foreground">
-            Link-nya mungkin salah atau undangannya sudah dibatalkan. Minta pemilik buku mengirim
-            ulang.
-          </p>
-        </div>
-        <Button variant="secondary" size="touch" @click="navigateTo('/')">Buka app</Button>
+        <ToneIcon :icon="CircleAlert" tone="amber" size="lg" solid class="mb-1" />
+        <b class="text-sheet font-bold tracking-[-0.02em]">Undangan tidak ditemukan</b>
+        <p class="m-0 max-w-[320px] text-[14px] leading-[1.45] text-muted-foreground">
+          Link-nya mungkin salah atau undangannya sudah dibatalkan. Minta pemilik buku mengirim
+          ulang.
+        </p>
+        <IosButton block variant="gray" class="mt-1" to="/">Buka app</IosButton>
       </template>
 
       <template v-else>
-        <ToneIcon :icon="BookOpen" tone="primary" />
-        <div class="flex flex-col gap-1">
-          <span class="text-meta text-muted-foreground"
-            >{{ invite.invited_by_name }} mengundangmu ke buku</span
-          >
-          <b class="text-[22px] font-bold">{{ invite.book_name }}</b>
-          <span class="text-meta">
-            sebagai <b>{{ ROLE_LABEL[invite.role] }}</b
-            >: {{ ROLE_HINT[invite.role].toLowerCase() }}.
-          </span>
-        </div>
+        <span
+          class="mb-1 grid size-16 place-items-center rounded-[18px] bg-primary text-primary-foreground"
+          aria-hidden="true"
+        >
+          <BookOpen class="size-[30px]" stroke-width="1.9" />
+        </span>
+        <span class="text-meta text-muted-foreground"
+          >{{ invite.invited_by_name }} mengundangmu ke buku</span
+        >
+        <b class="text-[24px] font-bold leading-[1.15] tracking-[-0.025em]">{{
+          invite.book_name
+        }}</b>
+        <span class="text-[14px] leading-[1.45]">
+          sebagai <b>{{ ROLE_LABEL[invite.role] }}</b
+          >: {{ ROLE_HINT[invite.role].toLowerCase() }}.
+        </span>
 
         <p
           v-if="invite.status === 'accepted'"
-          class="m-0 rounded-xl bg-surface-2 px-3 py-2 text-meta"
+          class="m-0 mt-1 self-stretch rounded-group bg-fill px-3 py-2.5 text-meta"
         >
           Undangan ini sudah diterima.
         </p>
         <p
           v-else-if="invite.status === 'expired'"
-          class="m-0 rounded-xl bg-warn-soft px-3 py-2 text-meta text-warn"
+          class="m-0 mt-1 self-stretch rounded-group bg-warn-soft px-3 py-2.5 text-left text-meta leading-[1.45]"
         >
           Undangan sudah kedaluwarsa. Minta {{ invite.invited_by_name }} mengirim ulang.
         </p>
         <template v-else-if="!invite.for_me">
-          <p class="m-0 rounded-xl bg-warn-soft px-3 py-2 text-meta text-warn" role="alert">
+          <p
+            class="m-0 mt-1 self-stretch rounded-group bg-warn-soft px-3 py-2.5 text-left text-meta leading-[1.45]"
+            role="alert"
+          >
             Undangan ini untuk <b>{{ invite.email_hint }}</b
             >, sedangkan kamu masuk sebagai <b>{{ auth.user.value?.email }}</b
             >. Masuk dengan email yang diundang untuk menerimanya.
           </p>
-          <Button variant="secondary" size="touch" @click="switchAccount"
-            ><LogOut />Masuk dengan email lain</Button
+          <IosButton block variant="soft" class="mt-1" @click="switchAccount"
+            >Masuk dengan email lain</IosButton
           >
         </template>
         <template v-else>
-          <Button size="touch" class="w-full" :disabled="accepting" @click="accept">
+          <IosButton block class="mt-2" :disabled="accepting" @click="accept">
             {{ accepting ? 'Menerima…' : 'Terima undangan' }}
-          </Button>
-          <p v-if="acceptError" class="m-0 text-meta text-bad" role="alert">{{ acceptError }}</p>
+          </IosButton>
+          <p v-if="acceptError" class="m-0 text-meta text-exp" role="alert">{{ acceptError }}</p>
         </template>
 
-        <Button
-          v-if="invite.status !== 'open'"
-          variant="ghost"
-          size="touch"
-          @click="navigateTo('/')"
-          >Buka app</Button
-        >
+        <IosButton v-if="invite.status !== 'open'" block variant="gray" to="/">Buka app</IosButton>
       </template>
-    </Card>
+    </section>
     <Toaster />
   </main>
 </template>
+
+<style scoped>
+.inv-spin {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 3px solid var(--fill-2);
+  border-top-color: var(--primary-accent);
+  animation: inv-spin 650ms linear infinite;
+}
+@keyframes inv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Wallet } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
 import AdjustBalanceForm from '@/components/money/AdjustBalanceForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 
 // Sesuaikan saldo sebagai halaman penuh di HP (iPad/desktop: dialog)
@@ -22,16 +20,16 @@ const back = () => closePage(`/accounts/${id.value}`);
 
 <template>
   <FormPage title="Sesuaikan saldo" title-id="adjust-page-title" @back="back">
-    <Skeleton v-if="accounts.isPending.value" :rows="3" />
+    <template v-if="account" #action><FormPageSave form="adjust-page-title-form" /></template>
+    <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" class="!mx-0" />
     <AdjustBalanceForm
       v-else-if="account"
       :key="account.id"
       :account="account"
       page
-      class="flex-1"
       title-id="adjust-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Wallet" title="Akun tidak ditemukan" /></Card>
+    <EmptyCard v-else title="Akun tidak ditemukan" class="!mx-0" />
   </FormPage>
 </template>

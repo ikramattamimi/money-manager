@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Trash2, X } from '@lucide/vue';
-import AmountInput from '@/components/base/AmountInput.vue';
-import FormField from '@/components/base/FormField.vue';
-import GridPicker from '@/components/data/GridPicker.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import { TONE_TEXT } from '@/components/data/tone';
-import { Button } from '@/components/ui/button';
+import FieldRow from '@/components/data/FieldRow.vue';
+import FormGroup from '@/components/data/FormGroup.vue';
+import InlineAmount from '@/components/data/InlineAmount.vue';
+import ToneIcon from '@/components/data/ToneIcon.vue';
+import { FIELD_BUTTON, FIELD_INPUT } from '@/components/data/field';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
@@ -13,9 +14,13 @@ import type { Template } from '@/features/templates/api';
 import { useTemplateMutations } from '@/features/templates/useTemplates';
 import type { TxType } from '@/features/transactions/api';
 import { usePickerItems } from '@/features/transactions/usePickerItems';
+import ChoiceGrid from './ChoiceGrid.vue';
+import FormDialogHeader from './FormDialogHeader.vue';
 
-// Tambah/ubah template (bookmark Realbyte). Nominal boleh kosong: saat dipakai,
-// panel catat dibuka dengan keypad. Template bernominal tersimpan dengan 1 tap.
+// Tambah/ubah bookmark (tabel templates). Nominal boleh kosong: saat dipakai,
+// form catat dibuka dengan papan angka. Bookmark bernominal tersimpan dengan
+// satu ketuk. Hapus langsung jalan dengan Urungkan di toast.
+// `page` = di dalam FormPage (Simpan di bar halaman, form id `${titleId}-form`).
 const props = defineProps<{ template: Template | null; titleId: string; page?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -64,6 +69,10 @@ watch(
 
 type Picker = 'category' | 'account' | 'to';
 const picker = ref<Picker | null>(null);
+const pickerOpen = computed({
+  get: () => picker.value !== null,
+  set: (v) => !v && (picker.value = null),
+});
 const PICKER_TITLE: Record<Picker, string> = {
   category: 'Kategori',
   account: 'Akun',
@@ -74,6 +83,13 @@ const items = computed(() => {
     return form.type === 'transfer' ? [] : pickerItems.categoryItems(form.type);
   return pickerItems.accountItems(picker.value === 'to' ? form.accountId : null);
 });
+const pickerValue = computed(() =>
+  picker.value === 'category'
+    ? form.categoryId
+    : picker.value === 'to'
+      ? form.toAccountId
+      : form.accountId,
+);
 function choose(id: string) {
   if (picker.value === 'category') form.categoryId = id;
   else if (picker.value === 'account') {
@@ -126,160 +142,111 @@ function remove() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-3.5" novalidate @submit.prevent="save">
-    <div v-if="!page" class="flex items-center gap-2">
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ template ? 'Ubah bookmark' : 'Bookmark baru' }}
-      </h2>
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        type="button"
-        @click="emit('close')"
-      >
-        <X />
-      </Button>
-    </div>
+  <form
+    :id="`${titleId}-form`"
+    class="flex flex-col gap-3.5 pb-4"
+    novalidate
+    @submit.prevent="save"
+  >
+    <FormDialogHeader
+      v-if="!page"
+      :title="template ? 'Ubah bookmark' : 'Bookmark baru'"
+      :title-id="titleId"
+      @close="emit('close')"
+    />
 
-    <SegmentedControl v-model="form.type" :options="TYPES" label="Jenis transaksi" />
+    <Segmented v-model="form.type" :options="TYPES" label="Jenis transaksi" class="mt-1" />
 
-    <FormField
-      label="Nama"
-      for="tpl-name"
-      :error="errors.name"
-      hint="Muncul sebagai tombol di Catat cepat."
+    <FormGroup
+      :page="page"
+      foot="Kosongkan nominal kalau berubah-ubah: papan angka dibuka saat dipakai."
     >
-      <input
-        id="tpl-name"
-        v-model="form.name"
-        type="text"
-        maxlength="60"
-        class="field-input"
-        autocomplete="off"
-        placeholder="mis. Spotify Agoy"
-        :aria-invalid="!!errors.name || undefined"
-        @input="nameTouched = true"
-      />
-    </FormField>
-
-    <FormField
-      label="Nominal"
-      for="tpl-amount"
-      hint="Kosongkan kalau nominalnya berubah-ubah: keypad dibuka saat dipakai."
-    >
-      <AmountInput id="tpl-amount" v-model="form.amount" placeholder="Tanya saat dipakai" />
-    </FormField>
-
-    <div class="grid gap-3 sm:grid-cols-2">
-      <FormField v-if="form.type !== 'transfer'" label="Kategori" for="tpl-category">
+      <FieldRow label="Nama" for="tpl-name" :error="errors.name">
+        <input
+          id="tpl-name"
+          v-model="form.name"
+          type="text"
+          maxlength="60"
+          :class="FIELD_INPUT"
+          autocomplete="off"
+          placeholder="mis. Spotify"
+          :aria-invalid="!!errors.name || undefined"
+          @input="nameTouched = true"
+        />
+      </FieldRow>
+      <FieldRow label="Nominal" for="tpl-amount">
+        <InlineAmount id="tpl-amount" v-model="form.amount" placeholder="Tanya saat dipakai" />
+      </FieldRow>
+      <FieldRow v-if="form.type !== 'transfer'" label="Kategori" for="tpl-category">
         <button
           id="tpl-category"
           type="button"
-          class="field-input flex items-center gap-2 text-left"
-          @click="picker = picker === 'category' ? null : 'category'"
+          :class="[FIELD_BUTTON, !form.categoryId && 'text-muted-foreground']"
+          @click="picker = 'category'"
         >
-          <component
-            :is="categoryStyle.icon"
+          <ToneIcon
             v-if="categoryStyle"
-            :class="['size-4 shrink-0', TONE_TEXT[categoryStyle.tone]]"
-            aria-hidden="true"
+            :icon="categoryStyle.icon"
+            :tone="categoryStyle.tone"
+            size="xs"
           />
-          <span :class="['truncate', !form.categoryId && 'text-faint']">
-            {{ form.categoryId ? categories.label(form.categoryId, true) : 'Tanpa kategori' }}
-          </span>
+          <span class="truncate">{{
+            form.categoryId ? categories.label(form.categoryId, true) : 'Tanpa kategori'
+          }}</span>
         </button>
-      </FormField>
-      <FormField
-        :label="form.type === 'transfer' ? 'Dari akun' : 'Akun'"
+      </FieldRow>
+      <FieldRow
+        :label="form.type === 'transfer' ? 'Dari' : 'Akun'"
         for="tpl-account"
         :error="errors.accountId"
       >
         <button
           id="tpl-account"
           type="button"
-          class="field-input flex items-center text-left"
-          @click="picker = picker === 'account' ? null : 'account'"
+          :class="[FIELD_BUTTON, !form.accountId && 'text-muted-foreground']"
+          @click="picker = 'account'"
         >
-          <span :class="['truncate', !form.accountId && 'text-faint']">
-            {{ accountName(form.accountId) || 'Akun terakhir dipakai' }}
-          </span>
+          <span class="truncate">{{ accountName(form.accountId) || 'Akun terakhir dipakai' }}</span>
         </button>
-      </FormField>
-      <FormField
-        v-if="form.type === 'transfer'"
-        label="Ke akun"
-        for="tpl-to"
-        :error="errors.toAccountId"
-      >
+      </FieldRow>
+      <FieldRow v-if="form.type === 'transfer'" label="Ke" for="tpl-to" :error="errors.toAccountId">
         <button
           id="tpl-to"
           type="button"
-          class="field-input flex items-center text-left"
-          @click="picker = picker === 'to' ? null : 'to'"
+          :class="[FIELD_BUTTON, !form.toAccountId && 'text-muted-foreground']"
+          @click="picker = 'to'"
         >
-          <span :class="['truncate', !form.toAccountId && 'text-faint']">
-            {{ accountName(form.toAccountId) || 'Pilih akun tujuan' }}
-          </span>
+          <span class="truncate">{{ accountName(form.toAccountId) || 'Pilih akun tujuan' }}</span>
         </button>
-      </FormField>
-    </div>
+      </FieldRow>
+      <FieldRow label="Catatan" for="tpl-note">
+        <input
+          id="tpl-note"
+          v-model="form.note"
+          type="text"
+          maxlength="120"
+          :class="FIELD_INPUT"
+          autocomplete="off"
+        />
+      </FieldRow>
+    </FormGroup>
 
-    <section
-      v-if="picker"
-      class="overflow-hidden rounded-xl border"
-      :aria-label="PICKER_TITLE[picker]"
+    <IosButton v-if="template" variant="red" block class="mt-2" @click="remove"
+      >Hapus bookmark</IosButton
     >
-      <div class="flex items-center gap-2 border-b bg-surface-2 py-1 pl-3.5 pr-1">
-        <b class="flex-1 text-label">{{ PICKER_TITLE[picker] }}</b>
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          class="press-icon"
-          aria-label="Tutup pilihan"
-          @click="picker = null"
-        >
-          <X />
-        </Button>
-      </div>
-      <div class="max-h-[46dvh] overflow-y-auto overscroll-contain">
-        <GridPicker
+
+    <IosSheet v-model:open="pickerOpen" :title="picker ? PICKER_TITLE[picker] : ''">
+      <div class="overflow-hidden rounded-[14px] bg-[var(--kb-bg)]">
+        <ChoiceGrid
+          v-if="picker"
           :key="picker + form.type"
           :items="items"
-          :model-value="
-            picker === 'category'
-              ? form.categoryId
-              : picker === 'to'
-                ? form.toAccountId
-                : form.accountId
-          "
+          :model-value="pickerValue"
           :label="PICKER_TITLE[picker]"
+          class="pb-1.5!"
           @select="choose"
         />
       </div>
-    </section>
-
-    <FormField label="Catatan" for="tpl-note">
-      <input
-        id="tpl-note"
-        v-model="form.note"
-        type="text"
-        maxlength="120"
-        class="field-input"
-        autocomplete="off"
-      />
-    </FormField>
-
-    <div :class="['flex flex-wrap items-center gap-2 pt-1', page && 'form-page-actions']">
-      <Button v-if="template" type="button" variant="ghost-danger" size="touch" @click="remove">
-        <Trash2 />Hapus
-      </Button>
-      <span class="flex-1" />
-      <Button type="submit" size="touch">{{
-        template ? 'Simpan perubahan' : 'Tambah bookmark'
-      }}</Button>
-    </div>
+    </IosSheet>
   </form>
 </template>

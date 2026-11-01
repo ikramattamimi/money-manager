@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import FormPage from '@/components/layout/FormPage.vue';
 import CategoryForm from '@/components/money/CategoryForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import type { CategoryKind } from '@/features/categories/api';
 
 // Tambah kategori sebagai halaman penuh di HP (iPad/desktop: dialog).
@@ -17,13 +18,7 @@ const back = () => closePage('/settings/categories');
 
 <template>
   <FormPage title="Kategori baru" title-id="category-page-title" @back="back">
-    <CategoryForm
-      :category="null"
-      :kind="kind"
-      page
-      class="flex-1"
-      title-id="category-page-title"
-      @close="back"
-    />
+    <template #action><FormPageSave form="category-page-title-form" /></template>
+    <CategoryForm :category="null" :kind="kind" page title-id="category-page-title" @close="back" />
   </FormPage>
 </template>

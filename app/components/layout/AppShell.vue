@@ -2,7 +2,6 @@
 import AddButton, { type QuickAction } from './AddButton.vue';
 import IosAlert from '@/components/ios/IosAlert.vue';
 import AppSidebar, { type SidebarExtra } from './AppSidebar.vue';
-import CompactTopBar from './CompactTopBar.vue';
 import TabBar from './TabBar.vue';
 import BottomSheet from '@/components/base/BottomSheet.vue';
 import CenterDialog from '@/components/base/CenterDialog.vue';
@@ -133,7 +132,6 @@ watch(lg, (wide) => {
     </div>
   </main>
 
-  <CompactTopBar />
   <TabBar :base="base" :active="active" :with-add="showAdd" @retap="onRetap" />
   <AddButton v-if="showAdd" @press="startQuickAdd" @quick="onQuick" />
   <Toaster />

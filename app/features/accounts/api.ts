@@ -5,6 +5,10 @@ export type AccountGroup = Tables<'account_groups'>;
 export type AccountTotal = Tables<'account_totals'>;
 export type Account = Tables<'accounts'> & { balance: number };
 export type LedgerRow = Database['public']['Functions']['account_ledger']['Returns'][number];
+export type BalanceAt = Database['public']['Functions']['account_balances_at']['Returns'][number];
+
+/** RPC belum dipasang di database (migrasi belum dijalankan) */
+const missingFunction = (code: string | undefined) => code === 'PGRST202' || code === '42883';
 
 export const accountsApi = {
   async groups(bookId: string): Promise<AccountGroup[]> {
@@ -167,6 +171,23 @@ export const accountsApi = {
       p_offset: offset,
     });
     if (error) throw new Error('Gagal memuat riwayat akun.', { cause: error });
+    return data;
+  },
+
+  /**
+   * Saldo tiap akun di tiap batas waktu, plus masuk/keluar sejak batas
+   * sebelumnya. null = RPC account_balances_at belum ada di database
+   * (pemanggil memakai saldo sekarang atau riwayat akun).
+   */
+  async balancesAt(bookId: string, cuts: string[]): Promise<BalanceAt[] | null> {
+    const { data, error } = await useSupabase().rpc('account_balances_at', {
+      p_book_id: bookId,
+      p_cuts: cuts,
+    });
+    if (error) {
+      if (missingFunction(error.code)) return null;
+      throw new Error('Gagal memuat saldo per bulan.', { cause: error });
+    }
     return data;
   },
 

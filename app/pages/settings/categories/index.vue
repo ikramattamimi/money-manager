@@ -1,39 +1,29 @@
 <script setup lang="ts">
 import { useQueryClient } from '@tanstack/vue-query';
-import {
-  Archive,
-  ArrowDownUp,
-  ArrowLeft,
-  ArrowUpToLine,
-  Check,
-  ChevronRight,
-  FolderInput,
-  ListChecks,
-  Plus,
-  Tag,
-  X,
-} from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
+import { ArrowDownUp, Check, ChevronRight, Plus } from '@lucide/vue';
 import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import SelectCheck from '@/components/data/SelectCheck.vue';
-import SelectionBar from '@/components/data/SelectionBar.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import GlassBar from '@/components/data/GlassBar.vue';
 import SortableList from '@/components/data/SortableList.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
+import Chip from '@/components/ios/Chip.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import SectionHeader from '@/components/ios/SectionHeader.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import CategoryForm from '@/components/money/CategoryForm.vue';
-import { Button } from '@/components/ui/button';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { categoriesApi, type Category, type CategoryKind } from '@/features/categories/api';
 import { categoryKeys } from '@/features/categories/keys';
 import { asTone, categoryIcon } from '@/features/categories/icons';
 import { useCategories, useCategoryMutations } from '@/features/categories/useCategories';
 
+// Kategori: Pengeluaran/Pemasukan, per kategori utama dengan subnya. Ketuk =
+// ubah; Urutkan = seret pegangan; Pilih = jadikan sub, jadikan utama, atau
+// arsipkan sekaligus (dengan Urungkan). Arsip bisa dibuka di bawah.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Kategori · Money Manager' });
 
@@ -147,202 +137,209 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Kategori">
-      <template #actions>
-        <HeaderButton label="Kembali ke Lainnya" @click="navigateTo('/more')"
-          ><ArrowLeft aria-hidden="true"
-        /></HeaderButton>
-        <template v-if="canEdit">
-          <HeaderButton :aria-pressed="sorting" @click="sorting = !sorting">
-            <component :is="sorting ? Check : ArrowDownUp" aria-hidden="true" />{{
-              sorting ? 'Selesai' : 'Urutkan'
-            }}
-          </HeaderButton>
-          <HeaderButton @click="openForm(null)"><Plus aria-hidden="true" />Kategori</HeaderButton>
-        </template>
-      </template>
-      <SegmentedControl v-model="kind" :options="KINDS" label="Jenis kategori" variant="on-grad" />
-    </PageHeader>
-
-    <div
-      v-if="canEdit && tree.length && !sorting"
-      class="mt-3 flex items-center justify-between gap-2 px-1"
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:rounded-2xl"
+  >
+    <NavBar
+      title="Kategori"
+      back="Lainnya"
+      back-to="/more"
+      line
+      class="sticky top-0 md:static md:rounded-t-2xl"
     >
-      <span class="text-xs text-muted-foreground">{{
-        selecting ? 'Ketuk kategori untuk memilih' : 'Pindah, jadikan sub, atau arsipkan sekaligus'
-      }}</span>
-      <Button
-        :variant="selecting ? 'default' : 'secondary'"
-        :aria-pressed="selecting"
-        @click="selecting ? stopSelecting() : (selecting = true)"
-      >
-        <component :is="selecting ? Check : ListChecks" />{{
-          selecting ? 'Selesai' : 'Pilih banyak'
-        }}
-      </Button>
-    </div>
+      <template v-if="canEdit" #right>
+        <IconButton
+          :label="sorting ? 'Selesai mengurutkan' : 'Urutkan kategori'"
+          accent
+          :aria-pressed="sorting"
+          @click="sorting = !sorting"
+        >
+          <component :is="sorting ? Check : ArrowDownUp" />
+        </IconButton>
+        <IconButton label="Kategori baru" accent @click="openForm(null)"><Plus /></IconButton>
+      </template>
+      <div class="px-4 pb-2">
+        <Segmented v-model="kind" :options="KINDS" label="Jenis kategori" />
+      </div>
+    </NavBar>
 
-    <Card v-if="categories.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="6" /></Card>
-    <Card v-else-if="!tree.length" class="mt-3.5">
-      <EmptyState
-        :icon="Tag"
+    <div class="pb-8">
+      <div
+        v-if="canEdit && tree.length && !sorting"
+        class="flex items-center gap-2 pb-0.5 pl-8 pr-3 pt-3"
+      >
+        <span class="flex-1 text-meta text-muted-foreground">{{
+          selecting
+            ? 'Ketuk kategori untuk memilih'
+            : 'Pindah, jadikan sub, atau arsipkan sekaligus'
+        }}</span>
+        <button
+          type="button"
+          class="shrink-0 px-2 py-1 text-body font-semibold text-primary-accent active:opacity-50"
+          :aria-pressed="selecting"
+          @click="selecting ? stopSelecting() : (selecting = true)"
+        >
+          {{ selecting ? 'Selesai' : 'Pilih' }}
+        </button>
+      </div>
+
+      <EmptyCard v-if="categories.isPending.value" title="Memuat kategori…" />
+      <EmptyCard
+        v-else-if="!tree.length"
         title="Belum ada kategori"
         description="Tambahkan kategori untuk mengelompokkan transaksi."
       />
-    </Card>
 
-    <!-- Urutkan: kategori utama, lalu subkategori di dalam masing-masing induk -->
-    <template v-else-if="sorting">
-      <ListGroup label="Kategori utama">
-        <SortableList
-          :items="tree"
-          label="Urutan kategori utama"
-          @reorder="mutations.reorder.mutate"
-        >
-          <template #default="{ item }">
-            <ListRow :title="item.name"
-              ><template #lead><ToneIcon v-bind="styleOf(item)" /></template
-            ></ListRow>
-          </template>
-        </SortableList>
-      </ListGroup>
-      <ListGroup
-        v-for="p in tree.filter((t) => t.children.length > 1)"
-        :key="p.id"
-        :label="`Sub ${p.name}`"
-      >
-        <SortableList
-          :items="p.children"
-          :label="`Urutan subkategori ${p.name}`"
-          @reorder="mutations.reorder.mutate"
-        >
-          <template #default="{ item }">
-            <ListRow :title="item.name"
-              ><template #lead><ToneIcon v-bind="styleOf(item)" size="sm" /></template
-            ></ListRow>
-          </template>
-        </SortableList>
-      </ListGroup>
-    </template>
+      <!-- Urutkan: kategori utama, lalu subkategori di dalam masing-masing induk -->
+      <template v-else-if="sorting">
+        <p class="mx-8 mb-0 mt-3 text-meta leading-[1.45] text-muted-foreground">
+          Seret pegangan di kanan untuk mengubah urutan di pilihan kategori.
+        </p>
+        <section>
+          <SectionHeader label="Kategori utama" />
+          <div class="mx-4">
+            <SortableList
+              :items="tree"
+              label="Urutan kategori utama"
+              @reorder="mutations.reorder.mutate"
+            >
+              <template #default="{ item }">
+                <span class="flex min-h-12 items-center gap-3 pl-3">
+                  <ToneIcon v-bind="styleOf(item)" size="sm" />
+                  <b class="truncate text-row font-medium">{{ item.name }}</b>
+                </span>
+              </template>
+            </SortableList>
+          </div>
+        </section>
+        <section v-for="p in tree.filter((t) => t.children.length > 1)" :key="p.id">
+          <SectionHeader :label="`Sub ${p.name}`" />
+          <div class="mx-4">
+            <SortableList
+              :items="p.children"
+              :label="`Urutan subkategori ${p.name}`"
+              @reorder="mutations.reorder.mutate"
+            >
+              <template #default="{ item }">
+                <span class="flex min-h-12 items-center gap-3 pl-3">
+                  <ToneIcon v-bind="styleOf(item)" size="xs" />
+                  <b class="truncate text-row font-medium">{{ item.name }}</b>
+                </span>
+              </template>
+            </SortableList>
+          </div>
+        </section>
+      </template>
 
-    <template v-else>
-      <ListGroup
-        v-for="p in tree"
-        :key="p.id"
-        :label="p.name"
-        :aside="p.children.length ? `${p.children.length} sub` : ''"
-      >
-        <ListRow
-          :as="canEdit ? 'button' : 'div'"
-          :title="p.name"
-          subtitle="Kategori utama"
-          :aria-pressed="selecting ? selected.includes(p.id) : undefined"
-          @click="selecting ? toggle(p.id) : openForm(p)"
+      <template v-else>
+        <GroupedList
+          v-for="p in tree"
+          :key="p.id"
+          :label="p.name"
+          :aside="p.children.length ? `${p.children.length} sub` : ''"
         >
-          <template #lead>
-            <SelectCheck v-if="selecting" :selected="selected.includes(p.id)" />
-            <ToneIcon v-else v-bind="styleOf(p)" />
-          </template>
-        </ListRow>
-        <ListRow
-          v-for="c in p.children"
-          :key="c.id"
-          :as="canEdit ? 'button' : 'div'"
-          :title="c.name"
-          :subtitle="`Sub ${p.name}`"
-          class="pl-6"
-          :aria-pressed="selecting ? selected.includes(c.id) : undefined"
-          @click="selecting ? toggle(c.id) : openForm(c)"
-        >
-          <template #lead>
-            <SelectCheck v-if="selecting" :selected="selected.includes(c.id)" size="sm" />
-            <ToneIcon v-else v-bind="styleOf(c)" size="sm" />
-          </template>
-        </ListRow>
-      </ListGroup>
-    </template>
-
-    <SelectionBar
-      v-if="selecting"
-      :count="chosen.length"
-      :total="visible.length"
-      label="Aksi untuk kategori terpilih"
-      @toggle-all="toggleAll"
-      @close="stopSelecting"
-    >
-      <Button :disabled="!chosen.length || bulkBusy" @click="parentPicker = true">
-        <FolderInput />Jadikan sub
-      </Button>
-      <Button
-        variant="secondary"
-        :disabled="!chosen.some((c) => c.parent_id) || bulkBusy"
-        @click="makeMain"
-      >
-        <ArrowUpToLine />Jadikan utama
-      </Button>
-      <Button
-        variant="secondary"
-        :disabled="!chosen.length || bulkBusy"
-        @click="bulkSet(chosen, 'archived', true, 'diarsipkan')"
-      >
-        <Archive />Arsipkan
-      </Button>
-    </SelectionBar>
-
-    <Overlay v-model:open="parentPicker" labelledby="parent-picker-title">
-      <div class="flex flex-col gap-3">
-        <div class="flex items-center gap-2">
-          <h2 id="parent-picker-title" class="m-0 flex-1 text-panel font-bold">
-            Jadikan {{ chosen.length }} kategori sub dari
-          </h2>
-          <Button variant="ghost" size="icon" aria-label="Tutup" @click="parentPicker = false">
-            <X />
-          </Button>
-        </div>
-        <div class="flex max-h-[55dvh] flex-col gap-0.5 overflow-y-auto" data-no-drag>
-          <ListRow
-            v-for="p in parentChoices"
-            :key="p.id"
-            as="button"
-            :title="p.name"
-            :subtitle="p.children.length ? `${p.children.length} sub` : 'Belum ada sub'"
-            class="press hover:bg-surface-2"
-            @click="makeSubOf(p)"
+          <GroupRow
+            v-for="c in [p, ...p.children]"
+            :key="c.id"
+            :title="c.name"
+            :subtitle="c.id === p.id ? 'Kategori utama' : `Sub ${p.name}`"
+            :chevron="canEdit && !selecting"
+            :class="c.id !== p.id && 'pl-8'"
+            :inset="c.id === p.id ? 58 : 74"
+            :aria-pressed="selecting ? selected.includes(c.id) : undefined"
+            v-on="canEdit ? { click: () => (selecting ? toggle(c.id) : openForm(c)) } : {}"
           >
-            <template #lead><ToneIcon v-bind="styleOf(p)" size="sm" /></template>
-          </ListRow>
-        </div>
-      </div>
-    </Overlay>
+            <template #icon>
+              <span
+                v-if="selecting"
+                class="grid size-[30px] shrink-0 place-items-center"
+                aria-hidden="true"
+              >
+                <span
+                  :class="[
+                    'grid size-6 place-items-center rounded-full border-[1.6px] text-white',
+                    selected.includes(c.id)
+                      ? 'border-transparent bg-primary'
+                      : 'border-[var(--chevron)]',
+                  ]"
+                  ><Check v-if="selected.includes(c.id)" class="size-[13px]" stroke-width="3.4"
+                /></span>
+              </span>
+              <ToneIcon v-else v-bind="styleOf(c)" size="sm" />
+            </template>
+          </GroupRow>
+        </GroupedList>
+      </template>
 
-    <template v-if="archived.length && !sorting">
-      <button
-        type="button"
-        class="press mt-4 flex w-full items-center justify-between rounded-[10px] px-2.5 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground"
-        :aria-expanded="showArchived"
-        @click="showArchived = !showArchived"
-      >
-        Diarsipkan ({{ archived.length }})
-        <ChevronRight
-          :class="['size-4 transition-transform duration-150', showArchived && 'rotate-90']"
-          aria-hidden="true"
-        />
-      </button>
-      <Card v-if="showArchived" class="flex flex-col gap-0.5 p-1">
-        <ListRow
-          v-for="c in archived"
-          :key="c.id"
-          :as="canEdit ? 'button' : 'div'"
-          :title="categories.label(c.id, true)"
-          subtitle="Tidak muncul di pilihan · transaksi lama tetap"
-          class="opacity-70"
-          @click="openForm(c)"
+      <template v-if="archived.length && !sorting">
+        <button
+          type="button"
+          class="flex items-center gap-1 px-8 pb-[7px] pt-[18px] text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-50"
+          :aria-expanded="showArchived"
+          @click="showArchived = !showArchived"
         >
-          <template #lead><ToneIcon v-bind="styleOf(c)" /></template>
-        </ListRow>
-      </Card>
-    </template>
+          <ChevronRight
+            :class="['cat-chev size-3', showArchived && 'rotate-90']"
+            stroke-width="3"
+            aria-hidden="true"
+          />
+          Diarsipkan · {{ archived.length }}
+        </button>
+        <GroupedList v-if="showArchived">
+          <GroupRow
+            v-for="c in archived"
+            :key="c.id"
+            :title="categories.label(c.id, true)"
+            subtitle="Tidak muncul di pilihan · transaksi lama tetap"
+            :chevron="canEdit"
+            class="opacity-70"
+            v-on="canEdit ? { click: () => openForm(c) } : {}"
+          >
+            <template #icon><ToneIcon v-bind="styleOf(c)" size="sm" /></template>
+          </GroupRow>
+        </GroupedList>
+      </template>
+
+      <GlassBar v-if="selecting" class="flex-wrap">
+        <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+          <b class="text-bar text-foreground">{{ chosen.length }}</b> dipilih
+        </span>
+        <button
+          type="button"
+          class="px-2 py-1 text-body font-semibold text-primary-accent active:opacity-50"
+          @click="toggleAll"
+        >
+          {{
+            chosen.length === visible.length && visible.length ? 'Batal pilih semua' : 'Pilih semua'
+          }}
+        </button>
+        <div :class="['flex w-full flex-wrap gap-2', bulkBusy && 'pointer-events-none opacity-40']">
+          <span :class="!chosen.length && 'pointer-events-none opacity-40'">
+            <Chip size="lg" @click="parentPicker = true">Jadikan sub</Chip>
+          </span>
+          <span :class="!chosen.some((c) => c.parent_id) && 'pointer-events-none opacity-40'">
+            <Chip size="lg" @click="makeMain">Jadikan utama</Chip>
+          </span>
+          <span :class="!chosen.length && 'pointer-events-none opacity-40'">
+            <Chip size="lg" @click="bulkSet(chosen, 'archived', true, 'diarsipkan')">Arsipkan</Chip>
+          </span>
+        </div>
+      </GlassBar>
+    </div>
+
+    <IosSheet v-model:open="parentPicker" :title="`Jadikan ${chosen.length} kategori sub dari`">
+      <div class="overflow-hidden rounded-group bg-background">
+        <GroupRow
+          v-for="p in parentChoices"
+          :key="p.id"
+          :title="p.name"
+          :subtitle="p.children.length ? `${p.children.length} sub` : 'Belum ada sub'"
+          @click="makeSubOf(p)"
+        >
+          <template #icon><ToneIcon v-bind="styleOf(p)" size="sm" /></template>
+        </GroupRow>
+      </div>
+    </IosSheet>
 
     <Overlay v-model:open="formOpen" labelledby="category-form-title">
       <CategoryForm
@@ -355,3 +352,9 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
     </Overlay>
   </div>
 </template>
+
+<style scoped>
+.cat-chev {
+  transition: transform 200ms var(--ease-out);
+}
+</style>

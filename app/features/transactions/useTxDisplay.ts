@@ -10,7 +10,7 @@ import { netAmount } from './effects';
 
 const SIGN = { income: '+', expense: '−', transfer: '' } as const;
 
-/** Props TransactionRow untuk satu transaksi: ikon, judul, sub, nominal bertanda */
+/** Data tampilan satu transaksi (ikon, judul, sub, nominal bertanda); dasar rowView */
 export function useTxDisplay() {
   const categories = useCategories();
   const accounts = useAccounts();

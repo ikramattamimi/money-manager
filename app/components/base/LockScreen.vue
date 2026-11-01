@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Delete, LockKeyhole } from '@lucide/vue';
-import { Button } from '@/components/ui/button';
+import IosButton from '@/components/ios/IosButton.vue';
 import { MAX_ATTEMPTS, useLock } from '@/features/lock/useLock';
 
-// Layar kunci PIN penuh (fase 11 T2). Keypad besar seperti layar kunci iOS;
-// keyboard fisik juga bisa. PIN diperiksa otomatis setelah digit terakhir,
-// salah = titik bergetar lalu kosong. Setelah 5 kali salah hanya bisa masuk
-// ulang dengan kode email.
+// Layar kunci PIN penuh gaya layar kunci iOS: titik di atas, tombol angka
+// bulat 76px dengan huruf kecil di bawahnya; keyboard fisik juga bisa. PIN
+// diperiksa otomatis setelah digit terakhir, salah = titik bergetar lalu
+// kosong. Setelah 5 kali salah hanya bisa masuk ulang dengan kode email.
 const lock = useLock();
 const pin = ref('');
 const checking = ref(false);
@@ -50,6 +50,16 @@ onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const LETTERS: Record<string, string> = {
+  '2': 'ABC',
+  '3': 'DEF',
+  '4': 'GHI',
+  '5': 'JKL',
+  '6': 'MNO',
+  '7': 'PQRS',
+  '8': 'TUV',
+  '9': 'WXYZ',
+};
 const left = computed(() => MAX_ATTEMPTS - lock.attempts.value);
 </script>
 
@@ -61,14 +71,10 @@ const left = computed(() => MAX_ATTEMPTS - lock.attempts.value);
     aria-labelledby="lock-title"
   >
     <div class="flex flex-col items-center gap-2 text-center">
-      <span
-        class="grid size-12 place-items-center rounded-full bg-primary-soft text-primary-accent"
-      >
-        <LockKeyhole class="size-6" aria-hidden="true" />
-      </span>
-      <h1 id="lock-title" class="m-0 text-panel font-bold">Masukkan PIN</h1>
+      <LockKeyhole class="size-7 text-muted-foreground" stroke-width="2" aria-hidden="true" />
+      <h1 id="lock-title" class="m-0 text-sheet font-semibold tracking-[-0.02em]">Masukkan PIN</h1>
       <p
-        :class="['m-0 min-h-5 text-meta', wrong ? 'text-bad' : 'text-muted-foreground']"
+        :class="['m-0 min-h-5 text-meta', wrong ? 'text-exp' : 'text-muted-foreground']"
         aria-live="polite"
       >
         <template v-if="lock.tooMany.value"
@@ -79,56 +85,75 @@ const left = computed(() => MAX_ATTEMPTS - lock.attempts.value);
       </p>
     </div>
 
-    <div ref="dots" class="flex gap-3.5" aria-hidden="true">
+    <div ref="dots" class="flex gap-4" aria-hidden="true">
       <span
         v-for="i in length"
         :key="i"
         :class="[
-          'size-3.5 rounded-full border-2 transition-colors duration-100',
+          'size-[13px] rounded-full border-[1.5px]',
           i <= pin.length
             ? wrong
-              ? 'border-bad bg-bad'
-              : 'border-primary-accent bg-primary-accent'
-            : 'border-input',
+              ? 'border-transparent bg-[var(--exp)]'
+              : 'border-transparent bg-foreground'
+            : 'border-[var(--chevron)]',
         ]"
       />
     </div>
     <span class="sr-only" aria-live="polite">{{ pin.length }} dari {{ length }} digit</span>
 
-    <div v-if="!lock.tooMany.value" class="grid w-full max-w-[280px] grid-cols-3 gap-3">
+    <div v-if="!lock.tooMany.value" class="grid grid-cols-3 gap-x-6 gap-y-4">
       <button
         v-for="k in KEYS"
         :key="k"
         type="button"
-        class="press grid aspect-square place-items-center rounded-full bg-surface-2 text-[26px] font-semibold tabular-nums hover:bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="lock-key flex size-[76px] flex-col items-center justify-center rounded-full bg-fill"
         @click="press(k)"
       >
-        {{ k }}
+        <span class="text-[32px] font-normal leading-none">{{ k }}</span>
+        <span
+          class="mt-0.5 h-3 text-[10px] font-semibold tracking-[0.15em] text-muted-foreground"
+          >{{ LETTERS[k] ?? '' }}</span
+        >
       </button>
       <span />
       <button
         type="button"
-        class="press grid aspect-square place-items-center rounded-full bg-surface-2 text-[26px] font-semibold tabular-nums hover:bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="lock-key flex size-[76px] items-center justify-center rounded-full bg-fill"
         @click="press('0')"
       >
-        0
+        <span class="text-[32px] font-normal leading-none">0</span>
       </button>
       <button
         type="button"
-        class="press grid aspect-square place-items-center rounded-full text-muted-foreground hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="lock-key grid size-[76px] place-items-center rounded-full text-foreground"
         aria-label="Hapus satu digit"
         @click="back"
       >
-        <Delete class="size-6" aria-hidden="true" />
+        <Delete class="size-7" stroke-width="1.8" aria-hidden="true" />
       </button>
     </div>
 
-    <Button
-      :variant="lock.tooMany.value ? 'default' : 'link'"
-      :size="lock.tooMany.value ? 'touch' : 'default'"
+    <IosButton v-if="lock.tooMany.value" class="min-w-[240px]" @click="lock.forget()">
+      Masuk dengan kode email
+    </IosButton>
+    <button
+      v-else
+      type="button"
+      class="px-3 py-1.5 text-body text-primary-accent active:opacity-50"
       @click="lock.forget()"
     >
-      {{ lock.tooMany.value ? 'Masuk dengan kode email' : 'Lupa PIN?' }}
-    </Button>
+      Lupa PIN?
+    </button>
   </div>
 </template>
+
+<style scoped>
+/* Tekan: isian lebih gelap seketika, lepas memudar (seperti keypad iOS) */
+.lock-key {
+  transition: background-color 280ms ease-out;
+}
+.lock-key:active {
+  background: var(--fill-press);
+  transition: none;
+}
+</style>

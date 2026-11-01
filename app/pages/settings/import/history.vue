@@ -1,116 +1,87 @@
 <script setup lang="ts">
-import { ArrowLeft, Camera, FileSpreadsheet, History, Landmark, Undo2 } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
+import Chip from '@/components/ios/Chip.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import NavBar from '@/components/ios/NavBar.vue';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import type { ImportBatch } from '@/features/import/api';
+import { batchWhen, IMPORT_SOURCE } from '@/features/import/batchStyle';
 import { useImportHistory, useRevertImport } from '@/features/import/useImport';
-import { formatTime, jakartaParts, MONTHS_SHORT } from '@/lib/time';
 
-// Riwayat impor. Membatalkan impor menghapus semua transaksinya dan tidak
-// bisa di-undo, jadi pakai dialog konfirmasi (bukan toast Urungkan).
+// Riwayat impor (mockup import-history). Membatalkan impor menghapus semua
+// transaksinya dan tidak bisa diurungkan, jadi lewat IosAlert (bukan toast
+// Urungkan). Akun dan kategori yang dibuat impor tetap ada.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Riwayat impor · Money Manager' });
 
 const { canEdit } = useActiveBook();
 const history = useImportHistory();
 const revert = useRevertImport();
+const alert = useAlert();
 
-const when = (iso: string) => {
-  const d = jakartaParts(iso);
-  return `${d.day} ${MONTHS_SHORT[d.month - 1]} ${d.year}, ${formatTime(iso)}`;
-};
+const n = (value: number) => value.toLocaleString('id-ID');
 
-const confirming = ref<ImportBatch | null>(null);
-const confirmOpen = ref(false);
-function ask(batch: ImportBatch) {
-  confirming.value = batch;
-  confirmOpen.value = true;
-}
-function confirm() {
-  if (confirming.value) revert.mutate(confirming.value.id);
-  confirmOpen.value = false;
+async function ask(batch: ImportBatch) {
+  const ok = await alert.confirm({
+    title: 'Batalkan impor ini?',
+    body: `${n(batch.row_count)} transaksi dari ${batch.filename || 'impor ini'} dihapus dan saldo akun kembali seperti sebelum impor. Ini tidak bisa diurungkan.`,
+    okLabel: 'Batalkan impor',
+    danger: true,
+  });
+  if (ok) revert.mutate(batch.id);
 }
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Riwayat impor">
-      <template #actions>
-        <HeaderButton label="Kembali ke impor" @click="navigateTo('/settings/import')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-      </template>
-    </PageHeader>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar
+      title="Riwayat impor"
+      back="Kembali"
+      back-to="/settings/import"
+      line
+      class="sticky top-0 md:static"
+    />
 
-    <Card v-if="history.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="3" /></Card>
-    <Card v-else-if="!history.data.value?.length" class="mt-3.5">
-      <EmptyState
-        :icon="History"
-        title="Belum ada impor"
-        description="File Realbyte yang diimpor akan tercatat di sini."
+    <div class="pb-8">
+      <EmptyCard
+        v-if="!history.data.value?.length"
+        :title="history.isPending.value ? 'Memuat…' : 'Belum ada impor'"
+        description="Impor Realbyte, mutasi, atau struk akan muncul di sini."
       />
-    </Card>
-
-    <ListGroup v-else label="Impor" :aside="`${history.data.value.length} kali`">
-      <ListRow
-        v-for="b in history.data.value"
-        :key="b.id"
-        :title="b.filename || 'Impor Realbyte'"
-        :subtitle="`${when(b.created_at)} · ${b.row_count.toLocaleString('id-ID')} transaksi`"
-        :class="b.status === 'reverted' ? 'opacity-60' : ''"
-      >
-        <template #lead
-          ><ToneIcon
-            :icon="
-              b.source === 'bank_statement'
-                ? Landmark
-                : b.source === 'photo'
-                  ? Camera
-                  : FileSpreadsheet
-            "
-            :tone="b.status === 'reverted' ? 'neutral' : 'ok'"
-            size="sm"
-        /></template>
-        <template #end>
-          <span v-if="b.status === 'reverted'" class="text-xs text-muted-foreground"
-            >Dibatalkan</span
-          >
-          <Button
-            v-else-if="canEdit"
-            variant="ghost-danger"
-            size="default"
-            :disabled="revert.isPending.value"
-            @click="ask(b)"
-          >
-            <Undo2 />Batalkan
-          </Button>
-        </template>
-      </ListRow>
-    </ListGroup>
-
-    <Overlay v-model:open="confirmOpen" labelledby="revert-title">
-      <div v-if="confirming" class="flex flex-col gap-3">
-        <h2 id="revert-title" class="m-0 text-panel font-bold">Batalkan impor ini?</h2>
-        <p class="m-0 text-meta text-muted-foreground">
-          {{ confirming.row_count.toLocaleString('id-ID') }} transaksi dari
-          <b class="text-foreground">{{ confirming.filename || 'impor ini' }}</b> akan dihapus dan
-          saldo akun kembali seperti sebelum impor. Ini tidak bisa diurungkan. Akun dan kategori
-          yang dibuat impor tetap ada.
-        </p>
-        <div class="flex flex-wrap justify-end gap-2 pt-1">
-          <Button variant="secondary" size="touch" @click="confirmOpen = false">Jangan</Button>
-          <Button variant="destructive" size="touch" @click="confirm">Hapus transaksinya</Button>
-        </div>
-      </div>
-    </Overlay>
+      <GroupedList v-else label="Impor" :aside="`${history.data.value.length} kali`">
+        <GroupRow
+          v-for="b in history.data.value"
+          :key="b.id"
+          :title="b.filename || IMPORT_SOURCE[b.source].label"
+          :subtitle="`${batchWhen(b.created_at)} · ${n(b.row_count)} transaksi`"
+          :inset="62"
+          :class="b.status === 'reverted' && 'opacity-60'"
+        >
+          <template #icon>
+            <ToneIcon
+              :icon="IMPORT_SOURCE[b.source].icon"
+              :tone="b.status === 'reverted' ? 'gray' : IMPORT_SOURCE[b.source].tone"
+              solid
+            />
+          </template>
+          <template #end>
+            <span v-if="b.status === 'reverted'" class="shrink-0 text-meta text-muted-foreground"
+              >Dibatalkan</span
+            >
+            <Chip v-else-if="canEdit && !revert.isPending.value" danger @click="ask(b)"
+              >Batalkan</Chip
+            >
+          </template>
+        </GroupRow>
+      </GroupedList>
+      <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
+        Membatalkan impor menghapus semua transaksi dari impor itu, dan tidak bisa diurungkan. Akun
+        dan kategori yang dibuat impor tetap ada.
+      </p>
+    </div>
   </div>
 </template>

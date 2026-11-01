@@ -6,7 +6,8 @@ import type { QuickCategory } from '@/features/quick-add/types';
 import { ACCOUNTS, CATEGORIES, TEMPLATES } from '@/mocks/data';
 import { useMockLedger } from '@/mocks/useMockLedger';
 
-// Layout layar prototipe (/prototype/*): AppShell dengan data tiruan.
+// Layout katalog komponen (/prototype/ui, /prototype/tokens): AppShell dengan
+// data tiruan, tanpa login. Tab bar menuju app asli.
 // Fase 4 membuat layout `app` yang sama dengan sumber data Supabase.
 const ledger = useMockLedger();
 
@@ -33,7 +34,7 @@ useHead({ title: 'Prototipe · Money Manager' });
 
 <template>
   <AppShell
-    base="/prototype"
+    base=""
     book-name="Pribadi"
     user-name="ikra8520"
     user-role="Pemilik"

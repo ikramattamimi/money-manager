@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { ArrowLeft, BookOpen, Copy, LogOut, Mail, Share2, Trash2, X } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import CardHead from '@/components/base/CardHead.vue';
-import FormField from '@/components/base/FormField.vue';
-import Overlay from '@/components/base/Overlay.vue';
+import { Check, Copy, Share2 } from '@lucide/vue';
 import Avatar from '@/components/data/Avatar.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
-import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
+import FieldRow from '@/components/data/FieldRow.vue';
+import { FIELD_INPUT } from '@/components/data/field';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import Segmented from '@/components/ios/Segmented.vue';
+import MonthStartSheet from '@/components/money/MonthStartSheet.vue';
 import { booksApi, type BookInvite, type BookMember, type BookRole } from '@/features/books/api';
+import { monthStartCaption } from '@/features/books/monthStart';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import {
   inviteLink,
@@ -24,17 +23,12 @@ import {
   useBookMembers,
   useBookMutations,
 } from '@/features/books/useBookAdmin';
-import {
-  addMonths,
-  dayKey,
-  MONTHS_LONG,
-  MONTHS_SHORT,
-  periodOf,
-  periodRangeLabel,
-} from '@/lib/time';
+import { MONTHS_SHORT } from '@/lib/time';
 
-// Atur satu buku: nama, anggota dan peran, undangan, keluar, hapus.
-// Peran ditegakkan RLS dan trigger; layar ini hanya menyembunyikan tombol.
+// Atur satu buku: nama, tanggal awal bulan, anggota dan peran, undangan,
+// keluar, hapus. Peran ditegakkan RLS dan trigger; layar ini hanya
+// menyembunyikan tombol. Keluarkan anggota dan hapus buku tidak bisa
+// diurungkan, jadi lewat IosAlert.
 definePageMeta({ layout: 'app' });
 
 const route = useRoute();
@@ -48,14 +42,22 @@ const members = useBookMembers(id);
 const invites = useBookInvites(id, isOwner);
 const mutations = useBookMutations();
 const toast = useToast();
+const alert = useAlert();
 
 const owners = computed(() => (members.data.value ?? []).filter((m) => m.role === 'owner').length);
 const me = computed(() => members.data.value?.find((m) => m.is_me) ?? null);
 const canLeave = computed(() => !!me.value && (me.value.role !== 'owner' || owners.value > 1));
 
+function openBook() {
+  if (!book.value) return;
+  setActiveBook(book.value.id);
+  toast.show(`Buku ${book.value.name} dibuka`);
+}
+
 // ---------- nama ----------
 const name = ref('');
 watch(book, (b) => b && !name.value && (name.value = b.name), { immediate: true });
+const nameChanged = computed(() => !!name.value.trim() && name.value.trim() !== book.value?.name);
 function rename() {
   const value = name.value.trim();
   if (!value || !book.value || value === book.value.name) return;
@@ -66,43 +68,42 @@ function rename() {
 }
 
 // ---------- tanggal awal bulan ----------
-const startDay = ref(1);
-watch(book, (b) => b && (startDay.value = b.month_start_day), { immediate: true });
-/** Contoh periode berjalan dengan tanggal pilihan, untuk pratinjau */
-const startPreview = computed(() => {
-  const p = periodOf(dayKey(new Date()), startDay.value);
-  const next = addMonths(p.year, p.month, 1);
-  return startDay.value === 1
-    ? 'Bulan mengikuti kalender, tanggal 1 sampai akhir bulan.'
-    : `Bulan ${MONTHS_LONG[p.month - 1]} = ${periodRangeLabel(p.year, p.month, startDay.value)}, ` +
-        `${MONTHS_LONG[next.month - 1]} = ${periodRangeLabel(next.year, next.month, startDay.value)}.`;
-});
-function saveStartDay() {
-  if (!book.value || startDay.value === book.value.month_start_day) return;
-  mutations.setMonthStartDay.mutate(
-    { id: id.value, day: startDay.value },
-    { onSuccess: () => toast.show(`Bulan dimulai tanggal ${startDay.value}`) },
-  );
-}
+const startOpen = ref(false);
 
-// ---------- anggota ----------
-const ROLES: { value: BookRole; label: string }[] = [
-  { value: 'owner', label: ROLE_LABEL.owner },
-  { value: 'editor', label: ROLE_LABEL.editor },
-  { value: 'viewer', label: ROLE_LABEL.viewer },
-];
+// ---------- anggota: lembar peran ----------
+const ROLES: BookRole[] = ['owner', 'editor', 'viewer'];
+const member = ref<BookMember | null>(null);
+const memberOpen = computed({
+  get: () => !!member.value,
+  set: (v) => !v && (member.value = null),
+});
+const canManage = (m: BookMember) => isOwner.value && !(m.is_me && owners.value <= 1);
 function setRole(m: BookMember, role: BookRole) {
+  member.value = null;
   if (role === m.role) return;
   mutations.setRole.mutate(
     { bookId: id.value, userId: m.user_id, role },
     { onSuccess: () => toast.show(`${m.display_name} sekarang ${ROLE_LABEL[role].toLowerCase()}`) },
   );
 }
-const removing = ref<BookMember | null>(null);
-function confirmRemove() {
-  const m = removing.value;
-  removing.value = null;
-  if (!m) return;
+async function remove(m: BookMember) {
+  member.value = null;
+  const ok = await alert.confirm(
+    m.is_me
+      ? {
+          title: 'Keluar dari buku ini?',
+          body: 'Transaksi yang sudah kamu catat tetap ada. Kamu tidak bisa melihat buku ini lagi sampai diundang ulang.',
+          okLabel: 'Keluar',
+          danger: true,
+        }
+      : {
+          title: `Keluarkan ${m.display_name}?`,
+          body: 'Transaksi yang sudah dicatatnya tetap ada. Kamu bisa mengundangnya lagi nanti.',
+          okLabel: 'Keluarkan',
+          danger: true,
+        },
+  );
+  if (!ok) return;
   mutations.removeMember.mutate(
     { bookId: id.value, userId: m.user_id },
     {
@@ -168,11 +169,16 @@ const expires = (iso: string) => {
 };
 
 // ---------- hapus buku ----------
-const deleteOpen = ref(false);
 const isLastBook = computed(() => (books.value?.length ?? 0) <= 1);
-function deleteBook() {
-  deleteOpen.value = false;
+async function deleteBook() {
   const deleted = book.value?.name ?? 'Buku';
+  const ok = await alert.confirm({
+    title: `Hapus buku ${deleted}?`,
+    body: 'Semua akun, kategori, transaksi, bookmark, dan budget di buku ini dihapus permanen untuk semua anggota. Ini tidak bisa diurungkan.',
+    okLabel: 'Hapus',
+    danger: true,
+  });
+  if (!ok) return;
   mutations.remove.mutate(id.value, {
     onSuccess: () => {
       toast.show(`Buku ${deleted} dihapus`);
@@ -183,136 +189,94 @@ function deleteBook() {
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader :title="book?.name ?? 'Buku'" :summary="book?.role ? ROLE_LABEL[book.role] : ''">
-      <template #actions>
-        <HeaderButton label="Kembali ke daftar buku" @click="navigateTo('/settings/books')">
-          <ArrowLeft aria-hidden="true" />
-        </HeaderButton>
-        <HeaderButton v-if="book && book.id !== activeId" @click="setActiveBook(book.id)">
-          <BookOpen aria-hidden="true" />Buka
-        </HeaderButton>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar
+      :title="book?.name ?? 'Buku'"
+      back="Buku"
+      back-to="/settings/books"
+      line
+      class="sticky top-0 md:static"
+    >
+      <template #right>
+        <button
+          v-if="book && book.id !== activeId"
+          type="button"
+          class="h-11 px-3 text-bar font-semibold text-primary-accent active:opacity-50"
+          @click="openBook"
+        >
+          Buka
+        </button>
       </template>
-    </PageHeader>
+    </NavBar>
 
-    <Card v-if="!book && !members.isPending.value" class="mt-3.5">
-      <EmptyState
-        :icon="BookOpen"
-        title="Buku tidak ditemukan"
-        description="Mungkin sudah dihapus atau kamu sudah keluar."
-      />
-    </Card>
+    <EmptyCard
+      v-if="!book && !members.isPending.value"
+      title="Buku tidak ditemukan"
+      description="Mungkin sudah dihapus atau kamu sudah keluar."
+    />
 
-    <template v-else>
-      <!-- Nama -->
-      <Card v-if="isOwner" class="mt-3.5 p-3.5">
-        <form class="flex items-end gap-2" @submit.prevent="rename">
-          <FormField label="Nama buku" for="book-rename" class="flex-1">
-            <input
-              id="book-rename"
-              v-model="name"
-              type="text"
-              maxlength="60"
-              class="field-input"
-              autocomplete="off"
-            />
-          </FormField>
-          <Button
-            type="submit"
-            size="touch"
-            variant="secondary"
-            :disabled="!name.trim() || name.trim() === book?.name"
-            >Simpan</Button
+    <div v-else class="pb-8">
+      <GroupedList label="Buku">
+        <FieldRow v-if="isOwner" label="Nama" for="book-rename" :label-width="64">
+          <input
+            id="book-rename"
+            v-model="name"
+            type="text"
+            maxlength="60"
+            enterkeyhint="done"
+            :class="FIELD_INPUT"
+            autocomplete="off"
+            @keydown.enter.prevent="rename"
+          />
+          <button
+            v-if="nameChanged"
+            type="button"
+            class="shrink-0 text-body font-semibold text-primary-accent active:opacity-50"
+            @click="rename"
           >
-        </form>
-      </Card>
-
-      <!-- Tanggal awal bulan -->
-      <Card class="mt-3.5 p-3.5">
-        <form v-if="isOwner" class="flex flex-col gap-2" @submit.prevent="saveStartDay">
-          <div class="flex items-end gap-2">
-            <FormField label="Bulan dimulai tanggal" for="book-start-day" class="flex-1">
-              <select id="book-start-day" v-model.number="startDay" class="field-input">
-                <option v-for="d in 31" :key="d" :value="d">{{ d }}</option>
-              </select>
-            </FormField>
-            <Button
-              type="submit"
-              size="touch"
-              variant="secondary"
-              :disabled="
-                startDay === book?.month_start_day || mutations.setMonthStartDay.isPending.value
-              "
-              >Simpan</Button
-            >
-          </div>
-          <p class="m-0 text-xs text-muted-foreground">
-            {{ startPreview }}
-            <template v-if="startDay >= 20">
-              Tanggal 20–31 dihitung mulai bulan sebelumnya, cocok untuk gajian akhir bulan.</template
-            >
-            <template v-if="startDay > 28">
-              Bulan yang lebih pendek mulai di hari terakhirnya.</template
-            >
-            Berlaku untuk semua anggota: transaksi, statistik, dan budget.
-          </p>
-        </form>
-        <p v-else class="m-0 text-meta">
-          Bulan di buku ini dimulai tanggal <b>{{ book?.month_start_day ?? 1 }}</b
-          >.
-          <span class="text-muted-foreground">Hanya pemilik yang bisa mengubahnya.</span>
-        </p>
-      </Card>
+            Simpan
+          </button>
+        </FieldRow>
+        <GroupRow v-else title="Nama" :value="book?.name" />
+        <GroupRow
+          title="Tanggal awal bulan"
+          :subtitle="monthStartCaption(book?.month_start_day ?? 1)"
+          :value="String(book?.month_start_day ?? 1)"
+          :chevron="isOwner"
+          v-on="isOwner ? { click: () => (startOpen = true) } : {}"
+        />
+      </GroupedList>
+      <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
+        Tanggal awal bulan berlaku untuk semua anggota: transaksi, statistik, dan budget.<template
+          v-if="!isOwner"
+        >
+          Hanya pemilik yang bisa mengubahnya.</template
+        >
+      </p>
 
       <!-- Anggota -->
-      <Card v-if="members.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="3" /></Card>
-      <ListGroup v-else label="Anggota" :aside="`${members.data.value?.length ?? 0} orang`">
-        <ListRow
+      <GroupedList label="Anggota" :aside="`${members.data.value?.length ?? 0} orang`">
+        <GroupRow v-if="members.isPending.value" title="Memuat anggota…" />
+        <GroupRow
           v-for="m in members.data.value"
           :key="m.user_id"
           :title="m.is_me ? `${m.display_name} (kamu)` : m.display_name"
-          :subtitle="m.email ?? ROLE_LABEL[m.role]"
-          class="flex-wrap"
+          :subtitle="m.email ?? undefined"
+          :value="ROLE_LABEL[m.role]"
+          :chevron="canManage(m)"
+          :inset="64"
+          v-on="canManage(m) ? { click: () => (member = m) } : {}"
         >
-          <template #lead><Avatar :name="m.display_name" :url="m.avatar_url" /></template>
-          <template #end>
-            <div class="flex items-center gap-1">
-              <select
-                v-if="isOwner && !(m.is_me && owners <= 1)"
-                :value="m.role"
-                class="field-input h-9! w-[124px] text-meta!"
-                :aria-label="`Peran ${m.display_name}`"
-                @change="setRole(m, ($event.target as HTMLSelectElement).value as BookRole)"
-              >
-                <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
-              </select>
-              <span v-else class="text-xs font-semibold text-muted-foreground">{{
-                ROLE_LABEL[m.role]
-              }}</span>
-              <Button
-                v-if="isOwner && !m.is_me"
-                variant="ghost"
-                size="icon"
-                :aria-label="`Keluarkan ${m.display_name}`"
-                @click="removing = m"
-              >
-                <X />
-              </Button>
-            </div>
-          </template>
-        </ListRow>
-      </ListGroup>
+          <template #icon><Avatar :name="m.display_name" :url="m.avatar_url" /></template>
+        </GroupRow>
+      </GroupedList>
 
       <!-- Undang -->
-      <Card v-if="isOwner" class="mt-3.5">
-        <CardHead title="Undang anggota" />
-        <form class="flex flex-col gap-3 px-3.5 pb-3.5" novalidate @submit.prevent="sendInvite">
-          <FormField
-            label="Email"
-            for="invite-email"
-            :error="inviteError"
-            hint="Penerima masuk ke app dengan email ini untuk menerima undangan."
-          >
+      <template v-if="isOwner">
+        <GroupedList label="Undang anggota">
+          <FieldRow label="Email" for="invite-email" :error="inviteError" :label-width="64">
             <input
               id="invite-email"
               v-model="inviteEmail"
@@ -320,21 +284,33 @@ function deleteBook() {
               inputmode="email"
               autocomplete="off"
               autocapitalize="off"
-              class="field-input"
+              enterkeyhint="send"
+              :class="FIELD_INPUT"
               placeholder="nama@email.com"
               :aria-invalid="!!inviteError || undefined"
+              @keydown.enter.prevent="sendInvite"
             />
-          </FormField>
-          <SegmentedControl v-model="inviteRole" :options="INVITE_ROLES" label="Peran" />
-          <p class="m-0 text-xs text-muted-foreground">{{ ROLE_HINT[inviteRole] }}.</p>
-          <div class="flex justify-end">
-            <Button type="submit" size="touch" :disabled="mutations.invite.isPending.value"
-              ><Mail />Undang</Button
-            >
-          </div>
-        </form>
-        <div v-if="lastInvite" class="flex flex-col gap-2 border-t px-3.5 py-3" aria-live="polite">
-          <span class="text-meta">
+          </FieldRow>
+          <GroupRow>
+            <Segmented v-model="inviteRole" :options="INVITE_ROLES" label="Peran" />
+            <span class="pt-1.5 text-meta text-muted-foreground">{{ ROLE_HINT[inviteRole] }}.</span>
+          </GroupRow>
+        </GroupedList>
+        <p class="mx-8 mt-2 text-meta leading-[1.45] text-muted-foreground">
+          Penerima masuk ke app dengan email ini untuk menerima undangan.
+        </p>
+        <div class="px-4 pt-3">
+          <IosButton block :disabled="mutations.invite.isPending.value" @click="sendInvite"
+            >Undang</IosButton
+          >
+        </div>
+
+        <section
+          v-if="lastInvite"
+          class="mx-4 mt-3.5 flex flex-col gap-2.5 rounded-group bg-card p-4"
+          aria-live="polite"
+        >
+          <span class="text-[14px]">
             {{
               lastInvite.emailed
                 ? `Email undangan terkirim ke ${lastInvite.invite.email}.`
@@ -342,134 +318,118 @@ function deleteBook() {
             }}
           </span>
           <code
-            class="select-all break-all rounded-lg bg-surface-2 px-2.5 py-2 font-mono text-xs"
+            class="select-all break-all rounded-[10px] bg-fill px-2.5 py-2 font-mono text-meta"
             >{{ inviteLink(lastInvite.invite.token) }}</code
           >
-          <div class="flex flex-wrap gap-2">
-            <Button variant="secondary" size="default" @click="copyLink(lastInvite.invite.token)"
-              ><Copy />Salin link</Button
+          <div class="flex gap-2">
+            <IosButton variant="gray" class="flex-1" @click="copyLink(lastInvite.invite.token)"
+              ><Copy aria-hidden="true" />Salin link</IosButton
             >
-            <Button
+            <IosButton
               v-if="canShare"
-              variant="secondary"
-              size="default"
+              variant="gray"
+              class="flex-1"
               @click="shareLink(lastInvite.invite.token)"
-              ><Share2 />Bagikan</Button
+              ><Share2 aria-hidden="true" />Bagikan</IosButton
             >
           </div>
-        </div>
-      </Card>
+        </section>
 
-      <!-- Undangan menunggu -->
-      <ListGroup
-        v-if="isOwner && invites.data.value?.length"
-        label="Menunggu diterima"
-        :aside="`${invites.data.value.length} undangan`"
-      >
-        <ListRow
-          v-for="inv in invites.data.value"
-          :key="inv.id"
-          :title="inv.email"
-          :subtitle="`${ROLE_LABEL[inv.role]} · berlaku sampai ${expires(inv.expires_at)}`"
+        <GroupedList
+          v-if="invites.data.value?.length"
+          label="Menunggu diterima"
+          :aside="`${invites.data.value.length} undangan`"
         >
-          <template #lead><ToneIcon :icon="Mail" tone="warn" size="sm" /></template>
-          <template #end>
-            <div class="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                :aria-label="`Salin link undangan ${inv.email}`"
+          <GroupRow
+            v-for="inv in invites.data.value"
+            :key="inv.id"
+            :title="inv.email"
+            :subtitle="`${ROLE_LABEL[inv.role]} · berlaku sampai ${expires(inv.expires_at)}`"
+          >
+            <template #end>
+              <IconButton
+                :label="`Salin link undangan ${inv.email}`"
+                accent
                 @click="copyLink(inv.token)"
                 ><Copy
-              /></Button>
-              <Button
-                variant="ghost"
-                size="icon"
+              /></IconButton>
+              <button
+                type="button"
+                class="shrink-0 px-1 text-body font-semibold text-exp active:opacity-50"
                 :aria-label="`Batalkan undangan ${inv.email}`"
                 @click="
                   mutations.cancelInvite.mutate(inv.id, {
                     onSuccess: () => toast.show('Undangan dibatalkan'),
                   })
                 "
-                ><X
-              /></Button>
-            </div>
-          </template>
-        </ListRow>
-      </ListGroup>
+              >
+                Batalkan
+              </button>
+            </template>
+          </GroupRow>
+        </GroupedList>
+      </template>
 
       <!-- Keluar / hapus -->
-      <Card class="mt-5 flex flex-col gap-0.5 p-1">
-        <ListRow
+      <GroupedList class="mt-[26px]">
+        <GroupRow
           v-if="me"
-          :as="canLeave ? 'button' : 'div'"
-          title="Keluar dari buku ini"
-          :subtitle="
+          :class="!canLeave && 'opacity-60'"
+          v-on="canLeave ? { click: () => me && remove(me) } : {}"
+        >
+          <b class="text-row font-medium text-exp">Keluar dari buku ini</b>
+          <span class="truncate text-meta text-muted-foreground">{{
             canLeave
               ? 'Kamu tidak bisa melihat buku ini lagi sampai diundang ulang'
               : 'Jadikan anggota lain pemilik dulu'
-          "
-          :class="canLeave ? 'text-bad' : 'opacity-60'"
-          @click="canLeave && (removing = me)"
-        >
-          <template #lead><ToneIcon :icon="LogOut" tone="bad" size="sm" /></template>
-        </ListRow>
-        <ListRow
+          }}</span>
+        </GroupRow>
+        <GroupRow
           v-if="isOwner"
-          :as="isLastBook ? 'div' : 'button'"
-          title="Hapus buku"
-          :subtitle="
+          :class="isLastBook && 'opacity-60'"
+          v-on="isLastBook ? {} : { click: deleteBook }"
+        >
+          <b class="text-row font-medium text-exp">Hapus buku</b>
+          <span class="truncate text-meta text-muted-foreground">{{
             isLastBook
               ? 'Buku satu-satunya tidak bisa dihapus'
               : 'Semua akun, kategori, dan transaksinya ikut terhapus'
-          "
-          :class="isLastBook ? 'opacity-60' : 'text-bad'"
-          @click="!isLastBook && (deleteOpen = true)"
-        >
-          <template #lead><ToneIcon :icon="Trash2" tone="bad" size="sm" /></template>
-        </ListRow>
-      </Card>
-    </template>
+          }}</span>
+        </GroupRow>
+      </GroupedList>
+    </div>
 
-    <!-- Konfirmasi: tidak bisa di-undo -->
-    <Overlay
-      :open="!!removing"
-      labelledby="remove-title"
-      @update:open="(v) => !v && (removing = null)"
-    >
-      <div v-if="removing" class="flex flex-col gap-3">
-        <h2 id="remove-title" class="m-0 text-panel font-bold">
-          {{ removing.is_me ? 'Keluar dari buku ini?' : `Keluarkan ${removing.display_name}?` }}
-        </h2>
-        <p class="m-0 text-meta text-muted-foreground">
-          {{
-            removing.is_me
-              ? 'Transaksi yang sudah kamu catat tetap ada di buku ini.'
-              : 'Transaksi yang sudah dicatatnya tetap ada. Kamu bisa mengundangnya lagi nanti.'
-          }}
-        </p>
-        <div class="flex flex-wrap justify-end gap-2 pt-1">
-          <Button variant="secondary" size="touch" @click="removing = null">Batal</Button>
-          <Button variant="destructive" size="touch" @click="confirmRemove">{{
-            removing.is_me ? 'Keluar' : 'Keluarkan'
-          }}</Button>
-        </div>
+    <MonthStartSheet
+      v-if="book"
+      v-model:open="startOpen"
+      :book-id="book.id"
+      :current="book.month_start_day"
+    />
+
+    <IosSheet v-model:open="memberOpen" :title="member ? `Peran ${member.display_name}` : ''">
+      <div v-if="member" class="overflow-hidden rounded-group bg-background">
+        <GroupRow
+          v-for="r in ROLES"
+          :key="r"
+          :title="ROLE_LABEL[r]"
+          :subtitle="ROLE_HINT[r]"
+          @click="member && setRole(member, r)"
+        >
+          <template #end>
+            <Check
+              v-if="member.role === r"
+              class="size-5 shrink-0 text-primary-accent"
+              stroke-width="2.6"
+              aria-hidden="true"
+            />
+          </template>
+        </GroupRow>
       </div>
-    </Overlay>
-    <Overlay v-model:open="deleteOpen" labelledby="delete-book-title">
-      <div class="flex flex-col gap-3">
-        <h2 id="delete-book-title" class="m-0 text-panel font-bold">
-          Hapus buku {{ book?.name }}?
-        </h2>
-        <p class="m-0 text-meta text-muted-foreground">
-          Semua akun, kategori, transaksi, template, dan budget di buku ini dihapus permanen untuk
-          semua anggota. Ini tidak bisa diurungkan.
-        </p>
-        <div class="flex flex-wrap justify-end gap-2 pt-1">
-          <Button variant="secondary" size="touch" @click="deleteOpen = false">Batal</Button>
-          <Button variant="destructive" size="touch" @click="deleteBook">Hapus permanen</Button>
-        </div>
-      </div>
-    </Overlay>
+      <template v-if="member && !member.is_me" #footer>
+        <IosButton block variant="red" @click="member && remove(member)"
+          >Keluarkan dari buku</IosButton
+        >
+      </template>
+    </IosSheet>
   </div>
 </template>

@@ -891,6 +891,16 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { p_token: string }; Returns: string }
+      account_balances_at: {
+        Args: { p_book_id: string; p_cuts: string[] }
+        Returns: {
+          account_id: string
+          balance: number
+          cut: string
+          inflow: number
+          outflow: number
+        }[]
+      }
       account_ledger: {
         Args: { p_account_id: string; p_limit?: number; p_offset?: number }
         Returns: {

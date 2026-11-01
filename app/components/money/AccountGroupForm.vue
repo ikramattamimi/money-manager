@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Trash2, X } from '@lucide/vue';
-import FormField from '@/components/base/FormField.vue';
+import { Trash2 } from '@lucide/vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
 import { TONE_FILL, type Tone } from '@/components/data/tone';
-import { Button } from '@/components/ui/button';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import IosButton from '@/components/ios/IosButton.vue';
 import type { AccountGroup } from '@/features/accounts/api';
 import {
   ACCOUNT_ICONS,
@@ -15,11 +15,14 @@ import {
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { CATEGORY_TONES } from '@/features/categories/icons';
+import FormDialogHeader from './FormDialogHeader.vue';
+import { FORM_INPUT, FORM_NOTE, FORM_SH, formGroup } from './formStyles';
 
-// Tambah/ubah grup akun: nama, jenis, ikon, warna. Jenis menentukan perilaku
-// (Kartu kredit membuka tanggal tagihan di akunnya) dan ikon/warna awal; ikon
-// dan warna bisa diganti sendiri. Grup hanya bisa dihapus kalau tidak berisi
-// akun (termasuk yang diarsipkan). `created` membawa grup baru (pindah grup).
+// Tambah/ubah grup akun gaya grup iOS: nama, jenis, warna, ikon. Jenis
+// menentukan perilaku (Kartu kredit membuka tanggal tagihan di akunnya) dan
+// ikon/warna awal; ikon dan warna bisa diganti sendiri. Grup hanya bisa
+// dihapus kalau tidak berisi akun (termasuk yang diarsipkan), dengan Urungkan.
+// `created` membawa grup baru (pindah grup). `page` = di dalam FormPage.
 const props = defineProps<{ group: AccountGroup | null; titleId: string; page?: boolean }>();
 const emit = defineEmits<{ close: []; created: [group: AccountGroup] }>();
 
@@ -108,46 +111,51 @@ function remove() {
   });
   emit('close');
 }
+
+const OPTION =
+  'grid place-items-center rounded-[10px] text-muted-foreground transition-transform duration-150 ease-out active:scale-95 peer-checked:bg-primary-soft peer-checked:text-primary-accent peer-focus-visible:ring-2 peer-focus-visible:ring-ring';
 </script>
 
 <template>
-  <form class="flex flex-col gap-3.5" novalidate @submit.prevent="save">
-    <div v-if="!page" class="flex items-center gap-2">
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ group ? 'Ubah grup' : 'Grup baru' }}
-      </h2>
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        type="button"
-        @click="emit('close')"
-      >
-        <X />
-      </Button>
+  <form :id="`${titleId}-form`" class="flex flex-col pb-6" novalidate @submit.prevent="save">
+    <FormDialogHeader
+      v-if="!page"
+      :title="group ? 'Ubah grup' : 'Grup baru'"
+      :title-id="titleId"
+      :disabled="saving"
+      @close="emit('close')"
+    />
+
+    <div :class="formGroup(page)">
+      <GroupRow>
+        <template #icon>
+          <ToneIcon
+            :icon="ACCOUNT_ICONS[form.icon] ?? ACCOUNT_ICONS.package!"
+            :tone="form.tone"
+            size="sm"
+            solid
+          />
+        </template>
+        <label class="flex items-center gap-3">
+          <b class="shrink-0 text-row font-medium">Nama</b>
+          <input
+            v-model="form.name"
+            type="text"
+            maxlength="60"
+            autocomplete="off"
+            placeholder="mis. Dana Darurat"
+            :aria-invalid="!!error || undefined"
+            :class="FORM_INPUT"
+            @input="markTyped"
+          />
+        </label>
+      </GroupRow>
     </div>
+    <p v-if="error" class="m-0 px-4 pt-1.5 text-meta text-exp" role="alert">{{ error }}</p>
 
-    <FormField label="Nama grup" for="group-name" :error="error">
-      <div class="flex items-center gap-2.5">
-        <ToneIcon :icon="ACCOUNT_ICONS[form.icon] ?? ACCOUNT_ICONS.package!" :tone="form.tone" />
-        <input
-          id="group-name"
-          v-model="form.name"
-          type="text"
-          maxlength="60"
-          class="field-input flex-1"
-          autocomplete="off"
-          placeholder="mis. Dana Darurat, Rekening Usaha"
-          :aria-invalid="!!error || undefined"
-          @input="markTyped"
-        />
-      </div>
-    </FormField>
-
-    <fieldset class="m-0 flex flex-col border-0 p-0">
-      <legend class="mb-1.5 text-label font-semibold">Jenis</legend>
-      <div class="grid grid-cols-3 gap-1.5">
+    <fieldset class="m-0 border-0 p-0">
+      <legend :class="FORM_SH">Jenis</legend>
+      <div :class="[formGroup(page), 'grid grid-cols-3 gap-1 p-1.5']">
         <label v-for="[kind, style] in KINDS" :key="kind" class="cursor-pointer">
           <input
             v-model="form.kind"
@@ -156,23 +164,21 @@ function remove() {
             :value="kind"
             class="peer sr-only"
           />
-          <span
-            class="press flex flex-col items-center gap-1 rounded-[10px] px-1 py-2 text-center text-xs font-medium text-muted-foreground peer-checked:bg-primary-soft peer-checked:text-primary-ink peer-checked:ring-1 peer-checked:ring-primary-accent/40 peer-focus-visible:ring-2 peer-focus-visible:ring-ring hover:bg-surface-2"
-          >
-            <ToneIcon :icon="style.icon" :tone="style.tone" size="sm" />
+          <span :class="[OPTION, 'gap-1 px-1 py-2 text-center text-xs font-medium']">
+            <ToneIcon :icon="style.icon" :tone="style.tone" size="sm" solid />
             {{ style.label }}
           </span>
         </label>
       </div>
-      <p class="m-0 mt-1.5 text-xs text-muted-foreground">
-        Kartu kredit menampilkan tanggal cetak dan jatuh tempo di akunnya. Utang dan kartu kredit
-        mengisi saldo awal negatif.
-      </p>
     </fieldset>
+    <p :class="FORM_NOTE">
+      Kartu kredit menampilkan tanggal cetak dan jatuh tempo di akunnya. Utang dan kartu kredit
+      mengisi saldo awal negatif.
+    </p>
 
-    <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0">
-      <legend class="mb-1.5 text-label font-semibold">Warna</legend>
-      <div class="flex flex-wrap gap-2">
+    <fieldset class="m-0 border-0 p-0">
+      <legend :class="FORM_SH">Warna</legend>
+      <div :class="[formGroup(page), 'flex flex-wrap gap-2.5 px-4 py-3']">
         <label v-for="t in CATEGORY_TONES" :key="t" class="cursor-pointer">
           <input
             v-model="form.tone"
@@ -193,9 +199,14 @@ function remove() {
       </div>
     </fieldset>
 
-    <fieldset class="m-0 flex flex-col border-0 p-0">
-      <legend class="mb-1.5 text-label font-semibold">Ikon</legend>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-1.5">
+    <fieldset class="m-0 border-0 p-0">
+      <legend :class="FORM_SH">Ikon</legend>
+      <div
+        :class="[
+          formGroup(page),
+          'grid grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-1 p-1.5',
+        ]"
+      >
         <label v-for="(icon, key) in ACCOUNT_ICONS" :key="key" class="cursor-pointer">
           <input
             v-model="form.icon"
@@ -206,35 +217,24 @@ function remove() {
             :aria-label="String(key)"
             @change="markStyled"
           />
-          <span
-            class="press grid size-10 place-items-center rounded-[10px] text-muted-foreground peer-checked:bg-primary-soft peer-checked:text-primary-accent peer-checked:ring-1 peer-checked:ring-primary-accent/40 peer-focus-visible:ring-2 peer-focus-visible:ring-ring hover:bg-surface-2"
-          >
+          <span :class="[OPTION, 'size-10']">
             <component :is="icon" class="size-[18px]" aria-hidden="true" />
           </span>
         </label>
       </div>
     </fieldset>
 
-    <div :class="['flex flex-wrap items-center gap-2 pt-1', page && 'form-page-actions']">
-      <Button
-        v-if="group"
-        type="button"
-        variant="ghost"
-        size="touch"
-        :disabled="!!members.length"
-        :title="members.length ? 'Pindahkan akunnya ke grup lain dulu' : undefined"
-        @click="remove"
-      >
-        <Trash2 />Hapus
-      </Button>
-      <span class="flex-1" />
-      <Button type="submit" size="touch" :disabled="saving">{{
-        group ? 'Simpan perubahan' : 'Tambah grup'
-      }}</Button>
-    </div>
-    <p v-if="group && members.length" class="m-0 -mt-1.5 text-xs text-muted-foreground">
-      Berisi {{ members.length }} akun, jadi belum bisa dihapus. Pindahkan akunnya ke grup lain
-      lewat Pilih banyak di halaman Akun.
-    </p>
+    <template v-if="group">
+      <IosButton block variant="red" class="mt-6" :disabled="!!members.length" @click="remove">
+        <Trash2 aria-hidden="true" />Hapus grup
+      </IosButton>
+      <p :class="[FORM_NOTE, 'text-center']">
+        {{
+          members.length
+            ? `Berisi ${members.length} akun, jadi belum bisa dihapus. Pindahkan akunnya lewat Pilih banyak di halaman Akun.`
+            : 'Grup kosong bisa dihapus dan diurungkan.'
+        }}
+      </p>
+    </template>
   </form>
 </template>

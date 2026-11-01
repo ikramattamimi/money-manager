@@ -44,7 +44,7 @@ export function useTemplateMutations() {
       onSuccess: (_, template) => {
         invalidate();
         const { id: _id, created_at: _c, updated_at: _u, ...rest } = template;
-        toast.show(`Template ${template.name} dihapus`, () => create.mutate(rest));
+        toast.show(`Bookmark ${template.name} dihapus`, () => create.mutate(rest));
       },
       onError,
     }),

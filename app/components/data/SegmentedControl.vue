@@ -2,8 +2,9 @@
 import type { Component } from 'vue';
 import { cn } from '@/lib/utils';
 
-// Pilihan tunggal bersegmen (Opnamix SegmentedControl). Varian `on-grad` untuk
-// di atas pita gradien. Pergantian pilihan tanpa animasi gerak: dipakai sering.
+// Pilihan tunggal bersegmen dengan ikon opsional (dipakai form lama di dialog
+// iPad/desktop). Untuk layar baru pakai components/ios/Segmented.vue.
+// Pergantian pilihan tanpa animasi gerak: dipakai sering.
 export interface SegmentOption<V extends string> {
   value: V;
   label: string;
@@ -14,10 +15,9 @@ const props = withDefaults(
   defineProps<{
     options: readonly SegmentOption<T>[];
     label: string;
-    variant?: 'plain' | 'on-grad';
     class?: string;
   }>(),
-  { variant: 'plain', class: '' },
+  { class: '' },
 );
 const model = defineModel<T>({ required: true });
 </script>
@@ -26,27 +26,14 @@ const model = defineModel<T>({ required: true });
   <div
     role="group"
     :aria-label="props.label"
-    :class="
-      cn(
-        'grid auto-cols-fr grid-flow-col gap-0.5 rounded-xl p-0.5',
-        props.variant === 'plain' ? 'border bg-surface-2' : 'bg-glass-shade',
-        props.class,
-      )
-    "
+    :class="cn('grid auto-cols-fr grid-flow-col gap-0.5 rounded-[9px] bg-fill p-0.5', props.class)"
   >
     <button
       v-for="option in props.options"
       :key="option.value"
       type="button"
       :aria-pressed="model === option.value"
-      :class="
-        cn(
-          'press inline-flex h-7.5 items-center justify-center gap-1.5 rounded-[9px] px-2 text-meta font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5',
-          props.variant === 'plain'
-            ? 'text-muted-foreground aria-pressed:bg-card aria-pressed:font-semibold aria-pressed:text-foreground aria-pressed:shadow-card'
-            : 'text-on-grad-2 aria-pressed:bg-glass-2 aria-pressed:font-semibold aria-pressed:text-on-grad',
-        )
-      "
+      class="inline-flex h-[30px] items-center justify-center gap-1.5 rounded-[7px] px-2 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-[var(--seg-on)] aria-pressed:shadow-[var(--shadow-seg)] [&_svg]:size-3.5"
       @click="model = option.value"
     >
       <component :is="option.icon" v-if="option.icon" aria-hidden="true" />

@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { Archive, ArchiveRestore, X } from '@lucide/vue';
-import AmountInput from '@/components/base/AmountInput.vue';
-import FormField from '@/components/base/FormField.vue';
-import Switch from '@/components/base/Switch.vue';
-import { Button } from '@/components/ui/button';
+import { Archive, ArchiveRestore, Check } from '@lucide/vue';
+import ToneIcon from '@/components/data/ToneIcon.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import IosSwitch from '@/components/ios/IosSwitch.vue';
 import type { Account } from '@/features/accounts/api';
+import { groupStyle } from '@/features/accounts/style';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
+import FormDialogHeader from './FormDialogHeader.vue';
+import { FORM_INPUT, FORM_NOTE, FORM_SELECT, FORM_SH, formGroup } from './formStyles';
+import InlineAmount from '@/components/data/InlineAmount.vue';
 
-// Tambah/ubah akun: nama, grup, saldo awal, total yang diikuti, catatan.
-// Mengarsipkan menyembunyikan akun tanpa menghapus transaksinya.
+// Tambah/ubah akun gaya grup iOS: nama, grup (lembar pilihan), tanggal tagihan
+// kartu kredit, saldo awal, total yang diikuti, catatan. Mengarsipkan
+// menyembunyikan akun tanpa menghapus transaksinya (dengan Urungkan).
+// `page` = di dalam FormPage (Simpan di bar halaman, form id `${titleId}-form`);
+// selain itu kepala Batal · judul · Simpan sendiri (dialog iPad/desktop).
 const props = defineProps<{ account: Account | null; titleId: string; page?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -30,7 +38,8 @@ const form = reactive({
   statementDay: props.account?.statement_day ?? 0,
   dueDay: props.account?.due_day ?? 0,
 });
-const isCard = computed(() => groupById.value.get(form.groupId)?.kind === 'card');
+const group = computed(() => groupById.value.get(form.groupId));
+const isCard = computed(() => group.value?.kind === 'card');
 const errors = reactive<Record<string, string>>({});
 
 // Grup utang/kartu kredit: saldo awal biasanya negatif
@@ -59,9 +68,16 @@ watch(
   { immediate: true },
 );
 
-function manageTotals() {
+const groupSheet = ref(false);
+function pickGroup(id: string) {
+  form.groupId = id;
+  groupSheet.value = false;
+}
+
+function leaveTo(path: string) {
+  groupSheet.value = false;
   if (!props.page) emit('close');
-  navigateTo('/accounts/totals');
+  navigateTo(path);
 }
 
 function save() {
@@ -98,11 +114,6 @@ function save() {
   emit('close');
 }
 
-function manageGroups() {
-  if (!props.page) emit('close');
-  navigateTo('/accounts/groups');
-}
-
 function toggleArchive() {
   if (!props.account) return;
   const archived = !props.account.archived;
@@ -119,131 +130,167 @@ function toggleArchive() {
   );
   emit('close');
 }
+
+const firstError = computed(() => errors.name || errors.groupId || '');
 </script>
 
 <template>
-  <form class="flex flex-col gap-3.5" novalidate @submit.prevent="save">
-    <div v-if="!page" class="flex items-center gap-2">
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ account ? 'Ubah akun' : 'Akun baru' }}
-      </h2>
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        type="button"
-        @click="emit('close')"
-      >
-        <X />
-      </Button>
-    </div>
+  <form :id="`${titleId}-form`" class="flex flex-col pb-6" novalidate @submit.prevent="save">
+    <FormDialogHeader
+      v-if="!page"
+      :title="account ? 'Ubah akun' : 'Akun baru'"
+      :title-id="titleId"
+      @close="emit('close')"
+    />
 
-    <FormField label="Nama akun" for="acc-name" :error="errors.name">
-      <input
-        id="acc-name"
-        v-model="form.name"
-        type="text"
-        maxlength="60"
-        class="field-input"
-        autocomplete="off"
-        placeholder="mis. BCA, GoPay, Jago · Dana Darurat"
-        :aria-invalid="!!errors.name || undefined"
+    <div :class="formGroup(page)">
+      <GroupRow>
+        <label class="flex items-center gap-3">
+          <b class="shrink-0 text-row font-medium">Nama</b>
+          <input
+            v-model="form.name"
+            type="text"
+            maxlength="60"
+            autocomplete="off"
+            placeholder="mis. BCA, GoPay"
+            :aria-invalid="!!errors.name || undefined"
+            :class="FORM_INPUT"
+          />
+        </label>
+      </GroupRow>
+      <GroupRow
+        title="Grup"
+        :value="group?.name ?? 'Pilih'"
+        chevron
+        :aria-invalid="!!errors.groupId || undefined"
+        @click="groupSheet = true"
       />
-    </FormField>
+    </div>
+    <p v-if="firstError" class="m-0 px-4 pt-1.5 text-meta text-exp" role="alert">
+      {{ firstError }}
+    </p>
 
-    <FormField label="Grup" for="acc-group" :error="errors.groupId">
-      <select id="acc-group" v-model="form.groupId" class="field-input">
-        <option v-for="g in groups.data.value" :key="g.id" :value="g.id">{{ g.name }}</option>
-      </select>
-      <button
-        type="button"
-        class="press mt-1 self-start rounded-md text-xs font-semibold text-primary-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        @click="manageGroups"
-      >
-        Buat atau ubah grup
-      </button>
-    </FormField>
-
-    <div v-if="isCard" class="grid grid-cols-2 gap-3">
-      <FormField label="Tanggal cetak tagihan" for="acc-statement">
-        <select id="acc-statement" v-model.number="form.statementDay" class="field-input">
-          <option :value="0">Belum diatur</option>
-          <option v-for="d in 31" :key="d" :value="d">Tanggal {{ d }}</option>
-        </select>
-      </FormField>
-      <FormField label="Jatuh tempo" for="acc-due" :error="errors.dueDay">
-        <select id="acc-due" v-model.number="form.dueDay" class="field-input">
-          <option :value="0">Belum diatur</option>
-          <option v-for="d in 31" :key="d" :value="d">Tanggal {{ d }}</option>
-        </select>
-      </FormField>
-      <p class="col-span-2 m-0 -mt-1.5 text-xs text-muted-foreground">
-        Transaksi setelah tanggal cetak masuk ke tagihan bulan berikutnya. Jatuh tempo yang lebih
-        kecil dari tanggal cetak berarti bulan sesudahnya.
+    <template v-if="isCard">
+      <p :class="FORM_SH">Kartu kredit</p>
+      <div :class="formGroup(page)">
+        <GroupRow>
+          <label class="flex items-center gap-3">
+            <b class="flex-1 text-row font-medium">Tanggal cetak tagihan</b>
+            <select v-model.number="form.statementDay" :class="FORM_SELECT">
+              <option :value="0">Belum diatur</option>
+              <option v-for="d in 31" :key="d" :value="d">Tanggal {{ d }}</option>
+            </select>
+          </label>
+        </GroupRow>
+        <GroupRow>
+          <label class="flex items-center gap-3">
+            <b class="flex-1 text-row font-medium">Jatuh tempo</b>
+            <select v-model.number="form.dueDay" :class="FORM_SELECT">
+              <option :value="0">Belum diatur</option>
+              <option v-for="d in 31" :key="d" :value="d">Tanggal {{ d }}</option>
+            </select>
+          </label>
+        </GroupRow>
+      </div>
+      <p :class="[FORM_NOTE, errors.dueDay && 'text-exp']">
+        {{
+          errors.dueDay ||
+          'Transaksi setelah tanggal cetak masuk tagihan bulan berikutnya. Jatuh tempo yang lebih kecil dari tanggal cetak berarti bulan sesudahnya.'
+        }}
       </p>
-    </div>
+    </template>
 
-    <FormField
-      label="Saldo awal"
-      for="acc-opening"
-      hint="Saldo sebelum transaksi pertama yang dicatat. Untuk menyamakan saldo sekarang, pakai Sesuaikan saldo."
-    >
-      <AmountInput id="acc-opening" v-model="form.opening" />
-    </FormField>
-    <Switch
-      id="acc-negative"
-      v-model="form.negative"
-      label="Saldo awal negatif"
-      description="Untuk utang atau tagihan kartu kredit."
-    />
-    <!-- Belum ada total buatan sendiri: tetap saklar ikut total aset seperti dulu -->
-    <FormField
-      v-if="accountTotals.data.value?.length"
-      label="Masuk total"
-      for="acc-total"
-      hint="Pilih Tidak ikut total untuk akun titipan atau yang bukan milikmu."
-    >
-      <select id="acc-total" v-model="form.totalId" class="field-input">
-        <option v-for="t in accountTotals.data.value" :key="t.id" :value="t.id">
-          {{ t.name }}{{ t.on_transactions ? ' (tampil di Transaksi)' : '' }}
-        </option>
-        <option value="">Tidak ikut total</option>
-      </select>
-      <button
-        type="button"
-        class="press mt-1 self-start rounded-md text-xs font-semibold text-primary-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        @click="manageTotals"
+    <p :class="FORM_SH">Saldo</p>
+    <div :class="formGroup(page)">
+      <GroupRow>
+        <label class="flex items-center gap-3">
+          <b class="shrink-0 text-row font-medium">Saldo awal</b>
+          <span class="flex min-w-0 flex-1 items-center justify-end gap-1">
+            <InlineAmount id="acc-opening" v-model="form.opening" label="Saldo awal" />
+          </span>
+        </label>
+      </GroupRow>
+      <GroupRow title="Saldo awal negatif" subtitle="Untuk utang atau tagihan kartu kredit">
+        <template #end><IosSwitch v-model="form.negative" label="Saldo awal negatif" /></template>
+      </GroupRow>
+    </div>
+    <p :class="FORM_NOTE">
+      Saldo sebelum transaksi pertama yang dicatat. Untuk menyamakan saldo sekarang, pakai Sesuaikan
+      saldo di rincian akun.
+    </p>
+
+    <p :class="FORM_SH">Total</p>
+    <div :class="formGroup(page)">
+      <!-- Belum ada total buatan sendiri: tetap saklar ikut total aset seperti dulu -->
+      <GroupRow v-if="hasTotals">
+        <label class="flex items-center gap-3">
+          <b class="flex-1 text-row font-medium">Masuk total</b>
+          <select v-model="form.totalId" :class="FORM_SELECT">
+            <option v-for="t in accountTotals.data.value" :key="t.id" :value="t.id">
+              {{ t.name }}{{ t.on_transactions ? ' (di Transaksi)' : '' }}
+            </option>
+            <option value="">Tidak ikut total</option>
+          </select>
+        </label>
+      </GroupRow>
+      <GroupRow
+        v-else
+        title="Sertakan di total aset"
+        subtitle="Matikan untuk akun titipan atau bukan milikmu"
       >
-        Buat atau ubah total
-      </button>
-    </FormField>
-    <Switch
-      v-else
-      id="acc-total"
-      v-model="form.includeInTotal"
-      label="Sertakan di total aset"
-      description="Matikan untuk akun titipan atau yang bukan milikmu."
-    />
-
-    <FormField label="Catatan" for="acc-note">
-      <input
-        id="acc-note"
-        v-model="form.note"
-        type="text"
-        maxlength="160"
-        class="field-input"
-        autocomplete="off"
-      />
-    </FormField>
-
-    <div :class="['flex flex-wrap items-center gap-2 pt-1', page && 'form-page-actions']">
-      <Button v-if="account" type="button" variant="ghost" size="touch" @click="toggleArchive">
-        <component :is="account.archived ? ArchiveRestore : Archive" />
-        {{ account.archived ? 'Pulihkan' : 'Arsipkan' }}
-      </Button>
-      <span class="flex-1" />
-      <Button type="submit" size="touch">{{ account ? 'Simpan perubahan' : 'Tambah akun' }}</Button>
+        <template #end>
+          <IosSwitch v-model="form.includeInTotal" label="Sertakan di total aset" />
+        </template>
+      </GroupRow>
+      <GroupRow title="Kelola total akun" chevron @click="leaveTo('/accounts/totals')" />
     </div>
+
+    <p :class="FORM_SH">Catatan</p>
+    <div :class="formGroup(page)">
+      <GroupRow>
+        <input
+          v-model="form.note"
+          type="text"
+          maxlength="160"
+          autocomplete="off"
+          aria-label="Catatan"
+          placeholder="Opsional"
+          class="h-[34px] w-full bg-transparent text-row outline-none placeholder:text-ter"
+        />
+      </GroupRow>
+    </div>
+
+    <IosButton v-if="account" block variant="gray" class="mt-6" @click="toggleArchive">
+      <component :is="account.archived ? ArchiveRestore : Archive" aria-hidden="true" />
+      {{ account.archived ? 'Pulihkan akun' : 'Arsipkan akun' }}
+    </IosButton>
+    <p v-if="account && !account.archived" :class="[FORM_NOTE, 'text-center']">
+      Akun yang diarsipkan disembunyikan, transaksinya tetap tersimpan.
+    </p>
+
+    <IosSheet v-model:open="groupSheet" title="Grup akun">
+      <div class="overflow-hidden rounded-group bg-fill">
+        <GroupRow
+          v-for="g in groups.data.value"
+          :key="g.id"
+          :title="g.name"
+          :subtitle="groupStyle(g).label"
+          @click="pickGroup(g.id)"
+        >
+          <template #icon><ToneIcon v-bind="groupStyle(g)" size="sm" solid /></template>
+          <template #end>
+            <Check
+              v-if="g.id === form.groupId"
+              class="size-5 text-primary-accent"
+              stroke-width="2.6"
+              aria-label="Terpilih"
+            />
+          </template>
+        </GroupRow>
+      </div>
+      <IosButton block variant="soft" class="mt-3.5" @click="leaveTo('/accounts/groups')">
+        Buat atau ubah grup
+      </IosButton>
+    </IosSheet>
   </form>
 </template>

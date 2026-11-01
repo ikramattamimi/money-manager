@@ -4,8 +4,8 @@ import {
   Archive,
   ArrowDownUp,
   BookOpen,
-  Check,
   ChevronRight,
+  Ellipsis,
   Eye,
   EyeOff,
   FolderCog,
@@ -15,40 +15,136 @@ import {
   Plus,
   Sigma,
   Wallet,
-  X,
 } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
 import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import SelectCheck from '@/components/data/SelectCheck.vue';
-import SelectionBar from '@/components/data/SelectionBar.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
 import SortableList from '@/components/data/SortableList.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import PageHero from '@/components/layout/PageHero.vue';
-import StatChip from '@/components/layout/StatChip.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import SectionHeader from '@/components/ios/SectionHeader.vue';
+import SummaryStrip from '@/components/ios/SummaryStrip.vue';
 import AccountForm from '@/components/money/AccountForm.vue';
 import AccountGroupForm from '@/components/money/AccountGroupForm.vue';
+import AccountRow from '@/components/money/AccountRow.vue';
 import AccountTotalForm from '@/components/money/AccountTotalForm.vue';
-import { Button } from '@/components/ui/button';
-import { accountsApi, type Account } from '@/features/accounts/api';
+import NetWorthSpark from '@/components/money/NetWorthSpark.vue';
+import TotalCard from '@/components/money/TotalCard.vue';
+import { accountsApi, type Account, type AccountTotal } from '@/features/accounts/api';
 import { accountKeys } from '@/features/accounts/keys';
 import { groupStyle } from '@/features/accounts/style';
+import { useAccountMonths } from '@/features/accounts/useAccountMonth';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
+import { useMonthTransactions } from '@/features/transactions/useTransactions';
 import { formatRupiah, formatShort } from '@/lib/format';
+import { MONTHS_LONG, MONTHS_SHORT } from '@/lib/time';
 
+// Tab Akun (mockup accounts): bar "Akun" dengan … (menu: Total akun, grup,
+// pilih banyak, urutkan, buku) dan +; strip Aset / Liabilitas / Total; kartu
+// total akun mendatar; tren aset bersih 6 bulan; grup akun yang bisa dilipat
+// dengan total per grup. Saldo = saldo per akhir bulan terpilih (bulan sama
+// dengan tab Transaksi). Tahan baris = pilih banyak (pindah grup, arsipkan,
+// atur total, dengan Urungkan). iPad/desktop: grup 2 kolom, form di dialog.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Akun · Money Manager' });
 
 const { canEdit, book } = useActiveBook();
-const { accounts, grouped, groups, totals, totalViews, totalById } = useAccounts();
+const { accounts, grouped, groups, active, totalViews, totalById } = useAccounts();
 const hasTotals = computed(() => totalViews.value.length > 0);
 const mutations = useAccountMutations();
+
+// ---------- saldo per akhir bulan terpilih ----------
+const selectedMonth = useSelectedMonth();
+const { year, month } = selectedMonth;
+const monthly = useAccountMonths(year, month);
+/** Saldo akhir bulan; tanpa RPC (belum dipasang) = saldo sekarang */
+const balanceOf = (a: Account) => monthly.selected(a.id)?.end ?? a.balance;
+const monthName = computed(() => `${MONTHS_LONG[month.value - 1]} ${year.value}`);
+
+// Jumlah transaksi per akun di bulan itu (daftar bulan sudah termuat bersama tab Transaksi)
+const monthTx = useMonthTransactions(year, month);
+const txCount = computed(() => {
+  const out = new Map<string, number>();
+  for (const t of monthTx.data.value ?? []) {
+    out.set(t.account_id, (out.get(t.account_id) ?? 0) + 1);
+    if (t.to_account_id) out.set(t.to_account_id, (out.get(t.to_account_id) ?? 0) + 1);
+  }
+  return out;
+});
+
+/** Aset, liabilitas, total dari akun yang ikut total (aturan sama dengan useAccounts) */
+const strip = computed(() => {
+  let assets = 0;
+  let debts = 0;
+  for (const a of active.value) {
+    if (!a.include_in_total) continue;
+    const b = balanceOf(a);
+    if (b >= 0) assets += b;
+    else debts -= b;
+  }
+  return [
+    { label: 'Aset', value: formatShort(assets), tone: 'inc' as const },
+    { label: 'Liabilitas', value: formatShort(debts), tone: 'exp' as const },
+    { label: 'Total', value: formatShort(assets - debts) },
+  ];
+});
+
+const views = computed(() =>
+  grouped.value.map((g) => {
+    const items = g.accounts.map((a) => ({ account: a, balance: balanceOf(a) }));
+    return {
+      ...g,
+      style: groupStyle(g),
+      items,
+      total: items.reduce((s, i) => s + i.balance, 0),
+    };
+  }),
+);
+const totalCards = computed(() =>
+  totalViews.value.map((t) => ({
+    ...t,
+    value: t.accounts.reduce((s, a) => s + balanceOf(a), 0),
+  })),
+);
+
+// ---------- tren aset bersih ----------
+const trend = computed(() => {
+  const byAccount = monthly.byAccount.value;
+  if (!byAccount) return [];
+  return monthly.months.value.map((m, k) => ({
+    key: `${m.year}-${m.month}`,
+    label: MONTHS_SHORT[m.month - 1]!,
+    value: active.value
+      .filter((a) => a.include_in_total)
+      .reduce((s, a) => s + (byAccount.get(a.id)?.[k]?.end ?? 0), 0),
+  }));
+});
+
+// ---------- grup dilipat (bertahan saat pindah tab) ----------
+const collapsed = useState<string[]>('acc:collapsed', () => []);
+function toggleGroup(id: string) {
+  collapsed.value = collapsed.value.includes(id)
+    ? collapsed.value.filter((x) => x !== id)
+    : [...collapsed.value, id];
+}
+
+const subtitleOf = (a: Account) => {
+  const count = txCount.value.get(a.id) ?? 0;
+  return [`${count} transaksi di ${MONTHS_SHORT[month.value - 1]}`, totalLabel(a)]
+    .filter(Boolean)
+    .join(' · ');
+};
+/** Nama total hanya perlu ditulis kalau ada lebih dari satu total */
+const totalLabel = (a: Account) => {
+  const total = a.total_id ? totalById.value.get(a.total_id) : undefined;
+  if (!total && !a.include_in_total) return 'tidak ikut total';
+  if (!total) return hasTotals.value ? 'tidak ikut total' : '';
+  return totalViews.value.length > 1 ? total.name : '';
+};
 
 const sorting = ref(false);
 const archived = computed(() => (accounts.data.value ?? []).filter((a) => a.archived));
@@ -70,6 +166,12 @@ function toggleAll() {
   selected.value =
     selected.value.length === visible.value.length ? [] : visible.value.map((a) => a.id);
 }
+function startSelect(a?: Account) {
+  if (!canEdit.value) return;
+  sorting.value = false;
+  selecting.value = true;
+  if (a && !selected.value.includes(a.id)) selected.value = [...selected.value, a.id];
+}
 function stopSelecting() {
   selecting.value = false;
   selected.value = [];
@@ -80,7 +182,14 @@ const hideAdd = useState('ui:selecting', () => false);
 watch(selecting, (on) => (hideAdd.value = on));
 onBeforeUnmount(() => (hideAdd.value = false));
 
+function tapRow(a: Account) {
+  if (selecting.value) toggle(a.id);
+  else navigateTo(`/accounts/${a.id}`);
+}
+
 const bulkBusy = ref(false);
+const BULK_BTN =
+  'flex h-[54px] flex-col items-center justify-center gap-0.5 rounded-[14px] bg-fill text-xs font-semibold text-primary-accent transition-transform duration-150 ease-out active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-5';
 type Field = 'group_id' | 'include_in_total' | 'archived' | 'total_id';
 /** Total akun: ikut total aset = masuk salah satu total */
 const patchFor = <F extends Field>(field: F, value: Account[F]) =>
@@ -128,16 +237,6 @@ function setTotal(totalId: string | null, name: string) {
   totalPicker.value = false;
   bulkSet('total_id', totalId, totalId ? `masuk ${name}` : 'tidak ikut total');
 }
-/** Nama total akun untuk keterangan baris */
-// Nama total hanya perlu ditulis kalau ada lebih dari satu total
-const totalLabel = (a: Account) => {
-  const total = a.total_id ? totalById.value.get(a.total_id) : undefined;
-  if (!total && !a.include_in_total) return 'tidak ikut total';
-  if (!total) return hasTotals.value ? 'tidak ikut total' : '';
-  return totalViews.value.length > 1 ? total.name : '';
-};
-const subtitleOf = (a: Account, group: string) =>
-  [group, totalLabel(a)].filter(Boolean).join(' · ');
 
 // ---------- urutkan grup (mode Urutkan) ----------
 /**
@@ -151,274 +250,391 @@ function reorderGroups(ids: string[]) {
   mutations.reorderGroups.mutate(all);
 }
 
+// ---------- menu … ----------
+const menuOpen = ref(false);
+function fromMenu(action: () => void) {
+  menuOpen.value = false;
+  action();
+}
+
+// ---------- form (HP: halaman, iPad/desktop: dialog) ----------
+const { openAsPage } = useFormPage();
 const formOpen = ref(false);
 const editing = ref<Account | null>(null);
 const formKey = ref(0);
-const { openAsPage } = useFormPage();
 function openForm(account: Account | null) {
   if (openAsPage(account ? `/accounts/${account.id}/edit` : '/accounts/new')) return;
   editing.value = account;
   formKey.value++;
   formOpen.value = true;
 }
+const totalFormOpen = ref(false);
+const editingTotal = ref<AccountTotal | null>(null);
+function openTotal(total: AccountTotal | null) {
+  // Viewer tidak bisa mengubah: cukup lihat daftar total
+  if (!canEdit.value) return navigateTo('/accounts/totals');
+  if (openAsPage(total ? `/accounts/totals/${total.id}` : '/accounts/totals/new')) return;
+  editingTotal.value = total;
+  formKey.value++;
+  totalFormOpen.value = true;
+}
 </script>
 
 <template>
-  <div>
-    <PageHeader title="Akun" :summary="formatRupiah(totals.net)">
-      <template #actions>
-        <HeaderButton
-          :label="`Buku ${book?.name ?? ''}, ganti buku`"
-          @click="navigateTo('/settings/books')"
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-6 md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Akun" line class="sticky top-0 md:static">
+      <template #left>
+        <button
+          v-if="selecting"
+          type="button"
+          class="h-11 px-3 text-bar text-primary-accent active:opacity-50"
+          @click="toggleAll"
         >
-          <BookOpen aria-hidden="true" /><span class="max-w-[96px] truncate">{{ book?.name }}</span>
-        </HeaderButton>
-        <template v-if="canEdit">
-          <HeaderButton label="Kelola grup akun" @click="navigateTo('/accounts/groups')">
-            <FolderCog aria-hidden="true" />
-          </HeaderButton>
-          <HeaderButton :aria-pressed="sorting" @click="sorting = !sorting">
-            <component :is="sorting ? Check : ArrowDownUp" aria-hidden="true" />{{
-              sorting ? 'Selesai' : 'Urutkan'
-            }}
-          </HeaderButton>
-          <HeaderButton @click="openForm(null)"><Plus aria-hidden="true" />Akun</HeaderButton>
+          {{ selected.length === visible.length ? 'Batal pilih' : 'Pilih semua' }}
+        </button>
+        <NuxtLink
+          v-else
+          to="/settings/books"
+          :aria-label="`Buku ${book?.name ?? ''}, ganti buku`"
+          class="flex h-11 max-w-[120px] items-center gap-1 px-3 text-body text-primary-accent active:opacity-50"
+        >
+          <BookOpen class="size-4 shrink-0" aria-hidden="true" />
+          <span class="truncate">{{ book?.name }}</span>
+        </NuxtLink>
+      </template>
+      <template #right>
+        <button
+          v-if="selecting || sorting"
+          type="button"
+          class="h-11 px-3 text-bar font-semibold text-primary-accent active:opacity-50"
+          @click="selecting ? stopSelecting() : (sorting = false)"
+        >
+          Selesai
+        </button>
+        <template v-else>
+          <IconButton label="Menu akun" @click="menuOpen = true">
+            <Ellipsis aria-hidden="true" />
+          </IconButton>
+          <IconButton v-if="canEdit" label="Tambah akun" accent @click="openForm(null)">
+            <Plus stroke-width="2.2" aria-hidden="true" />
+          </IconButton>
         </template>
       </template>
-      <PageHero label="Aset bersih" :value="formatRupiah(totals.net)" />
-      <div class="flex flex-wrap gap-1.5">
-        <StatChip label="Aset" :value="formatShort(totals.assets)" tone="ok" />
-        <StatChip label="Utang" :value="formatShort(totals.debts)" tone="bad" />
-      </div>
-      <!-- Total buatan sendiri; ketuk untuk mengelola -->
-      <button
-        type="button"
-        class="press -mt-0.5 flex flex-wrap items-center gap-1.5 self-start rounded-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad"
-        :aria-label="hasTotals ? 'Kelola total akun' : 'Buat total akun, mis. Uang bulanan'"
-        @click="navigateTo('/accounts/totals')"
-      >
-        <StatChip v-for="t in totalViews" :key="t.id" :label="t.name" :value="formatShort(t.sum)" />
-        <StatChip v-if="!hasTotals" label="Total" value="+ Buat" />
-      </button>
-    </PageHeader>
+    </NavBar>
 
-    <!-- Di luar rantai v-if di bawah supaya tidak memutus v-else daftar akun -->
+    <SummaryStrip :items="strip" />
+
+    <!-- Bulan lain dari tab Transaksi: saldo yang tampil adalah saldo akhir bulan itu -->
     <div
-      v-if="canEdit && grouped.length && !sorting"
-      class="mt-3 flex items-center justify-between gap-2 px-1"
+      v-if="!selectedMonth.isCurrent.value"
+      class="flex items-center gap-2 bg-primary-soft px-4 py-2 text-meta text-primary-accent"
     >
-      <span class="text-xs text-muted-foreground">{{
-        selecting ? 'Ketuk akun untuk memilih' : 'Pindah grup, arsipkan, atau atur total sekaligus'
-      }}</span>
-      <Button
-        :variant="selecting ? 'default' : 'secondary'"
-        :aria-pressed="selecting"
-        @click="selecting ? stopSelecting() : (selecting = true)"
-      >
-        <component :is="selecting ? Check : ListChecks" />{{
-          selecting ? 'Selesai' : 'Pilih banyak'
+      <span class="flex-1">
+        {{
+          monthly.available.value
+            ? `Saldo per akhir ${monthName}`
+            : `Saldo sekarang (saldo ${monthName} belum tersedia)`
         }}
-      </Button>
+      </span>
+      <button type="button" class="font-semibold" @click="selectedMonth.goToday()">
+        Bulan ini
+      </button>
     </div>
 
     <!-- Mode Urutkan: urutan grup dulu, lalu urutan akun di dalam tiap grup -->
-    <ListGroup v-if="sorting && grouped.length > 1" label="Urutan grup">
-      <SortableList :items="grouped" label="Urutan grup akun" @reorder="reorderGroups">
-        <template #default="{ item }">
-          <ListRow :title="item.name" :subtitle="`${item.accounts.length} akun`">
-            <template #lead><ToneIcon v-bind="groupStyle(item)" /></template>
-          </ListRow>
-        </template>
-      </SortableList>
-    </ListGroup>
-
-    <Card v-if="accounts.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="4" /></Card>
-    <Card v-else-if="!grouped.length" class="mt-3.5">
-      <EmptyState
-        :icon="Wallet"
-        title="Belum ada akun"
-        description="Tambahkan rekening, e-wallet, atau dompet tunai."
-      />
-    </Card>
-
-    <!-- iPad dan desktop: grup akun 2 kolom -->
-    <div v-else class="md:columns-2 md:gap-3.5 [&>section]:break-inside-avoid">
-      <ListGroup v-for="g in grouped" :key="g.id" :label="g.name" :aside="formatRupiah(g.sum)">
-        <SortableList
-          v-if="sorting"
-          :items="g.accounts"
-          :label="`Urutan akun ${g.name}`"
-          @reorder="mutations.reorder.mutate"
-        >
-          <template #default="{ item }">
-            <ListRow :title="item.name" :subtitle="formatRupiah(item.balance)">
-              <template #lead><ToneIcon v-bind="groupStyle(g)" /></template>
-            </ListRow>
-          </template>
-        </SortableList>
-        <template v-else-if="selecting">
-          <ListRow
-            v-for="a in g.accounts"
-            :key="a.id"
-            as="button"
-            :title="a.name"
-            :subtitle="subtitleOf(a, g.name)"
-            :value="formatRupiah(a.balance)"
-            :value-class="a.balance < 0 ? 'text-bad' : ''"
-            :aria-pressed="selected.includes(a.id)"
-            class="press hover:bg-surface-2"
-            @click="toggle(a.id)"
-          >
-            <template #lead><SelectCheck :selected="selected.includes(a.id)" /></template>
-          </ListRow>
-        </template>
-        <template v-else>
-          <NuxtLink
-            v-for="a in g.accounts"
-            :key="a.id"
-            :to="`/accounts/${a.id}`"
-            class="block rounded-[10px]"
-          >
-            <ListRow
-              :title="a.name"
-              :subtitle="subtitleOf(a, g.name)"
-              :value="formatRupiah(a.balance)"
-              :value-class="a.balance < 0 ? 'text-bad' : ''"
-              class="press hover:bg-surface-2"
-            >
-              <template #lead><ToneIcon v-bind="groupStyle(g)" /></template>
-            </ListRow>
-          </NuxtLink>
-        </template>
-      </ListGroup>
-    </div>
-
-    <SelectionBar
-      v-if="selecting"
-      :count="chosen.length"
-      :total="visible.length"
-      label="Aksi untuk akun terpilih"
-      @toggle-all="toggleAll"
-      @close="stopSelecting"
-    >
-      <Button :disabled="!chosen.length || bulkBusy" @click="groupPicker = true">
-        <FolderInput />Pindah grup
-      </Button>
-      <Button
-        variant="secondary"
-        :disabled="!chosen.length || bulkBusy"
-        @click="bulkSet('archived', true, 'diarsipkan')"
-      >
-        <Archive />Arsipkan
-      </Button>
-      <Button
-        v-if="hasTotals"
-        variant="secondary"
-        :disabled="!chosen.length || bulkBusy"
-        @click="totalPicker = true"
-      >
-        <Sigma />Atur total
-      </Button>
-      <template v-else>
-        <Button
-          variant="secondary"
-          :disabled="!chosen.length || bulkBusy"
-          @click="bulkSet('include_in_total', true, 'ikut total aset')"
-        >
-          <Eye />Ikut total
-        </Button>
-        <Button
-          variant="secondary"
-          :disabled="!chosen.length || bulkBusy"
-          @click="bulkSet('include_in_total', false, 'tidak ikut total aset')"
-        >
-          <EyeOff />Tidak ikut total
-        </Button>
+    <template v-if="sorting">
+      <template v-if="views.length > 1">
+        <SectionHeader label="Urutan grup" />
+        <div class="mx-4 overflow-hidden rounded-group bg-card">
+          <SortableList :items="views" label="Urutan grup akun" @reorder="reorderGroups">
+            <template #default="{ item }">
+              <GroupRow :title="item.name" :subtitle="`${item.accounts.length} akun`">
+                <template #icon><ToneIcon v-bind="item.style" size="sm" solid /></template>
+              </GroupRow>
+            </template>
+          </SortableList>
+        </div>
       </template>
-    </SelectionBar>
-
-    <Overlay v-model:open="totalPicker" labelledby="total-picker-title">
-      <!-- Total tujuan belum ada: buat di sini, akun langsung dimasukkan -->
-      <AccountTotalForm
-        v-if="creatingTotal"
-        :total="null"
-        title-id="total-picker-title"
-        @created="(t) => setTotal(t.id, t.name)"
-        @close="creatingTotal = false"
-      />
-      <div v-else class="flex flex-col gap-3">
-        <div class="flex items-center gap-2">
-          <h2 id="total-picker-title" class="m-0 flex-1 text-panel font-bold">
-            Masukkan {{ chosen.length }} akun ke
-          </h2>
-          <Button variant="ghost" size="icon" aria-label="Tutup" @click="totalPicker = false">
-            <X />
-          </Button>
-        </div>
-        <div class="flex max-h-[55dvh] flex-col gap-0.5 overflow-y-auto" data-no-drag>
-          <ListRow
-            as="button"
-            title="Total baru"
-            subtitle="Buat total, lalu masukkan akunnya ke sana"
-            class="press hover:bg-surface-2"
-            @click="creatingTotal = true"
-          >
-            <template #lead><ToneIcon :icon="Plus" tone="primary" size="sm" /></template>
-          </ListRow>
-          <ListRow
-            v-for="t in totalViews"
-            :key="t.id"
-            as="button"
-            :title="t.name"
-            :subtitle="`${t.accounts.length} akun${t.on_transactions ? ' · tampil di Transaksi' : ''}`"
-            class="press hover:bg-surface-2"
-            @click="setTotal(t.id, t.name)"
-          >
-            <template #lead><ToneIcon :icon="Sigma" tone="primary" size="sm" /></template>
-          </ListRow>
-          <ListRow
-            as="button"
-            title="Tidak ikut total"
-            subtitle="Untuk akun titipan atau yang bukan milikmu"
-            class="press hover:bg-surface-2"
-            @click="setTotal(null, '')"
-          >
-            <template #lead><ToneIcon :icon="EyeOff" tone="neutral" size="sm" /></template>
-          </ListRow>
-        </div>
+      <div class="md:columns-2 md:gap-0 [&>section]:break-inside-avoid">
+        <section v-for="g in views" :key="g.id">
+          <SectionHeader :label="`Urutan ${g.name}`" />
+          <div class="mx-4 overflow-hidden rounded-group bg-card">
+            <SortableList
+              :items="g.accounts"
+              :label="`Urutan akun ${g.name}`"
+              @reorder="mutations.reorder.mutate"
+            >
+              <template #default="{ item }">
+                <GroupRow :title="item.name" :subtitle="formatRupiah(balanceOf(item))">
+                  <template #icon><ToneIcon v-bind="g.style" size="sm" solid /></template>
+                </GroupRow>
+              </template>
+            </SortableList>
+          </div>
+        </section>
       </div>
-    </Overlay>
-
-    <template v-if="archived.length">
-      <button
-        type="button"
-        class="press mt-4 flex w-full items-center justify-between rounded-[10px] px-2.5 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground"
-        :aria-expanded="showArchived"
-        @click="showArchived = !showArchived"
-      >
-        Diarsipkan ({{ archived.length }})
-        <ChevronRight
-          :class="['size-4 transition-transform duration-150', showArchived && 'rotate-90']"
-          aria-hidden="true"
-        />
-      </button>
-      <Card v-if="showArchived" class="flex flex-col gap-0.5 p-1">
-        <ListRow
-          v-for="a in archived"
-          :key="a.id"
-          :as="canEdit ? 'button' : 'div'"
-          :title="a.name"
-          subtitle="Diarsipkan · transaksinya tetap tersimpan"
-          :value="formatRupiah(a.balance)"
-          class="opacity-70"
-          @click="canEdit && openForm(a)"
-        >
-          <template #lead><ToneIcon :icon="Wallet" tone="neutral" /></template>
-        </ListRow>
-      </Card>
+      <p class="m-0 px-8 pt-2 text-meta text-muted-foreground">
+        Seret pegangan di kanan untuk mengubah urutan.
+      </p>
     </template>
 
-    <Overlay v-model:open="groupPicker" labelledby="group-picker-title">
+    <template v-else>
+      <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
+      <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
+        <template #aside>
+          <NuxtLink to="/accounts/totals" class="normal-case text-primary-accent active:opacity-50">
+            Kelola ›
+          </NuxtLink>
+        </template>
+      </SectionHeader>
+      <div
+        v-if="totalCards.length || canEdit"
+        class="flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <TotalCard
+          v-for="t in totalCards"
+          :key="t.id"
+          :name="t.name"
+          :value="formatShort(t.value)"
+          :caption="`${t.accounts.length} akun${t.on_transactions ? ' · di Transaksi' : ''}`"
+          :on="t.on_transactions"
+          @click="openTotal(t)"
+        />
+        <TotalCard
+          v-if="canEdit"
+          add
+          name="+ Total baru"
+          caption="Kelompokkan akun"
+          @click="openTotal(null)"
+        />
+      </div>
+
+      <NetWorthSpark
+        :points="trend"
+        :current="`${year}-${month}`"
+        :note="
+          monthly.available.value
+            ? accounts.isPending.value || monthly.query.isPending.value
+              ? 'Memuat…'
+              : undefined
+            : 'Tren belum tersedia: database perlu diperbarui.'
+        "
+      />
+
+      <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />
+      <EmptyCard
+        v-else-if="!views.length"
+        title="Belum ada akun"
+        description="Tambahkan rekening, e-wallet, atau dompet tunai."
+      >
+        <IosButton v-if="canEdit" variant="soft" @click="openForm(null)">Tambah akun</IosButton>
+      </EmptyCard>
+
+      <!-- Grup akun; iPad dan desktop 2 kolom -->
+      <div v-else class="md:columns-2 md:gap-0 [&>section]:break-inside-avoid">
+        <section v-for="g in views" :key="g.id">
+          <button
+            type="button"
+            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pl-8 pr-8 pt-[18px] text-left text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+            :aria-expanded="!collapsed.includes(g.id)"
+            @click="toggleGroup(g.id)"
+          >
+            <span class="flex min-w-0 items-center gap-1">
+              <ChevronRight
+                :class="[
+                  'size-3 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                  !collapsed.includes(g.id) && 'rotate-90',
+                ]"
+                stroke-width="3"
+                aria-hidden="true"
+              />
+              <span class="truncate">{{ g.name }}</span>
+            </span>
+            <span :class="['shrink-0 normal-case', g.total < 0 && 'text-exp']">{{
+              formatRupiah(g.total)
+            }}</span>
+          </button>
+          <div v-if="!collapsed.includes(g.id)" class="mx-4 overflow-hidden rounded-group bg-card">
+            <AccountRow
+              v-for="i in g.items"
+              :key="i.account.id"
+              :icon="g.style.icon"
+              :tone="g.style.tone"
+              :name="i.account.name"
+              :subtitle="subtitleOf(i.account)"
+              :balance="formatRupiah(i.balance)"
+              :negative="i.balance < 0"
+              :selectable="canEdit"
+              :selecting="selecting"
+              :selected="selected.includes(i.account.id)"
+              @open="tapRow(i.account)"
+              @longpress="startSelect(i.account)"
+            />
+          </div>
+        </section>
+      </div>
+
+      <!-- Diarsipkan -->
+      <template v-if="archived.length">
+        <button
+          type="button"
+          class="mt-2 flex w-full items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-left text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+          :aria-expanded="showArchived"
+          @click="showArchived = !showArchived"
+        >
+          <span class="flex items-center gap-1">
+            <ChevronRight
+              :class="[
+                'size-3 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                showArchived && 'rotate-90',
+              ]"
+              stroke-width="3"
+              aria-hidden="true"
+            />
+            Diarsipkan
+          </span>
+          <span class="normal-case">{{ archived.length }}</span>
+        </button>
+        <div v-if="showArchived" class="mx-4 overflow-hidden rounded-group bg-card">
+          <GroupRow
+            v-for="a in archived"
+            :key="a.id"
+            :title="a.name"
+            subtitle="Transaksinya tetap tersimpan"
+            :value="formatRupiah(a.balance)"
+            :to="`/accounts/${a.id}`"
+            chevron
+            class="opacity-70"
+          >
+            <template #icon><ToneIcon :icon="Wallet" tone="gray" size="sm" solid /></template>
+          </GroupRow>
+        </div>
+      </template>
+
+      <p
+        v-if="canEdit && views.length && !selecting"
+        class="m-0 px-8 pt-3 text-center text-meta text-muted-foreground"
+      >
+        Tahan akun untuk memilih banyak.
+      </p>
+    </template>
+
+    <!-- Bilah aksi pilih banyak (kaca, melayang di atas tab bar) -->
+    <div
+      v-if="selecting"
+      class="select-bar sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mx-3 mt-4 flex flex-col gap-2 rounded-[22px] px-3 pb-3 pt-2.5 md:bottom-4"
+      role="toolbar"
+      aria-label="Aksi untuk akun terpilih"
+    >
+      <span class="px-1 text-meta text-muted-foreground">
+        <b class="text-foreground">{{ chosen.length }}</b> dari {{ visible.length }} akun dipilih
+      </span>
+      <div class="grid grid-cols-3 gap-2">
+        <button
+          type="button"
+          :class="BULK_BTN"
+          :disabled="!chosen.length || bulkBusy"
+          @click="groupPicker = true"
+        >
+          <FolderInput aria-hidden="true" />Pindah grup
+        </button>
+        <button
+          type="button"
+          :class="BULK_BTN"
+          :disabled="!chosen.length || bulkBusy"
+          @click="bulkSet('archived', true, 'diarsipkan')"
+        >
+          <Archive aria-hidden="true" />Arsipkan
+        </button>
+        <button
+          v-if="hasTotals"
+          type="button"
+          :class="BULK_BTN"
+          :disabled="!chosen.length || bulkBusy"
+          @click="totalPicker = true"
+        >
+          <Sigma aria-hidden="true" />Atur total
+        </button>
+        <button
+          v-else
+          type="button"
+          :class="BULK_BTN"
+          :disabled="!chosen.length || bulkBusy"
+          @click="
+            bulkSet(
+              'include_in_total',
+              !chosen.every((a) => a.include_in_total),
+              chosen.every((a) => a.include_in_total) ? 'tidak ikut total aset' : 'ikut total aset',
+            )
+          "
+        >
+          <component
+            :is="chosen.every((a) => a.include_in_total) ? EyeOff : Eye"
+            aria-hidden="true"
+          />
+          {{ chosen.every((a) => a.include_in_total) ? 'Tidak ikut total' : 'Ikut total' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Menu …: total akun, grup, pilih banyak, urutkan, buku -->
+    <IosSheet v-model:open="menuOpen" title="Akun">
+      <div class="overflow-hidden rounded-group bg-fill">
+        <GroupRow
+          title="Total akun"
+          :subtitle="
+            hasTotals ? `${totalViews.length} total` : 'Kelompokkan akun, mis. Uang bulanan'
+          "
+          chevron
+          @click="fromMenu(() => navigateTo('/accounts/totals'))"
+        >
+          <template #icon><ToneIcon :icon="Sigma" tone="indigo" size="sm" solid /></template>
+        </GroupRow>
+        <GroupRow
+          title="Grup akun"
+          subtitle="Tambah, ubah, urutkan grup"
+          chevron
+          @click="fromMenu(() => navigateTo('/accounts/groups'))"
+        >
+          <template #icon><ToneIcon :icon="FolderCog" tone="blue" size="sm" solid /></template>
+        </GroupRow>
+        <template v-if="canEdit && views.length">
+          <GroupRow
+            title="Pilih banyak"
+            subtitle="Pindah grup, arsipkan, atau atur total sekaligus"
+            @click="fromMenu(() => startSelect())"
+          >
+            <template #icon><ToneIcon :icon="ListChecks" tone="green" size="sm" solid /></template>
+          </GroupRow>
+          <GroupRow
+            title="Urutkan"
+            subtitle="Urutan grup dan akun"
+            @click="fromMenu(() => (sorting = true))"
+          >
+            <template #icon
+              ><ToneIcon :icon="ArrowDownUp" tone="orange" size="sm" solid
+            /></template>
+          </GroupRow>
+        </template>
+        <GroupRow
+          title="Buku"
+          :value="book?.name"
+          chevron
+          @click="fromMenu(() => navigateTo('/settings/books'))"
+        >
+          <template #icon><ToneIcon :icon="BookOpen" tone="gray" size="sm" solid /></template>
+        </GroupRow>
+      </div>
+    </IosSheet>
+
+    <!-- Pindah grup -->
+    <IosSheet
+      v-model:open="groupPicker"
+      :title="creatingGroup ? undefined : `Pindahkan ${chosen.length} akun ke`"
+      label="Grup baru"
+    >
       <!-- Grup tujuan belum ada: buat di sini, akun langsung dipindah ke grup baru -->
       <AccountGroupForm
         v-if="creatingGroup"
@@ -427,39 +643,67 @@ function openForm(account: Account | null) {
         @created="(g) => moveTo(g.id, g.name)"
         @close="creatingGroup = false"
       />
-      <div v-else class="flex flex-col gap-3">
-        <div class="flex items-center gap-2">
-          <h2 id="group-picker-title" class="m-0 flex-1 text-panel font-bold">
-            Pindahkan {{ chosen.length }} akun ke
-          </h2>
-          <Button variant="ghost" size="icon" aria-label="Tutup" @click="groupPicker = false">
-            <X />
-          </Button>
-        </div>
-        <div class="flex max-h-[55dvh] flex-col gap-0.5 overflow-y-auto" data-no-drag>
-          <ListRow
-            as="button"
-            title="Grup baru"
-            subtitle="Buat grup, lalu pindahkan akunnya ke sana"
-            class="press hover:bg-surface-2"
-            @click="creatingGroup = true"
-          >
-            <template #lead><ToneIcon :icon="FolderPlus" tone="primary" size="sm" /></template>
-          </ListRow>
-          <ListRow
-            v-for="g in groups.data.value"
-            :key="g.id"
-            as="button"
-            :title="g.name"
-            :subtitle="groupStyle(g).label"
-            class="press hover:bg-surface-2"
-            @click="moveTo(g.id, g.name)"
-          >
-            <template #lead><ToneIcon v-bind="groupStyle(g)" size="sm" /></template>
-          </ListRow>
-        </div>
+      <div v-else class="overflow-hidden rounded-group bg-fill">
+        <GroupRow
+          title="Grup baru"
+          subtitle="Buat grup, lalu pindahkan akunnya ke sana"
+          @click="creatingGroup = true"
+        >
+          <template #icon><ToneIcon :icon="FolderPlus" tone="blue" size="sm" solid /></template>
+        </GroupRow>
+        <GroupRow
+          v-for="g in groups.data.value"
+          :key="g.id"
+          :title="g.name"
+          :subtitle="groupStyle(g).label"
+          @click="moveTo(g.id, g.name)"
+        >
+          <template #icon><ToneIcon v-bind="groupStyle(g)" size="sm" solid /></template>
+        </GroupRow>
       </div>
-    </Overlay>
+    </IosSheet>
+
+    <!-- Atur total -->
+    <IosSheet
+      v-model:open="totalPicker"
+      :title="creatingTotal ? undefined : `Masukkan ${chosen.length} akun ke`"
+      label="Total baru"
+    >
+      <!-- Total tujuan belum ada: buat di sini, akun langsung dimasukkan -->
+      <AccountTotalForm
+        v-if="creatingTotal"
+        :total="null"
+        no-accounts
+        title-id="total-picker-title"
+        @created="(t) => setTotal(t.id, t.name)"
+        @close="creatingTotal = false"
+      />
+      <div v-else class="overflow-hidden rounded-group bg-fill">
+        <GroupRow
+          title="Total baru"
+          subtitle="Buat total, lalu masukkan akunnya ke sana"
+          @click="creatingTotal = true"
+        >
+          <template #icon><ToneIcon :icon="Plus" tone="indigo" size="sm" solid /></template>
+        </GroupRow>
+        <GroupRow
+          v-for="t in totalViews"
+          :key="t.id"
+          :title="t.name"
+          :subtitle="`${t.accounts.length} akun${t.on_transactions ? ' · tampil di Transaksi' : ''}`"
+          @click="setTotal(t.id, t.name)"
+        >
+          <template #icon><ToneIcon :icon="Sigma" tone="indigo" size="sm" solid /></template>
+        </GroupRow>
+        <GroupRow
+          title="Tidak ikut total"
+          subtitle="Untuk akun titipan atau yang bukan milikmu"
+          @click="setTotal(null, '')"
+        >
+          <template #icon><ToneIcon :icon="EyeOff" tone="gray" size="sm" solid /></template>
+        </GroupRow>
+      </div>
+    </IosSheet>
 
     <Overlay v-model:open="formOpen" labelledby="account-form-title">
       <AccountForm
@@ -469,5 +713,31 @@ function openForm(account: Account | null) {
         @close="formOpen = false"
       />
     </Overlay>
+    <Overlay v-model:open="totalFormOpen" labelledby="total-form-title">
+      <AccountTotalForm
+        :key="formKey"
+        :total="editingTotal"
+        title-id="total-form-title"
+        @close="totalFormOpen = false"
+      />
+    </Overlay>
   </div>
 </template>
+
+<style scoped>
+/* Bilah aksi melayang: Liquid Glass seperti tab bar (solid saat Reduce Transparency lewat token) */
+.select-bar {
+  background: var(--glass-bar);
+  border: 0.5px solid var(--glass-bar-line);
+  box-shadow: var(--glass-bar-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .select-bar {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+</style>

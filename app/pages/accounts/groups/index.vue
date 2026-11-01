@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import { ArrowDownUp, ArrowLeft, Check, FolderOpen, Plus } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
+import { Plus } from '@lucide/vue';
 import Overlay from '@/components/base/Overlay.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import ListRow from '@/components/data/ListRow.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
 import SortableList from '@/components/data/SortableList.vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import SectionHeader from '@/components/ios/SectionHeader.vue';
 import AccountGroupForm from '@/components/money/AccountGroupForm.vue';
 import type { AccountGroup } from '@/features/accounts/api';
 import { groupStyle } from '@/features/accounts/style';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 
-// Kelola grup akun: tambah grup sendiri, ganti nama/jenis, urutkan, hapus yang kosong.
-// Urutan grup di sini dipakai di halaman Akun dan pilihan akun di form transaksi.
+// Kelola grup akun gaya grup iOS: tambah grup sendiri, ganti nama/jenis,
+// urutkan (seret pegangan), hapus yang kosong. Urutan grup di sini dipakai di
+// halaman Akun dan pilihan akun di form transaksi. iPad/desktop: form di dialog.
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Grup akun · Money Manager' });
 
@@ -52,63 +52,76 @@ function openForm(group: AccountGroup | null) {
 </script>
 
 <template>
-  <div class="mx-auto md:max-w-[680px]">
-    <PageHeader title="Grup akun">
-      <template #actions>
-        <HeaderButton label="Kembali ke Akun" @click="navigateTo('/accounts')"
-          ><ArrowLeft aria-hidden="true"
-        /></HeaderButton>
-        <template v-if="canEdit">
-          <HeaderButton v-if="list.length > 1" :aria-pressed="sorting" @click="sorting = !sorting">
-            <component :is="sorting ? Check : ArrowDownUp" aria-hidden="true" />{{
-              sorting ? 'Selesai' : 'Urutkan'
-            }}
-          </HeaderButton>
-          <HeaderButton @click="openForm(null)"><Plus aria-hidden="true" />Grup</HeaderButton>
-        </template>
+  <div
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-6 md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+  >
+    <NavBar title="Grup akun" back="Akun" back-to="/accounts" line class="sticky top-0 md:static">
+      <template #right>
+        <IconButton v-if="canEdit" label="Tambah grup" accent @click="openForm(null)">
+          <Plus stroke-width="2.2" aria-hidden="true" />
+        </IconButton>
       </template>
-    </PageHeader>
+    </NavBar>
 
-    <Card v-if="groups.isPending.value" class="mt-3.5 p-1"><Skeleton :rows="5" /></Card>
-    <Card v-else-if="!list.length" class="mt-3.5">
-      <EmptyState
-        :icon="FolderOpen"
-        title="Belum ada grup"
-        description="Buat grup dulu, mis. Bank atau E-Wallet, lalu tambahkan akun ke dalamnya."
-      />
-    </Card>
+    <EmptyCard v-if="groups.isPending.value" title="Memuat grup…" />
+    <EmptyCard
+      v-else-if="!list.length"
+      title="Belum ada grup"
+      description="Buat grup dulu, mis. Bank atau E-Wallet, lalu tambahkan akun ke dalamnya."
+    >
+      <IosButton v-if="canEdit" variant="soft" @click="openForm(null)">Buat grup</IosButton>
+    </EmptyCard>
 
-    <ListGroup v-else-if="sorting" label="Urutan grup">
-      <SortableList
-        :items="list"
-        label="Urutan grup akun"
-        @reorder="mutations.reorderGroups.mutate"
-      >
-        <template #default="{ item }">
-          <ListRow :title="item.name">
-            <template #lead><ToneIcon v-bind="groupStyle(item)" /></template>
-          </ListRow>
+    <template v-else>
+      <SectionHeader label="Grup">
+        <template #aside>
+          <button
+            v-if="canEdit && list.length > 1"
+            type="button"
+            class="normal-case text-primary-accent active:opacity-50"
+            :aria-pressed="sorting"
+            @click="sorting = !sorting"
+          >
+            {{ sorting ? 'Selesai' : 'Urutkan' }}
+          </button>
+          <span v-else class="normal-case">{{ list.length }}</span>
         </template>
-      </SortableList>
-    </ListGroup>
+      </SectionHeader>
 
-    <ListGroup v-else label="Grup" :aside="`${list.length}`">
-      <ListRow
-        v-for="g in list"
-        :key="g.id"
-        :as="canEdit ? 'button' : 'div'"
-        :title="g.name"
-        :subtitle="subtitle(g)"
-        :class="canEdit ? 'press hover:bg-surface-2' : ''"
-        @click="openForm(g)"
-      >
-        <template #lead><ToneIcon v-bind="groupStyle(g)" /></template>
-      </ListRow>
-    </ListGroup>
-
-    <p v-if="list.length && !sorting" class="m-0 mt-2.5 px-2.5 text-xs text-muted-foreground">
-      Grup kosong tidak tampil di halaman Akun. Grup yang masih berisi akun tidak bisa dihapus.
-    </p>
+      <div v-if="sorting" class="mx-4 overflow-hidden rounded-group bg-card">
+        <SortableList
+          :items="list"
+          label="Urutan grup akun"
+          @reorder="mutations.reorderGroups.mutate"
+        >
+          <template #default="{ item }">
+            <GroupRow :title="item.name">
+              <template #icon><ToneIcon v-bind="groupStyle(item)" size="sm" solid /></template>
+            </GroupRow>
+          </template>
+        </SortableList>
+      </div>
+      <div v-else class="mx-4 overflow-hidden rounded-group bg-card">
+        <component
+          :is="GroupRow"
+          v-for="g in list"
+          :key="g.id"
+          :title="g.name"
+          :subtitle="subtitle(g)"
+          :chevron="canEdit"
+          v-on="canEdit ? { click: () => openForm(g) } : {}"
+        >
+          <template #icon><ToneIcon v-bind="groupStyle(g)" size="sm" solid /></template>
+        </component>
+      </div>
+      <p class="m-0 px-8 pt-1.5 text-meta leading-[1.4] text-muted-foreground">
+        {{
+          sorting
+            ? 'Seret pegangan di kanan untuk mengubah urutan.'
+            : 'Grup kosong tidak tampil di halaman Akun. Grup yang masih berisi akun tidak bisa dihapus.'
+        }}
+      </p>
+    </template>
 
     <Overlay v-model:open="formOpen" labelledby="group-form-title">
       <AccountGroupForm

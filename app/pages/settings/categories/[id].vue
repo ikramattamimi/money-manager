@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Tag } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
 import FormPage from '@/components/layout/FormPage.vue';
 import CategoryForm from '@/components/money/CategoryForm.vue';
+import FormPageSave from '@/components/money/FormPageSave.vue';
 import { useCategories } from '@/features/categories/useCategories';
 
 // Ubah kategori sebagai halaman penuh di HP (iPad/desktop: dialog)
@@ -21,17 +19,19 @@ const back = () => closePage('/settings/categories');
 
 <template>
   <FormPage title="Ubah kategori" title-id="category-page-title" @back="back">
-    <Skeleton v-if="categories.isPending.value" :rows="4" />
+    <template v-if="category" #action><FormPageSave form="category-page-title-form" /></template>
     <CategoryForm
-      v-else-if="category"
+      v-if="category"
       :key="category.id"
       :category="category"
       :kind="category.kind"
       page
-      class="flex-1"
       title-id="category-page-title"
       @close="back"
     />
-    <Card v-else><EmptyState :icon="Tag" title="Kategori tidak ditemukan" /></Card>
+    <EmptyCard
+      v-else
+      :title="categories.isPending.value ? 'Memuat…' : 'Kategori tidak ditemukan'"
+    />
   </FormPage>
 </template>

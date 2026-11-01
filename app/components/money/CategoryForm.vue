@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { Archive, ArchiveRestore, X } from '@lucide/vue';
-import FormField from '@/components/base/FormField.vue';
+import { Check } from '@lucide/vue';
+import FieldRow from '@/components/data/FieldRow.vue';
+import FormGroup from '@/components/data/FormGroup.vue';
+import { FIELD_BUTTON, FIELD_INPUT } from '@/components/data/field';
 import ToneIcon from '@/components/data/ToneIcon.vue';
 import { TONE_FILL } from '@/components/data/tone';
-import { Button } from '@/components/ui/button';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import type { Category, CategoryKind } from '@/features/categories/api';
 import { asTone, CATEGORY_ICONS, CATEGORY_TONES, categoryIcon } from '@/features/categories/icons';
 import { useCategories, useCategoryMutations } from '@/features/categories/useCategories';
+import FormDialogHeader from './FormDialogHeader.vue';
 
-// Tambah/ubah kategori: nama, induk (2 level), ikon, warna. Subkategori baru
+// Tambah/ubah kategori: nama, induk (2 level), warna, ikon. Subkategori baru
 // ikut warna induknya. Mengarsipkan menyembunyikan dari pilihan, transaksi
-// lama tetap menampilkan namanya.
+// lama tetap menampilkan namanya (ada Urungkan).
 const props = defineProps<{
   category: Category | null;
   kind: CategoryKind;
@@ -41,6 +46,14 @@ const form = reactive({
   tone: asTone(props.category?.tone ?? 'r1'),
 });
 const error = ref('');
+const parentOpen = ref(false);
+const parentName = computed(
+  () => parents.value.find((p) => p.id === form.parentId)?.name ?? 'Kategori utama',
+);
+function pickParent(id: string) {
+  form.parentId = id;
+  parentOpen.value = false;
+}
 
 watch(
   () => form.parentId,
@@ -90,106 +103,166 @@ function toggleArchive() {
   );
   emit('close');
 }
+
+const TONE_NAME: Record<string, string> = {
+  r1: 'Biru',
+  r2: 'Oranye',
+  r3: 'Hijau',
+  r4: 'Kuning',
+  r5: 'Merah muda',
+  r6: 'Ungu',
+  neutral: 'Abu-abu',
+};
 </script>
 
 <template>
-  <form class="flex flex-col gap-3.5" novalidate @submit.prevent="save">
-    <div v-if="!page" class="flex items-center gap-2">
-      <ToneIcon :icon="categoryIcon(form.icon)" :tone="form.tone" />
-      <h2 :id="titleId" class="m-0 flex-1 text-panel font-bold">
-        {{ category ? 'Ubah kategori' : 'Kategori baru' }}
-      </h2>
-      <Button
-        variant="secondary"
-        size="icon"
-        aria-label="Tutup"
-        class="press-icon"
-        type="button"
-        @click="emit('close')"
-      >
-        <X />
-      </Button>
+  <form
+    :id="`${titleId}-form`"
+    class="flex flex-col gap-3.5 pb-4"
+    novalidate
+    @submit.prevent="save"
+  >
+    <FormDialogHeader
+      v-if="!page"
+      :title="category ? 'Ubah kategori' : 'Kategori baru'"
+      :title-id="titleId"
+      @close="emit('close')"
+    />
+
+    <div class="flex flex-col items-center gap-1.5 pt-1">
+      <ToneIcon
+        :icon="categoryIcon(form.icon)"
+        :tone="form.tone"
+        size="lg"
+        class="size-14! [&_svg]:size-7!"
+      />
+      <span class="text-meta text-muted-foreground">{{
+        kind === 'income' ? 'Kategori pemasukan' : 'Kategori pengeluaran'
+      }}</span>
     </div>
 
-    <FormField label="Nama" for="cat-name" :error="error">
-      <input
-        id="cat-name"
-        v-model="form.name"
-        type="text"
-        maxlength="60"
-        class="field-input"
-        autocomplete="off"
-        :aria-invalid="!!error || undefined"
-      />
-    </FormField>
-
-    <FormField
-      label="Induk"
-      for="cat-parent"
-      :hint="
+    <FormGroup
+      :page="page"
+      :foot="
         hasChildren
           ? 'Kategori yang punya subkategori tidak bisa dijadikan subkategori.'
-          : 'Kosongkan untuk kategori utama.'
+          : 'Pilih induk untuk menjadikannya subkategori.'
       "
     >
-      <select id="cat-parent" v-model="form.parentId" class="field-input" :disabled="hasChildren">
-        <option value="">Kategori utama</option>
-        <option v-for="p in parents" :key="p.id" :value="p.id">{{ p.name }}</option>
-      </select>
-    </FormField>
+      <FieldRow label="Nama" for="cat-name" :error="error" :label-width="64">
+        <input
+          id="cat-name"
+          v-model="form.name"
+          type="text"
+          maxlength="60"
+          :class="FIELD_INPUT"
+          autocomplete="off"
+          placeholder="mis. Makan"
+          :aria-invalid="!!error || undefined"
+        />
+      </FieldRow>
+      <FieldRow label="Induk" for="cat-parent" :label-width="64">
+        <button
+          id="cat-parent"
+          type="button"
+          :disabled="hasChildren"
+          :class="[FIELD_BUTTON, 'disabled:opacity-50', !form.parentId && 'text-muted-foreground']"
+          @click="parentOpen = true"
+        >
+          <span class="truncate">{{ parentName }}</span>
+        </button>
+      </FieldRow>
+    </FormGroup>
 
-    <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0">
-      <legend class="mb-1.5 text-label font-semibold">Warna</legend>
-      <div class="flex flex-wrap gap-2">
-        <label v-for="t in CATEGORY_TONES" :key="t" class="cursor-pointer">
-          <input
-            v-model="form.tone"
-            type="radio"
-            name="cat-tone"
-            :value="t"
-            class="peer sr-only"
-            :aria-label="t === 'neutral' ? 'Abu-abu' : `Warna ${t}`"
-          />
-          <span
-            :class="[
-              'block size-8 rounded-full ring-offset-2 ring-offset-card peer-checked:ring-2 peer-checked:ring-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring',
-              TONE_FILL[t],
-            ]"
-          />
-        </label>
+    <FormGroup label="Warna" :page="page">
+      <div class="flex flex-wrap gap-2.5 px-4 py-3" role="radiogroup" aria-label="Warna">
+        <button
+          v-for="t in CATEGORY_TONES"
+          :key="t"
+          type="button"
+          role="radio"
+          :aria-checked="form.tone === t"
+          :aria-label="TONE_NAME[t] ?? t"
+          :class="['cat-pick grid size-9 place-items-center rounded-full text-white', TONE_FILL[t]]"
+          @click="form.tone = t"
+        >
+          <Check v-if="form.tone === t" class="size-4" stroke-width="3" aria-hidden="true" />
+        </button>
       </div>
-    </fieldset>
+    </FormGroup>
 
-    <fieldset class="m-0 flex flex-col border-0 p-0">
-      <legend class="mb-1.5 text-label font-semibold">Ikon</legend>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-1.5">
-        <label v-for="(icon, key) in CATEGORY_ICONS" :key="key" class="cursor-pointer">
-          <input
-            v-model="form.icon"
-            type="radio"
-            name="cat-icon"
-            :value="key"
-            class="peer sr-only"
-            :aria-label="String(key)"
-          />
-          <span
-            class="press grid size-10 place-items-center rounded-[10px] text-muted-foreground peer-checked:bg-primary-soft peer-checked:text-primary-accent peer-checked:ring-1 peer-checked:ring-primary-accent/40 peer-focus-visible:ring-2 peer-focus-visible:ring-ring hover:bg-surface-2"
-          >
-            <component :is="icon" class="size-[18px]" aria-hidden="true" />
-          </span>
-        </label>
+    <FormGroup label="Ikon" :page="page">
+      <div
+        class="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-1 p-2"
+        role="radiogroup"
+        aria-label="Ikon"
+      >
+        <button
+          v-for="(icon, key) in CATEGORY_ICONS"
+          :key="key"
+          type="button"
+          role="radio"
+          :aria-checked="form.icon === key"
+          :aria-label="String(key)"
+          :class="[
+            'cat-pick grid size-11 place-items-center rounded-[11px]',
+            form.icon === key ? 'bg-primary-soft text-primary-accent' : 'text-muted-foreground',
+          ]"
+          @click="form.icon = String(key)"
+        >
+          <component :is="icon" class="size-5" aria-hidden="true" />
+        </button>
       </div>
-    </fieldset>
+    </FormGroup>
 
-    <div :class="['flex flex-wrap items-center gap-2 pt-1', page && 'form-page-actions']">
-      <Button v-if="category" type="button" variant="ghost" size="touch" @click="toggleArchive">
-        <component :is="category.archived ? ArchiveRestore : Archive" />
-        {{ category.archived ? 'Pulihkan' : 'Arsipkan' }}
-      </Button>
-      <span class="flex-1" />
-      <Button type="submit" size="touch">{{
-        category ? 'Simpan perubahan' : 'Tambah kategori'
-      }}</Button>
-    </div>
+    <template v-if="category">
+      <IosButton variant="gray" block class="mt-2" @click="toggleArchive">
+        {{ category.archived ? 'Pulihkan kategori' : 'Arsipkan kategori' }}
+      </IosButton>
+      <p class="m-0 -mt-1.5 px-4 text-center text-meta text-muted-foreground">
+        {{
+          category.archived
+            ? 'Muncul lagi di pilihan kategori.'
+            : 'Tidak muncul di pilihan, transaksi lama tetap menampilkan namanya.'
+        }}
+      </p>
+    </template>
+
+    <IosSheet v-model:open="parentOpen" title="Induk">
+      <div class="overflow-hidden rounded-group bg-background">
+        <GroupRow title="Kategori utama" subtitle="Tanpa induk" @click="pickParent('')">
+          <template #end>
+            <Check
+              v-if="!form.parentId"
+              class="size-5 text-primary-accent"
+              stroke-width="2.6"
+              aria-hidden="true"
+            />
+          </template>
+        </GroupRow>
+        <GroupRow v-for="p in parents" :key="p.id" :title="p.name" @click="pickParent(p.id)">
+          <template #icon
+            ><ToneIcon :icon="categoryIcon(p.icon)" :tone="asTone(p.tone)" size="sm"
+          /></template>
+          <template #end>
+            <Check
+              v-if="form.parentId === p.id"
+              class="size-5 text-primary-accent"
+              stroke-width="2.6"
+              aria-hidden="true"
+            />
+          </template>
+        </GroupRow>
+      </div>
+    </IosSheet>
   </form>
 </template>
+
+<style scoped>
+.cat-pick {
+  transition: transform 120ms var(--ease-out);
+}
+.cat-pick:active {
+  transform: scale(0.92);
+}
+</style>
