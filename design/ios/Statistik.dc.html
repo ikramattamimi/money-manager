@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Tab Statistik</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ios.css?v=17">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 3038px; height: 1008px; box-sizing: border-box; padding: 40px; background: #FAFAFB; display: flex; gap: 56px; font-family: -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif; color: #1C1C1E">
+<sc-for list="{{phones}}" as="p" hint-placeholder-count="9">
+<figure style="margin: 0; width: 390px; display: flex; flex-direction: column; gap: 10px">
+<figcaption style="display: flex; flex-direction: column; gap: 3px; height: 74px"><b style="font-size: 19px; letter-spacing: -0.02em">{{p.title}}</b><span style="font-size: 14px; line-height: 1.4; color: #6C6C70">{{p.desc}}</span></figcaption>
+<div style="width: 390px; height: 844px; border-radius: 48px; overflow: hidden; box-shadow: 0 0 0 1px #E3E3E8, 0 24px 60px rgba(0,0,0,.12)">
+<dc-import name="App" screen="{{p.screen}}" hint-size="390px,844px"></dc-import>
+</div>
+</figure>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3038,"height":1008}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      phones: [
+        { screen: 'stats', title: 'Statistik', desc: 'Donat per kategori dengan persen. Pemasukan/Pengeluaran berdampingan, periode dari tombol Bulanan.' },
+        { screen: 'stats-budget', title: 'Budget', desc: 'Sisa bulanan, lalu per kategori: budget, bar persen, terpakai, sisa. Merah = lewat budget; tanpa budget masuk Lainnya.' },
+        { screen: 'budget-setting', title: 'Atur budget', desc: 'Kategori dengan pratinjau sub. Ketuk untuk membuka Total dan budget tiap sub-kategori.' },
+        { screen: 'budget-sub', title: 'Ketuk kategori bersub', desc: 'Rincian induk dan tiap sub. Sub tanpa budget tampil sebagai baris biasa; ketuk untuk mengatur.' },
+        { screen: 'budget-detail', title: 'Detail budget', desc: 'Budget, terpakai, sisa; garis budget dan batang pengeluaran per bulan; transaksinya di bawah. Pensil = atur per bulan.' },
+        { screen: 'budget-amount', title: 'Isi nominal budget', desc: 'Halaman penuh dengan kalkulator (+ − × ÷), seperti input Realbyte.' },
+        { screen: 'budget-category', title: 'Budget per bulan', desc: 'Dari pensil atau Atur budget: default dan tiap bulan; bulan berjalan disorot.' },
+        { screen: 'stats-note', title: 'Catatan', desc: 'Pengeluaran per toko/catatan, urut nama, jumlah, atau nominal.' },
+        { screen: 'stats-category', title: 'Rincian kategori', desc: 'Grafik 6 bulan dengan garis rata-rata, sub-kategori, lalu daftar transaksinya.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

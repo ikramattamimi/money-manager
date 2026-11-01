@@ -16,6 +16,8 @@
   body {
     @apply bg-background font-sans text-sm text-foreground antialiased;
     font-optical-sizing: auto;
+    /* Angka sejajar di semua daftar nominal (mockup: tnum) */
+    font-variant-numeric: tabular-nums;
     min-height: 100dvh;
     overscroll-behavior-y: none;
   }

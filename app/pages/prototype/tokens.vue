@@ -6,24 +6,26 @@ import StatChip from '@/components/layout/StatChip.vue';
 // Katalog token (fase 3 T1): bandingkan dengan design/prototype.html di kedua tema.
 definePageMeta({ layout: 'prototype' });
 
+const IOS_TONES = ['blue', 'orange', 'green', 'amber', 'pink', 'purple', 'teal', 'indigo', 'red', 'gray'];
 const GROUPS: { title: string; tokens: string[] }[] = [
-  { title: 'Permukaan', tokens: ['background', 'card', 'surface-2', 'border', 'border-strong'] },
-  { title: 'Teks', tokens: ['foreground', 'muted-foreground', 'faint'] },
-  { title: 'Primer', tokens: ['primary', 'primary-accent', 'primary-ink', 'primary-soft'] },
+  { title: 'Permukaan', tokens: ['background', 'card', 'surface-2', 'sep', 'border-strong'] },
+  { title: 'Isian kontrol', tokens: ['fill', 'fill-2', 'fill-press', 'seg-on', 'chevron'] },
+  { title: 'Teks', tokens: ['foreground', 'muted-foreground', 'faint', 'ter'] },
+  { title: 'Aksen & nominal', tokens: ['primary', 'primary-accent', 'primary-soft', 'inc', 'exp'] },
   { title: 'Status', tokens: ['ok', 'ok-soft', 'warn', 'warn-soft', 'bad', 'bad-soft'] },
-  { title: 'Kategori & grafik', tokens: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] },
+  { title: 'Nada ikon (solid)', tokens: IOS_TONES.map((t) => `tone-${t}`) },
+  { title: 'Nada ikon (lembut)', tokens: IOS_TONES.map((t) => `tone-${t}-soft`) },
+  { title: 'Papan angka', tokens: ['kb-bg', 'kb-head', 'kb-key', 'kb-fn', 'kb-shadow'] },
 ];
 const TYPE = [
-  { cls: 'text-[30px] font-bold tracking-[-0.025em]', name: 'Angka utama 30/34px' },
-  { cls: 'text-lg font-bold', name: 'Judul halaman 18/22px' },
-  { cls: 'text-panel font-bold', name: 'Judul panel 15,5px' },
-  { cls: 'text-label font-semibold', name: 'Judul baris 13,5px' },
-  { cls: 'text-meta', name: 'Meta 13px' },
-  { cls: 'text-xs text-muted-foreground', name: 'Keterangan 12px' },
-  {
-    cls: 'text-2xs font-semibold uppercase tracking-wider text-muted-foreground',
-    name: 'Label grup 11px',
-  },
+  { cls: 'text-large font-bold tracking-[-0.03em]', name: 'Judul besar 34px' },
+  { cls: 'text-[32px] font-bold tracking-[-0.035em]', name: 'Angka utama 32px' },
+  { cls: 'text-sheet font-bold tracking-[-0.02em]', name: 'Judul lembar 19px' },
+  { cls: 'text-bar font-semibold tracking-[-0.02em]', name: 'Judul bar 17px' },
+  { cls: 'text-row font-medium', name: 'Baris grup 16px' },
+  { cls: 'text-body font-semibold', name: 'Nominal baris 15px' },
+  { cls: 'text-meta text-muted-foreground', name: 'Keterangan 13px' },
+  { cls: 'text-meta uppercase tracking-[0.02em] text-muted-foreground', name: 'Judul grup 13px' },
 ];
 </script>
 
@@ -49,7 +51,7 @@ const TYPE = [
     </Card>
 
     <Card class="flex flex-col gap-2 p-3.5">
-      <b class="text-panel">Tipografi · DM Sans</b>
+      <b class="text-panel">Tipografi · font sistem (SF / Inter)</b>
       <div
         v-for="t in TYPE"
         :key="t.name"
@@ -78,9 +80,12 @@ const TYPE = [
       </div>
       <div>
         <b class="text-panel">Liquid Glass</b>
-        <div class="mt-2 grid h-12 place-items-center rounded-card bg-grad-hero">
-          <span class="lg rounded-full px-4 py-1.5 text-meta font-semibold"
-            >tab bar / tombol +</span
+        <div
+          class="mt-2 grid h-12 place-items-center rounded-card bg-[linear-gradient(120deg,var(--tone-orange),var(--tone-blue))]"
+        >
+          <span
+            class="rounded-full border-[0.5px] border-[var(--glass-bar-line)] bg-[var(--glass-bar)] px-4 py-1.5 text-meta font-semibold backdrop-blur-[22px]"
+            >tab bar / menu +</span
           >
         </div>
       </div>

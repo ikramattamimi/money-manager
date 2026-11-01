@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, Repeat, Zap } from '@lucide/vue';
+import { Download, Repeat, Star } from '@lucide/vue';
 import AppShell from '@/components/layout/AppShell.vue';
 import { provideQuickAddSource } from '@/features/quick-add/useQuickAdd';
 import type { QuickCategory } from '@/features/quick-add/types';
@@ -23,7 +23,7 @@ provideQuickAddSource({
 });
 
 const extras = [
-  { label: 'Template', icon: Zap, count: TEMPLATES.length },
+  { label: 'Bookmark', icon: Star, count: TEMPLATES.length },
   { label: 'Berulang', icon: Repeat, count: 3 },
   { label: 'Impor', icon: Download },
 ];

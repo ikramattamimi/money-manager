@@ -11,12 +11,9 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/eslint', '@nuxt/fonts', 'shadcn-nuxt', '@vite-pwa/nuxt'],
 
-  // DM Sans (teks) dan DM Mono (contoh format ketikan) di-host sendiri
+  // Font sistem (SF) di perangkat Apple; Inter di-host sendiri untuk Windows/Android
   fonts: {
-    families: [
-      { name: 'DM Sans', provider: 'google', weights: ['400 700'] },
-      { name: 'DM Mono', provider: 'google', weights: [500] },
-    ],
+    families: [{ name: 'Inter', provider: 'google', weights: ['400 800'] }],
   },
 
   css: ['~/assets/css/main.css'],
@@ -43,7 +40,7 @@ export default defineNuxtConfig({
         { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
         { name: 'apple-mobile-web-app-title', content: 'Money' },
         // Diperbarui useTheme sesuai tema aktif
-        { name: 'theme-color', content: '#f2f4f9' },
+        { name: 'theme-color', content: '#f2f2f7' },
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
@@ -86,8 +83,8 @@ export default defineNuxtConfig({
       scope: '/',
       display: 'standalone',
       orientation: 'portrait',
-      background_color: '#f2f4f9',
-      theme_color: '#f2f4f9',
+      background_color: '#f2f2f7',
+      theme_color: '#f2f2f7',
       icons: [
         { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },

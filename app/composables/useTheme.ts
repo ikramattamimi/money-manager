@@ -1,7 +1,8 @@
 export type ThemePreference = 'light' | 'dark' | 'system';
 
 const STORAGE_KEY = 'mm-theme';
-const THEME_COLOR = { light: '#f2f4f9', dark: '#0c0f14' } as const;
+// Sama dengan --background di tokens.css
+const THEME_COLOR = { light: '#f2f2f7', dark: '#000000' } as const;
 
 /**
  * Pilihan tema per perangkat. "Sistem" mengikuti prefers-color-scheme dan

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, Repeat, Zap } from '@lucide/vue';
+import { Download, Repeat, Star } from '@lucide/vue';
 import AppShell from '@/components/layout/AppShell.vue';
 import TransactionEditor from '@/components/money/TransactionEditor.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
@@ -112,7 +112,7 @@ provideQuickAddSource({
 });
 
 const extras = [
-  { label: 'Template', icon: Zap, to: '/settings/templates' },
+  { label: 'Bookmark', icon: Star, to: '/settings/templates' },
   { label: 'Berulang', icon: Repeat, to: '/settings/recurring' },
   { label: 'Impor', icon: Download, to: '/settings/import' },
 ];

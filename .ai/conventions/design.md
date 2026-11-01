@@ -1,47 +1,69 @@
 # Konvensi Desain
 
-Berlaku mulai fase 4. Acuan visual: `design/prototype.html` (pratinjau tiga
-perangkat: `design/preview.html`). Komponen dan token ada di `app/`, katalognya
-di `/prototype/ui` dan `/prototype/tokens`.
+Acuan visual: mockup iOS di `design/ios/` (kanvas
+https://claude.ai/artifact/1PuG9FdKyAr1W8FA4bpHcm), rencana di
+`.ai/plans/redesign-ios/`. Token dan komponen ada di `app/`, katalognya di
+`/prototype/ui` dan `/prototype/tokens`. Halaman yang belum digambar ulang
+masih memakai komponen tema lama (`PageHeader`, kaca opnamix) sampai fasenya
+(R3–R7); komponen itu dihapus di R8.
 
 ## Token
 
 Semua warna, radius, bayangan, dan kurva gerak berasal dari
-`app/assets/css/tokens.css` (disalin dari design system Opnamix). Jangan menulis
+`app/assets/css/tokens.css`. Mode terang = nilai mockup (`ios.css` `.app`), mode
+gelap = warna sistem iOS dark grouped dengan kontras teks ≥ 4,5:1. Jangan menulis
 nilai literal di komponen atau halaman.
 
 | Kebutuhan | Pakai |
 |---|---|
-| Latar halaman / kartu / isian sekunder | `bg-background` / `bg-card` / `bg-surface-2` |
+| Latar halaman / kartu / grup | `bg-background` / `bg-card` |
+| Garis pemisah | `var(--sep)` (0,5px, `shadow-[…_var(--sep)]` atau `::before`) |
+| Isian chip, segmented, tombol abu / tekan baris | `bg-fill` / `bg-fill-2` / `active:bg-fill-press` |
 | Teks utama / sekunder / meta | `text-foreground` / `text-muted-foreground` / `text-faint` |
+| Placeholder, chevron | `text-ter`, `text-chevron` |
 | Isi tombol utama | `bg-primary` + `text-primary-foreground` |
-| Teks, ikon, fokus berwarna primer | `text-primary-accent` (lebih terang di mode gelap) |
-| Latar lembut aksi sekunder | `bg-primary-soft` + `text-primary-ink` |
-| Status | `ok` / `warn` / `bad` (+ `-soft` untuk latar) |
-| Kategori dan grafik | `r1`–`r6`, lewat `ToneIcon` / `TONE_FILL` |
-| Di atas pita gradien | `text-on-grad*`, `bg-glass*`, `border-glass-line` |
-| Nominal | Pemasukan `text-primary-accent`, pengeluaran `text-bad`, transfer `text-muted-foreground`. Selalu `tabular-nums` |
+| Teks, ikon, fokus beraksen | `text-primary-accent` (lebih terang di mode gelap) |
+| Latar lembut aksen | `bg-primary-soft` + `text-primary-accent` |
+| Nominal | Pemasukan `text-inc`, pengeluaran `text-exp`, transfer `text-muted-foreground`. Angka sudah `tabular-nums` dari `body` |
+| Status | `ok` / `warn` / `bad` (+ `-soft`) |
+| Ikon kategori/akun/pengaturan | `ToneIcon` dengan nada. Database: `r1`–`r6`, `neutral` (dipetakan ke biru, oranye, hijau, kuning, merah muda, ungu, abu). Ikon sistem: nama iOS (`blue`, `teal`, `indigo`, …). `solid` = ikon putih di kotak berwarna seperti Pengaturan iOS |
+| Papan angka, grid pilihan | `--kb-*` |
 
-Teks memakai skala Opnamix: `text-2xs` (11px label grup), `text-xs` (12px),
-`text-meta` (13px), `text-label` (13,5px judul baris), `text-panel` (15,5px
-judul kartu). Angka utama 30px (34px di iPad ke atas).
+Font: `-apple-system, 'SF Pro Text', 'Inter'` (Inter di-host lewat
+`@nuxt/fonts` untuk non-Apple). Skala teks iOS: `text-meta` 13px keterangan dan
+judul grup, `text-body` 15px nominal baris, `text-row` 16px judul baris grup,
+`text-bar` 17px judul bar dan tombol besar, `text-sheet` 19px judul lembar,
+`text-large` 34px judul besar. Tracking negatif hanya untuk 15px ke atas.
+
+## Komponen iOS (`app/components/ios/`)
+
+| Komponen | Mockup | Catatan |
+|---|---|---|
+| `NavBar` | `.nav`/`.navrow` | `back` = label tombol kembali; slot `#right`, slot default untuk baris kedua (bulan, `SubTabs`); `large` untuk judul 34px |
+| `IconButton` | `.ib` | 44px, `accent` untuk aksi utama bar, `label` wajib |
+| `SubTabs` | `.subtabs` | Harian/Kalender/…, tanpa animasi |
+| `SummaryStrip` | `.strip` | 3 kolom dengan nada `inc`/`exp` |
+| `GroupedList` + `GroupRow` | `.grp`/`.row`/`.sh` | Baris jadi tautan (`to`), tombol (`@click`), atau div. Slot `#icon`, `#value`, `#end` (saklar) |
+| `Segmented`, `Chip`, `IosButton`, `IosSwitch`, `EmptyCard` | `.seg`, `.chip`, `.btn`, `.sw`, `.empty` | |
+| `IosSheet` | `.sheet` | Lembar melayang, tarik turun dengan momentum |
+| `Dock` | `.dock` | Panel bawah gaya keyboard untuk papan angka/grid |
+| `IosAlert` + `useAlert().confirm()` | `.ialert` | Hanya untuk aksi yang tidak bisa diurungkan |
+| `Toaster` + `useToast()` | `.toast` | Toast kaca gelap di atas, dengan Urungkan |
 
 ## Kaca
 
-Ada dua jenis kaca, jangan dicampur:
-
-- **Kaca Opnamix** (`bg-glass`, `bg-glass-2`, `border-glass-line`): hanya di atas
-  pita gradien `PageHeader` dan sidebar. Untuk chip, tombol kepala halaman, dan
-  segmented varian `on-grad`.
-- **Liquid Glass** (kelas `.lg`, `.lg-tint`): **hanya** tab bar, tombol +, dan
-  bar judul ringkas. Permukaan lain (kartu, sheet, dialog, toast) solid.
+**Liquid Glass hanya di lapisan yang melayang**: tab bar, menu tahan tombol +,
+toast, dialog peringatan, dan bar aksi bawah. Token `--glass-bar*`,
+`--glass-menu*`, `--toast-bg`, `--alert-bg`. Bar navigasi, kartu, lembar, dan
+form solid. `prefers-reduced-transparency` → solid. Kaca opnamix (`bg-glass*`,
+`.lg`) hanya untuk halaman lama.
 
 ## Tata letak
 
 | Ukuran | Navigasi | Catat transaksi |
 |---|---|---|
-| HP < 768px | `TabBar` bawah + `AddButton` | Halaman `/transaction` (lihat Form) |
-| iPad 768–1023px | `TabBar` atas tengah + `AddButton` | `CenterDialog` |
+| HP < 768px | `TabBar` bawah + `AddButton` di kanannya (semua tab; tahan = menu catat cepat) | Halaman `/transaction` (lihat Form) |
+| iPad 768–1023px | `TabBar` atas tengah + `AddButton` kanan bawah | `CenterDialog` |
 | iPad landscape 1024–1179px | `TabBar` atas tengah | Inline di kolom kanan Transaksi |
 | Desktop ≥ 1180px | `AppSidebar` | Inline + pintasan `N` |
 

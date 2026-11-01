@@ -1,175 +1,204 @@
 <script setup lang="ts">
-import { Coffee, Inbox, Plus, Search, Tag, Wallet } from '@lucide/vue';
-import { Button } from '@/components/ui/button';
-import Card from '@/components/base/Card.vue';
-import CardHead from '@/components/base/CardHead.vue';
-import ChoiceChip from '@/components/data/ChoiceChip.vue';
-import EmptyState from '@/components/data/EmptyState.vue';
-import KpiStrip from '@/components/data/KpiStrip.vue';
-import ListGroup from '@/components/data/ListGroup.vue';
-import Meter from '@/components/data/Meter.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
-import SettingRow from '@/components/data/SettingRow.vue';
-import Skeleton from '@/components/data/Skeleton.vue';
+import { ChartPie, Coffee, Download, Filter, Gift, Plus, Search, Settings, Star, Wallet } from '@lucide/vue';
 import ToneIcon from '@/components/data/ToneIcon.vue';
-import HeaderButton from '@/components/layout/HeaderButton.vue';
-import PageHeader from '@/components/layout/PageHeader.vue';
-import TransactionRow from '@/components/money/TransactionRow.vue';
 import type { Tone } from '@/components/data/tone';
+import Chip from '@/components/ios/Chip.vue';
+import Dock from '@/components/ios/Dock.vue';
+import EmptyCard from '@/components/ios/EmptyCard.vue';
+import GroupRow from '@/components/ios/GroupRow.vue';
+import GroupedList from '@/components/ios/GroupedList.vue';
+import IconButton from '@/components/ios/IconButton.vue';
+import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
+import IosSwitch from '@/components/ios/IosSwitch.vue';
+import NavBar from '@/components/ios/NavBar.vue';
+import Segmented from '@/components/ios/Segmented.vue';
+import SubTabs from '@/components/ios/SubTabs.vue';
+import SummaryStrip from '@/components/ios/SummaryStrip.vue';
 
-// Katalog komponen (fase 3 T3) dalam semua state: normal, ditekan, nonaktif,
-// kosong, memuat. Ganti tema dari Lainnya untuk memeriksa mode gelap.
+// Katalog komponen iOS (redesign R1). Bandingkan dengan design/ios/ios.css
+// dan kanvas mockup, di tema terang dan gelap (ganti dari sidebar/Lainnya).
 definePageMeta({ layout: 'prototype' });
 
 const toast = useToast();
-const seg = ref<'a' | 'b' | 'c'>('a');
-const TONES: Tone[] = [
-  'primary',
-  'ok',
-  'warn',
-  'bad',
-  'neutral',
-  'r1',
-  'r2',
-  'r3',
-  'r4',
-  'r5',
-  'r6',
-];
-const VARIANTS = [
-  'default',
-  'secondary',
-  'soft',
-  'outline',
-  'ghost',
-  'ghost-danger',
-  'destructive',
-  'link',
+const alert = useAlert();
+const view = ref<'daily' | 'calendar' | 'weekly' | 'monthly' | 'summary'>('daily');
+const kind = ref<'income' | 'expense' | 'account'>('expense');
+const carry = ref(true);
+const time = ref(false);
+const sheetOpen = ref(false);
+const dockOpen = ref(false);
+
+const VIEWS = [
+  { value: 'daily', label: 'Harian' },
+  { value: 'calendar', label: 'Kalender' },
+  { value: 'weekly', label: 'Mingguan' },
+  { value: 'monthly', label: 'Bulanan' },
+  { value: 'summary', label: 'Ringkasan' },
 ] as const;
+const KINDS = [
+  { value: 'income', label: 'Masuk' },
+  { value: 'expense', label: 'Keluar' },
+  { value: 'account', label: 'Akun' },
+] as const;
+const TONES: Tone[] = [
+  'blue',
+  'orange',
+  'green',
+  'amber',
+  'pink',
+  'purple',
+  'teal',
+  'indigo',
+  'red',
+  'gray',
+];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+async function askDelete() {
+  const ok = await alert.confirm({
+    title: 'Batalkan impor?',
+    body: '2.987 transaksi dari impor ini akan dihapus. Tindakan ini tidak bisa diurungkan.',
+    okLabel: 'Batalkan impor',
+    danger: true,
+  });
+  toast.show(ok ? 'Contoh: impor dibatalkan' : 'Contoh: tidak jadi');
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-3.5">
-    <PageHeader title="Komponen">
-      <template #actions>
-        <HeaderButton label="Cari"><Search aria-hidden="true" /></HeaderButton>
-        <HeaderButton><Plus aria-hidden="true" />Tambah</HeaderButton>
+  <div class="-mx-3 flex flex-col pb-10 md:mx-0">
+    <NavBar title="Komponen" back="Lainnya" line>
+      <template #right>
+        <IconButton label="Cari"><Search aria-hidden="true" /></IconButton>
+        <IconButton label="Tambah" accent><Plus aria-hidden="true" /></IconButton>
       </template>
-      <SegmentedControl
-        v-model="seg"
-        :options="[
-          { value: 'a', label: 'Harian' },
-          { value: 'b', label: 'Kalender' },
-          { value: 'c', label: 'Bulanan' },
-        ]"
-        label="Contoh segmented kaca"
-        variant="on-grad"
-      />
-    </PageHeader>
+      <SubTabs v-model="view" :options="VIEWS" label="Tampilan transaksi" />
+    </NavBar>
+    <SummaryStrip
+      :items="[
+        { label: 'Pemasukan', value: 'Rp9.060.000', tone: 'inc' },
+        { label: 'Pengeluaran', value: 'Rp2.170.500', tone: 'exp' },
+        { label: 'Total', value: 'Rp6.889.500' },
+      ]"
+    />
 
-    <Card class="flex flex-col gap-3 p-3.5">
-      <b class="text-panel">Tombol</b>
-      <div class="flex flex-wrap gap-2">
-        <Button v-for="v in VARIANTS" :key="v" :variant="v">{{ v }}</Button>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <Button size="sm">sm</Button>
-        <Button>default</Button>
-        <Button size="lg">lg</Button>
-        <Button size="touch">touch 44px</Button>
-        <Button disabled>nonaktif</Button>
-        <Button size="icon" variant="secondary" aria-label="Tambah"><Plus /></Button>
-      </div>
-      <div class="flex flex-wrap gap-2 rounded-card bg-grad-hero p-3">
-        <Button variant="light">light</Button>
-        <Button variant="glass">glass</Button>
-        <Button variant="glass" aria-pressed="true">glass ditekan</Button>
-      </div>
-    </Card>
+    <GroupedList label="Baris grup" aside="3 akun">
+      <GroupRow title="BCA" subtitle="Tabungan · 1234" value="Rp4.250.000" strong chevron to="#">
+        <template #icon><ToneIcon :icon="Wallet" tone="blue" size="sm" solid /></template>
+      </GroupRow>
+      <GroupRow title="GoPay" value="Rp182.300" strong chevron @click="toast.show('Ketuk baris')">
+        <template #icon><ToneIcon :icon="Wallet" tone="green" size="sm" solid /></template>
+      </GroupRow>
+      <GroupRow title="Kartu kredit" value="−Rp1.200.000" value-tone="exp" chevron to="#">
+        <template #icon><ToneIcon :icon="Wallet" tone="red" size="sm" solid /></template>
+      </GroupRow>
+    </GroupedList>
 
-    <Card class="flex flex-col gap-3 p-3.5">
-      <b class="text-panel">Segmented, chip, ikon bernada</b>
-      <SegmentedControl
-        v-model="seg"
-        :options="[
-          { value: 'a', label: 'Pengeluaran' },
-          { value: 'b', label: 'Pemasukan' },
-          { value: 'c', label: 'Transfer' },
-        ]"
-        label="Contoh segmented"
-      />
-      <div class="flex flex-wrap gap-1.5">
-        <ChoiceChip :icon="Wallet" label="GoPay" filled />
-        <ChoiceChip :icon="Tag" label="Kategori" />
+    <GroupedList label="Pengaturan">
+      <GroupRow title="Bawa sisa ke bulan berikutnya" subtitle="Carry-over hanya di tab Transaksi">
+        <template #end><IosSwitch v-model="carry" label="Bawa sisa ke bulan berikutnya" /></template>
+      </GroupRow>
+      <GroupRow title="Input jam">
+        <template #end><IosSwitch v-model="time" label="Input jam" /></template>
+      </GroupRow>
+      <GroupRow title="Tanggal awal bulan" subtitle="Periode Okt = 25 Sep – 24 Okt" value="25" chevron @click="toast.show('Contoh')" />
+    </GroupedList>
+
+    <GroupedList label="Lainnya">
+      <GroupRow title="Pengaturan transaksi" chevron to="#">
+        <template #icon><ToneIcon :icon="Settings" tone="gray" size="sm" solid /></template>
+      </GroupRow>
+      <GroupRow title="Bookmark" value="5" chevron to="#">
+        <template #icon><ToneIcon :icon="Star" tone="orange" size="sm" solid /></template>
+      </GroupRow>
+      <GroupRow title="Impor data" value="3 sumber" chevron to="#">
+        <template #icon><ToneIcon :icon="Download" tone="green" size="sm" solid /></template>
+      </GroupRow>
+    </GroupedList>
+
+    <GroupedList label="Nada ikon · lembut dan solid">
+      <div class="flex flex-wrap gap-2 p-4">
+        <ToneIcon v-for="t in TONES" :key="t" :icon="Coffee" :tone="t" size="sm" />
       </div>
-      <div class="flex flex-wrap gap-2">
-        <ToneIcon v-for="t in TONES" :key="t" :icon="Coffee" :tone="t" />
+      <div class="flex flex-wrap gap-2 px-4 pb-4">
+        <ToneIcon v-for="t in TONES" :key="t" :icon="Gift" :tone="t" size="sm" solid />
       </div>
-    </Card>
+    </GroupedList>
 
-    <Card class="flex flex-col gap-3 p-3.5">
-      <b class="text-panel">Angka</b>
-      <KpiStrip
-        :items="[
-          { label: 'Masuk', value: 'Rp 9,06 jt', tone: 'primary' },
-          { label: 'Keluar', value: 'Rp 2,17 jt', tone: 'bad' },
-          { label: 'Sisa', value: 'Rp 6,89 jt', note: '76% dari pemasukan' },
-        ]"
-      />
-      <Meter :value="0.35" tone="ok" label="Aman" />
-      <Meter :value="0.86" tone="warn" label="Hampir habis" />
-      <Meter :value="1" tone="bad" label="Lewat" />
-    </Card>
+    <GroupedList label="Segmented dan chip">
+      <div class="flex flex-col gap-3 p-4">
+        <Segmented v-model="kind" :options="KINDS" label="Jenis filter" />
+        <div class="flex flex-wrap gap-1.5">
+          <Chip on>Agu – Okt 2026</Chip>
+          <Chip @click="toast.show('Chip diketuk')">Akun: semua</Chip>
+          <Chip>Kategori: semua</Chip>
+          <Chip danger @click="askDelete">Batalkan</Chip>
+          <Chip size="lg" on @click="() => {}">BCA</Chip>
+        </div>
+      </div>
+    </GroupedList>
 
-    <ListGroup label="Baris transaksi" aside="geser kiri untuk hapus">
-      <TransactionRow
-        :icon="Coffee"
-        tone="r2"
-        title="Point Coffee"
-        subtitle="Kopi · GoPay"
-        amount="−Rp 18.000"
-        kind="expense"
-        meta="08.12"
-        deletable
-        @delete="toast.show('Contoh: dihapus', () => {})"
-      />
-      <TransactionRow
-        :icon="Wallet"
-        tone="r3"
-        title="Gaji September"
-        subtitle="Gaji · BCA"
-        amount="+Rp 7.500.000"
-        kind="income"
-        meta="09.00"
-      />
-    </ListGroup>
+    <GroupedList label="Tombol">
+      <div class="flex flex-col gap-2 p-4">
+        <IosButton block @click="sheetOpen = true">Buka lembar bawah</IosButton>
+        <IosButton block variant="soft" @click="toast.show('Transaksi dihapus', () => {})">
+          <Download aria-hidden="true" />Tampilkan toast dengan Urungkan
+        </IosButton>
+        <div class="flex gap-2">
+          <IosButton variant="gray" class="flex-1" @click="dockOpen = !dockOpen">Panel dock</IosButton>
+          <IosButton variant="red" class="flex-1" @click="askDelete">Dialog peringatan</IosButton>
+        </div>
+        <IosButton block disabled>Nonaktif</IosButton>
+      </div>
+    </GroupedList>
 
-    <div class="grid gap-3.5 md:grid-cols-2">
-      <Card class="p-1">
-        <CardHead title="Memuat" />
-        <Skeleton :rows="3" />
-      </Card>
-      <Card>
-        <EmptyState
-          :icon="Inbox"
-          title="Belum ada transaksi"
-          description="Catat pengeluaran pertama dengan tombol +."
-        >
-          <Button variant="soft" @click="toast.show('Contoh toast dengan Urungkan', () => {})"
-            >Tampilkan toast</Button
-          >
-        </EmptyState>
-      </Card>
+    <EmptyCard title="Belum ada transaksi" description="Ketuk + atau tanggal untuk mencatat di Oktober 2026.">
+      <IosButton variant="soft" @click="toast.show('Contoh')">Catat transaksi</IosButton>
+    </EmptyCard>
+
+    <div class="flex items-center justify-center gap-2 text-meta text-muted-foreground">
+      <ChartPie class="size-4" aria-hidden="true" /><Filter class="size-4" aria-hidden="true" />
+      Tahan tombol + untuk menu catat cepat
     </div>
 
-    <Card class="p-1">
-      <SettingRow
-        :icon="Wallet"
-        tone="primary"
-        title="Baris pengaturan"
-        subtitle="Dengan keterangan"
-      />
-      <SettingRow :icon="Wallet" title="Varian bahaya" danger />
-    </Card>
+    <IosSheet v-model:open="sheetOpen" title="Pilih bulan">
+      <div class="grid grid-cols-4 gap-2">
+        <button
+          v-for="(m, i) in MONTHS"
+          :key="m"
+          type="button"
+          :class="[
+            'press h-12 rounded-xl text-body font-semibold',
+            i === 9 ? 'bg-primary text-primary-foreground' : 'bg-fill',
+          ]"
+          @click="sheetOpen = false"
+        >
+          {{ m }}
+        </button>
+      </div>
+      <template #footer>
+        <IosButton block variant="gray" @click="sheetOpen = false">Kembali ke bulan ini</IosButton>
+      </template>
+    </IosSheet>
+
+    <Dock
+      v-if="dockOpen"
+      title="Nominal"
+      hint="+ − × ÷ bisa dipakai"
+      :steps="{ count: 3, active: 0 }"
+      @close="dockOpen = false"
+    >
+      <div class="grid grid-cols-4 gap-1.5 px-[5px] pb-[30px] pt-[7px]">
+        <button
+          v-for="k in ['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '−', '000', '0', '⌫', '+']"
+          :key="k"
+          type="button"
+          class="h-12 rounded-[7px] bg-[var(--kb-key)] text-[23px] shadow-[0_1px_0_var(--kb-shadow)] active:bg-[var(--kb-key-press)]"
+        >
+          {{ k }}
+        </button>
+      </div>
+    </Dock>
   </div>
 </template>

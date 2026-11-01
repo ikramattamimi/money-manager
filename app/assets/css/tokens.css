@@ -1,54 +1,148 @@
 /*
  * Token desain Money Manager. Satu-satunya tempat nilai warna literal boleh
- * ditulis. Nilai disalin dari design system Opnamix
- * (opnamix/src/index.css) lewat prototipe design/prototype.html.
+ * ditulis. Mode terang disalin dari mockup iOS (design/ios/ios.css, `.app`);
+ * mode gelap diturunkan dari warna sistem iOS dark grouped, kontras teks
+ * >= 4,5:1 (lihat .ai/plans/redesign-ios/fase-r1-fondasi.md).
  *
  * Tema aktif lewat atribut data-theme="light|dark" di <html>, diatur oleh
  * useTheme (pilihan "Sistem" diterjemahkan ke light/dark di sana).
  * Opasitas di Tailwind 4 memakai color-mix, jadi nilai cukup hex/rgba.
  */
 :root {
-  /* Permukaan */
-  --background: #f2f4f9;
-  --foreground: #131a2b;
+  /* Permukaan (iOS: systemGroupedBackground, secondarySystemGroupedBackground) */
+  --background: #f2f2f7;
+  --foreground: #1c1c1e;
   --card: #ffffff;
-  --surface-2: #f6f7fb;
-  --muted-foreground: #576075;
-  --faint: #8790a3; /* hanya untuk meta sekunder */
-  --border: #e3e7f0;
-  --border-strong: #cfd6e4;
+  --surface-2: #f7f7fa;
+  --muted-foreground: #6c6c70;
+  --faint: #737378; /* teks meta; --ter hanya untuk placeholder dan ikon */
+  --ter: #8e8e93;
+  --border: #e3e3e8;
+  --border-strong: #c7c7cc;
+  --sep: #e3e3e8;
 
-  /* Primer: isi tombol, aksen (teks/ikon/fokus), tinta tautan, latar lembut */
-  --primary: #2563eb;
+  /* Isian kontrol: chip, segmented, tombol abu, tekan baris */
+  --fill: #eeeef0;
+  --fill-2: #e9e9ee;
+  --fill-press: #efeff4;
+  --seg-on: #ffffff;
+  --chevron: #c4c4c7;
+  --grabber: #d1d1d6;
+  --switch-off: #e3e3e8;
+  --switch-on: #34c759;
+
+  /* Aksen: isi tombol, teks/ikon, latar lembut */
+  --primary: #0064d6;
   --primary-foreground: #ffffff;
-  --primary-accent: #2563eb;
-  --primary-ink: #1d4ed8;
-  --primary-soft: #eaf0fe;
+  --primary-accent: #0064d6;
+  --primary-ink: #0052b0;
+  --primary-soft: #e5effd;
+
+  /* Nominal */
+  --inc: #0064d6;
+  --exp: #d70015;
 
   /* Status */
-  --ok: #15803d;
-  --ok-soft: #e7f5ec;
-  --warn: #b45309;
-  --warn-soft: #fdf2e1;
-  --bad: #c81e1e;
-  --bad-soft: #fdecec;
-  --destructive: #c81e1e;
+  --ok: #1e7b34;
+  --ok-soft: #e1f4e6;
+  --warn: #8f5a06;
+  --warn-soft: #fdf3d3;
+  --bad: #d70015;
+  --bad-soft: #fde7e9;
+  --destructive: #d70015;
+  --memo: #fff8e6;
+  --memo-bar: #ff9500;
 
-  /* Palet grafik & kategori (lolos validator buta warna Opnamix) */
-  --r1: #2a78d6;
-  --r2: #eb6834;
-  --r3: #1baf7a;
-  --r4: #eda100;
-  --r5: #e87ba4;
-  --r6: #7c3aed;
+  /*
+   * Nada ikon (mockup Icon.dc.html): latar lembut, tinta, isi solid.
+   * Kategori di database memakai r1–r6 + neutral, dipetakan di tone.ts.
+   */
+  --tone-blue-soft: #e3ecfd;
+  --tone-blue-ink: #1d55cc;
+  --tone-blue: #007aff;
+  --tone-orange-soft: #ffeedd;
+  --tone-orange-ink: #b4500a;
+  --tone-orange: #ff9500;
+  --tone-green-soft: #e1f4e6;
+  --tone-green-ink: #1b7038;
+  --tone-green: #34c759;
+  --tone-amber-soft: #fdf3d3;
+  --tone-amber-ink: #8f5a06;
+  --tone-amber: #e0a100;
+  --tone-pink-soft: #fce6f0;
+  --tone-pink-ink: #b02a66;
+  --tone-pink: #ff2d55;
+  --tone-purple-soft: #eee8fd;
+  --tone-purple-ink: #6236c6;
+  --tone-purple: #af52de;
+  --tone-teal-soft: #ddf4f0;
+  --tone-teal-ink: #0e6f63;
+  --tone-teal: #30b0c7;
+  --tone-indigo-soft: #e9e8fc;
+  --tone-indigo-ink: #3f3cb8;
+  --tone-indigo: #5856d6;
+  --tone-red-soft: #fde7e9;
+  --tone-red-ink: #b4232e;
+  --tone-red: #ff3b30;
+  --tone-gray-soft: #eceff4;
+  --tone-gray-ink: #424b5c;
+  --tone-gray: #8e8e93;
 
-  /* Gradien kepala halaman & sidebar, kaca di atas gradien */
+  /* Palet grafik & kategori: isi solid nada di atas */
+  --r1: var(--tone-blue);
+  --r2: var(--tone-orange);
+  --r3: var(--tone-green);
+  --r4: var(--tone-amber);
+  --r5: var(--tone-pink);
+  --r6: var(--tone-purple);
+
+  /* Papan angka dan grid pilihan di panel bawah (gaya keyboard iOS) */
+  --kb-bg: #d1d4db;
+  --kb-head: #f6f6f8;
+  --kb-head-line: #c6c6cc;
+  --kb-key: #ffffff;
+  --kb-key-press: #b8bcc6;
+  --kb-fn: #abb0ba;
+  --kb-shadow: #898a8d;
+  --kb-sub: #bfc3cc;
+
+  /* Kaca: tab bar, menu tahan, toast, bar aksi bawah, dialog peringatan */
+  --glass-bar: rgba(255, 255, 255, 0.66);
+  --glass-bar-line: rgba(255, 255, 255, 0.8);
+  --glass-bar-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-menu: rgba(249, 249, 251, 0.88);
+  --glass-menu-solid: #f9f9fb;
+  --glass-menu-line: rgba(60, 60, 67, 0.18);
+  --glass-press: rgba(0, 0, 0, 0.06);
+  --toast-bg: rgba(28, 28, 30, 0.9);
+  --toast-fg: #ffffff;
+  --alert-bg: rgba(242, 242, 247, 0.9);
+  --alert-link: #007aff;
+  --alert-danger: #ff3b30;
+  --edge-fade: rgba(242, 242, 247, 0.95);
+  --edge-fade-0: rgba(242, 242, 247, 0);
+  --fab-shadow: 0 8px 22px rgba(0, 100, 214, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --tab-on: rgba(0, 100, 214, 0.12);
+  --tab-ink: #3c3c43;
+
+  /* Bayangan & scrim */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-float: 0 12px 30px rgba(0, 0, 0, 0.25);
+  --shadow-sheet: 0 10px 40px rgba(0, 0, 0, 0.2);
+  --shadow-seg: 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-knob: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.16);
+  --shadow-menu: 0 12px 40px rgba(0, 0, 0, 0.2);
+  --knob: #ffffff;
+  --scrim: rgba(0, 0, 0, 0.3);
+  --nav-dim: rgba(0, 0, 0, 0.1);
+
+  /* Tema lama (opnamix): hanya untuk halaman yang belum digambar ulang, dihapus di R8 */
   --grad-hero:
     radial-gradient(90% 170% at 100% 0%, rgba(130, 170, 255, 0.5), transparent 60%),
     linear-gradient(118deg, #0a2466 0%, #1543c2 58%, #3b6cf2 100%);
   --grad-side: linear-gradient(185deg, #0a2160 0%, #123a9e 58%, #2556d6 100%);
   --grad-stripe: rgba(255, 255, 255, 0.035);
-  --grad-ink: #123a9e; /* teks di atas tombol putih pada gradien */
+  --grad-ink: #123a9e;
   --glass: rgba(255, 255, 255, 0.11);
   --glass-2: rgba(255, 255, 255, 0.2);
   --glass-line: rgba(255, 255, 255, 0.16);
@@ -59,66 +153,128 @@
   --dot-ok: #4ade80;
   --dot-warn: #fbbf24;
   --dot-bad: #fb7185;
-
-  /* Liquid Glass: hanya untuk lapisan yang melayang (tab bar, tombol +, bar ringkas) */
   --lg-fill: rgba(255, 255, 255, 0.55);
   --lg-rim-hi: rgba(255, 255, 255, 0.95);
   --lg-rim-lo: rgba(255, 255, 255, 0.3);
   --lg-shadow: 0 12px 32px -10px rgba(10, 20, 50, 0.28), 0 2px 6px -2px rgba(10, 20, 50, 0.12);
   --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
 
-  /* Bayangan & scrim */
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --shadow-float: 0 18px 40px rgba(10, 20, 50, 0.2);
-  --scrim: rgba(8, 14, 30, 0.45);
-
   color-scheme: light;
 }
 
 :root[data-theme='dark'] {
-  /* Palet arang netral; biru hanya di header, sidebar, dan aksen */
-  --background: #0c0f14;
-  --foreground: #e6e9ef;
-  --card: #141820;
-  --surface-2: #1a1f29;
-  --muted-foreground: #9ea6b5;
-  --faint: #6f7788;
-  --border: #252b36;
-  --border-strong: #353d4c;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --muted-foreground: #98989f;
+  --faint: #8d8d93;
+  --ter: #636366;
+  --border: #38383a;
+  --border-strong: #48484a;
+  --sep: #38383a;
 
-  --primary: #2f66ee; /* isi tombol dengan teks putih */
-  --primary-accent: #6e9bff; /* teks/ikon/aksen */
-  --primary-ink: #a3beff;
-  --primary-soft: rgba(110, 155, 255, 0.14);
+  --fill: #2c2c2e;
+  --fill-2: #2c2c2e;
+  --fill-press: #2c2c2e;
+  --seg-on: #636366;
+  --chevron: #5a5a5e;
+  --grabber: #5a5a5e;
+  --switch-off: #39393d;
+  --switch-on: #30d158;
 
-  --ok: #4ade80;
-  --ok-soft: rgba(74, 222, 128, 0.12);
-  --warn: #fbbf24;
-  --warn-soft: rgba(251, 191, 36, 0.12);
-  --bad: #f87171;
-  --bad-soft: rgba(248, 113, 113, 0.13);
+  --primary: #0071e3; /* isi tombol, teks putih 4,7:1 */
+  --primary-accent: #409cff; /* teks/ikon/aksen */
+  --primary-ink: #7ab8ff;
+  --primary-soft: rgba(64, 156, 255, 0.16);
 
-  --r1: #3987e5;
-  --r2: #d95926;
-  --r3: #199e70;
-  --r4: #c98500;
-  --r5: #d55181;
-  --r6: #a78bfa;
+  --inc: #409cff;
+  --exp: #ff6961;
+
+  --ok: #30d158;
+  --ok-soft: rgba(48, 209, 88, 0.16);
+  --warn: #ffd60a;
+  --warn-soft: rgba(255, 214, 10, 0.14);
+  --bad: #ff6961;
+  --bad-soft: rgba(255, 105, 97, 0.16);
+  --destructive: #ff453a;
+  --memo: rgba(255, 159, 10, 0.14);
+  --memo-bar: #ff9f0a;
+
+  --tone-blue-soft: rgba(10, 132, 255, 0.2);
+  --tone-blue-ink: #64aaff;
+  --tone-blue: #0a84ff;
+  --tone-orange-soft: rgba(255, 159, 10, 0.2);
+  --tone-orange-ink: #ffb340;
+  --tone-orange: #ff9f0a;
+  --tone-green-soft: rgba(48, 209, 88, 0.18);
+  --tone-green-ink: #4cd964;
+  --tone-green: #30d158;
+  --tone-amber-soft: rgba(255, 214, 10, 0.16);
+  --tone-amber-ink: #ffd60a;
+  --tone-amber: #d9a800;
+  --tone-pink-soft: rgba(255, 55, 95, 0.2);
+  --tone-pink-ink: #ff6b8a;
+  --tone-pink: #ff375f;
+  --tone-purple-soft: rgba(191, 90, 242, 0.2);
+  --tone-purple-ink: #d08cff;
+  --tone-purple: #bf5af2;
+  --tone-teal-soft: rgba(64, 200, 224, 0.18);
+  --tone-teal-ink: #5ed6ea;
+  --tone-teal: #40c8e0;
+  --tone-indigo-soft: rgba(94, 92, 230, 0.24);
+  --tone-indigo-ink: #9d9bff;
+  --tone-indigo: #5e5ce6;
+  --tone-red-soft: rgba(255, 69, 58, 0.2);
+  --tone-red-ink: #ff6961;
+  --tone-red: #ff453a;
+  --tone-gray-soft: rgba(142, 142, 147, 0.2);
+  --tone-gray-ink: #c7c7cc;
+  --tone-gray: #8e8e93;
+
+  --kb-bg: #2b2b2e;
+  --kb-head: #1c1c1e;
+  --kb-head-line: #38383a;
+  --kb-key: #5a5a5e;
+  --kb-key-press: #78787d;
+  --kb-fn: #3a3a3c;
+  --kb-shadow: #000000;
+  --kb-sub: #1f1f21;
+
+  --glass-bar: rgba(44, 44, 46, 0.7);
+  --glass-bar-line: rgba(255, 255, 255, 0.1);
+  --glass-bar-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --glass-menu: rgba(44, 44, 46, 0.86);
+  --glass-menu-solid: #2c2c2e;
+  --glass-menu-line: rgba(84, 84, 88, 0.6);
+  --glass-press: rgba(255, 255, 255, 0.08);
+  --toast-bg: rgba(58, 58, 60, 0.92);
+  --alert-bg: rgba(44, 44, 46, 0.92);
+  --alert-link: #409cff;
+  --alert-danger: #ff6961;
+  --edge-fade: rgba(0, 0, 0, 0.92);
+  --edge-fade-0: rgba(0, 0, 0, 0);
+  --fab-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --tab-on: rgba(64, 156, 255, 0.18);
+  --tab-ink: #ebebf5;
+
+  --shadow-card: none;
+  --shadow-float: 0 12px 30px rgba(0, 0, 0, 0.55);
+  --shadow-sheet: 0 10px 40px rgba(0, 0, 0, 0.6);
+  --shadow-seg: 0 3px 8px rgba(0, 0, 0, 0.3);
+  --shadow-menu: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --nav-dim: rgba(0, 0, 0, 0.35);
 
   --grad-hero:
     radial-gradient(90% 170% at 100% 0%, rgba(90, 130, 255, 0.3), transparent 60%),
     linear-gradient(118deg, #0b1430 0%, #142a66 60%, #2445a8 100%);
   --grad-side: linear-gradient(185deg, #0a0f1f 0%, #0f1c42 60%, #172e6c 100%);
-
   --lg-fill: rgba(30, 35, 46, 0.55);
   --lg-rim-hi: rgba(255, 255, 255, 0.35);
   --lg-rim-lo: rgba(255, 255, 255, 0.05);
   --lg-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.7), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
   --lg-inner: inset 0 1px 1px rgba(255, 255, 255, 0.18), inset 0 -1px 1px rgba(255, 255, 255, 0.05);
-
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-float: 0 18px 44px rgba(0, 0, 0, 0.55);
-  --scrim: rgba(0, 0, 0, 0.55);
 
   color-scheme: dark;
 }
@@ -134,26 +290,36 @@
   --color-muted: var(--surface-2);
   --color-muted-foreground: var(--muted-foreground);
   --color-faint: var(--faint);
+  --color-ter: var(--ter);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-sep: var(--sep);
   --color-input: var(--border-strong);
   --color-ring: var(--primary-accent);
+  --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
+  --color-fill-press: var(--fill-press);
+  --color-chevron: var(--chevron);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-accent: var(--primary-accent);
   --color-primary-ink: var(--primary-ink);
   --color-primary-soft: var(--primary-soft);
-  --color-secondary: var(--surface-2);
+  --color-secondary: var(--fill);
   --color-secondary-foreground: var(--foreground);
-  --color-accent: var(--surface-2);
+  --color-accent: var(--fill);
   --color-accent-foreground: var(--foreground);
   --color-destructive: var(--destructive);
+  --color-inc: var(--inc);
+  --color-exp: var(--exp);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
+  --color-memo: var(--memo);
+  --color-memo-bar: var(--memo-bar);
   --color-r1: var(--r1);
   --color-r2: var(--r2);
   --color-r3: var(--r3);
@@ -178,20 +344,27 @@
 
   --shadow-card: var(--shadow-card);
   --shadow-float: var(--shadow-float);
+  --shadow-sheet: var(--shadow-sheet);
 
-  /* Kartu 14px, kontrol 8px */
+  /* Grup iOS 12px, kartu 14px, kontrol 9–10px */
+  --radius-group: 12px;
   --radius-card: 14px;
-  --radius-control: 8px;
+  --radius-control: 10px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 12px;
   --radius-2xl: 14px;
 
-  --font-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'DM Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  /* Font sistem: SF di perangkat Apple, Inter (di-host sendiri) di tempat lain */
+  --font-sans: -apple-system, 'SF Pro Text', 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
 
-  /* Skala teks Opnamix: meta 11–13px, judul baris 13,5px, judul panel 15,5px */
+  /*
+   * Skala teks iOS (mockup): meta 12–13px, isi baris 15–16px, judul bar 17px,
+   * judul lembar 19px, judul besar 34px. Nama lama dipertahankan untuk
+   * halaman yang belum digambar ulang.
+   */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
   --text-note: 0.78125rem;
@@ -202,12 +375,22 @@
   --text-label--line-height: 1.25rem;
   --text-panel: 0.96875rem;
   --text-panel--line-height: 1.3;
+  --text-row: 1rem;
+  --text-row--line-height: 1.3;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.3;
+  --text-bar: 1.0625rem;
+  --text-bar--line-height: 1.3;
+  --text-sheet: 1.1875rem;
+  --text-sheet--line-height: 1.25;
+  --text-large: 2.125rem;
+  --text-large--line-height: 1.15;
 
-  /* Gerak (emil-design-eng): ease-out untuk masuk/keluar, drawer untuk sheet/lensa */
+  /* Gerak (mockup + emil-design-eng): ease-out untuk masuk/keluar dan tekan, drawer untuk sheet/halaman */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* Pegas ringan (sedikit melewati target) untuk batang grafik saat data berganti */
+  /* Pegas ringan (sedikit melewati target), hanya untuk hal yang jarang: centang impor, batang grafik */
   --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
 
   /* Tata letak: HP < md, iPad md–xl, desktop >= xl */

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Impor data</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./ios.css?v=17">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 4484px; height: 1008px; box-sizing: border-box; padding: 40px; background: #FAFAFB; display: flex; gap: 56px; font-family: -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif; color: #1C1C1E">
+<sc-for list="{{phones}}" as="p" hint-placeholder-count="10">
+<figure style="margin: 0; width: 390px; display: flex; flex-direction: column; gap: 10px">
+<figcaption style="display: flex; flex-direction: column; gap: 3px; height: 74px"><b style="font-size: 19px; letter-spacing: -0.02em">{{p.title}}</b><span style="font-size: 14px; line-height: 1.4; color: #6C6C70">{{p.desc}}</span></figcaption>
+<div style="width: 390px; height: 844px; border-radius: 48px; overflow: hidden; box-shadow: 0 0 0 1px #E3E3E8, 0 24px 60px rgba(0,0,0,.12)">
+<dc-import name="App" screen="{{p.screen}}" hint-size="390px,844px"></dc-import>
+</div>
+</figure>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":4484,"height":1008}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      phones: [
+        { screen: 'import', title: 'Impor data', desc: 'Dari Lainnya. Tiga sumber: Realbyte, mutasi bank, foto struk. Impor terakhir di bawah.' },
+        { screen: 'import-realbyte', title: 'Realbyte · pilih file', desc: 'Petunjuk ekspor dari Realbyte, lalu pilih .xlsx dari app File.' },
+        { screen: 'import-realbyte-preview', title: 'Realbyte · pratinjau', desc: 'Jumlah per jenis, akun baru beserta jenisnya, kategori baru, baris yang dilewati.' },
+        { screen: 'import-realbyte-done', title: 'Realbyte · selesai', desc: 'Centang digambar sekali, lalu langkah berikutnya: cocokkan saldo.' },
+        { screen: 'import-balance', title: 'Cocokkan saldo', desc: 'Isi saldo hari ini per akun. Selisih jadi transaksi koreksi, tidak masuk statistik.' },
+        { screen: 'import-bank', title: 'Mutasi bank · pilih', desc: 'Pilih akun tujuan, lalu PDF SeaBank atau Jago. File dibaca lalu dibuang.' },
+        { screen: 'import-bank-preview', title: 'Mutasi · cocokkan', desc: 'Tab Baru / Transfer / Ragu / Tercatat. Ketuk untuk ganti kategori, geser kiri untuk melewati.' },
+        { screen: 'import-photo', title: 'Foto struk', desc: 'Periksa foto dulu; dikirim ke AI hanya setelah Baca dengan AI ditekan.' },
+        { screen: 'import-photo-preview', title: 'Foto · hasil AI', desc: 'Hasil baca dicocokkan sama seperti mutasi, lalu disimpan.' },
+        { screen: 'import-history', title: 'Riwayat impor', desc: 'Batalkan impor lewat dialog konfirmasi karena tidak bisa diurungkan.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

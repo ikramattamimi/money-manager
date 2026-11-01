@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
-import { LogOut, Monitor, Moon, Plus, Sun, Wallet } from '@lucide/vue';
+import { LogOut, Plus, Wallet } from '@lucide/vue';
 import Avatar from '@/components/data/Avatar.vue';
-import SegmentedControl from '@/components/data/SegmentedControl.vue';
+import Segmented from '@/components/ios/Segmented.vue';
 import { NAV_ITEMS, navHref } from '@/lib/navigation';
 import type { ThemePreference } from '@/composables/useTheme';
 
-// Sidebar desktop (>= 1180px), port dari Opnamix Sidebar dalam versi selalu
-// terbuka: gradien, item aktif kaca, tombol Catat transaksi dengan pintasan N.
+// Sidebar desktop (>= 1180px) gaya sidebar iPadOS/macOS: latar kartu solid,
+// baris dengan sorotan aksen lembut, tombol Catat transaksi dengan pintasan N,
+// pilihan tema, profil.
 export interface SidebarExtra {
   label: string;
   icon: Component;
@@ -34,48 +35,48 @@ const theme = computed({
   set: (value: ThemePreference) => setTheme(value),
 });
 const THEMES = [
-  { value: 'light', label: 'Terang', icon: Sun },
-  { value: 'system', label: 'Sistem', icon: Monitor },
-  { value: 'dark', label: 'Gelap', icon: Moon },
+  { value: 'light', label: 'Terang' },
+  { value: 'system', label: 'Sistem' },
+  { value: 'dark', label: 'Gelap' },
 ] as const;
 
 const NuxtLink = resolveComponent('NuxtLink');
 
 const ITEM =
-  'press grid h-9 w-full grid-cols-[2.75rem_1fr_auto] items-center rounded-[9px] text-label font-medium text-on-grad-2 hover:bg-glass hover:text-on-grad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad [&_svg]:size-4.5 [&_svg]:justify-self-center';
+  'grid h-10 w-full grid-cols-[2.5rem_1fr_auto] items-center rounded-[10px] text-body font-medium text-foreground transition-[background-color] duration-[120ms] hover:bg-fill-press active:bg-fill-press focus-visible:outline-2 focus-visible:outline-primary-accent [&_svg]:size-[19px] [&_svg]:justify-self-center [&_svg]:text-primary-accent';
 </script>
 
 <template>
   <aside
     aria-label="Navigasi utama"
-    class="fixed inset-y-0 left-0 z-45 hidden w-[232px] flex-col gap-2.5 bg-grad-side px-2.5 py-3 text-on-grad xl:flex"
+    class="fixed inset-y-0 left-0 z-45 hidden w-[232px] flex-col gap-2.5 bg-card px-2.5 py-3 shadow-[0.5px_0_0_var(--sep)] xl:flex"
   >
-    <div class="grid h-11 shrink-0 grid-cols-[2.75rem_1fr] items-center">
+    <div class="grid h-11 shrink-0 grid-cols-[2.5rem_1fr] items-center">
       <span
-        class="grid size-8.5 place-items-center justify-self-center rounded-[11px] bg-on-grad text-grad-ink shadow-card"
+        class="grid size-8 place-items-center justify-self-center rounded-[9px] bg-primary text-primary-foreground"
       >
-        <Wallet class="size-4.5" stroke-width="2.4" aria-hidden="true" />
+        <Wallet class="size-[18px]" stroke-width="2.2" aria-hidden="true" />
       </span>
-      <span class="flex flex-col leading-tight">
-        <b class="text-[15px] tracking-wide">Money Manager</b>
-        <small class="text-xs text-on-grad-2">Buku {{ bookName }}</small>
+      <span class="flex min-w-0 flex-col leading-tight">
+        <b class="text-body font-semibold tracking-[-0.01em]">Money Manager</b>
+        <small class="truncate text-xs text-muted-foreground">Buku {{ bookName }}</small>
       </span>
     </div>
 
     <button
       v-if="canAdd !== false"
       type="button"
-      class="press mx-0.5 mb-1.5 mt-1 flex h-9.5 items-center justify-center gap-1.5 rounded-[10px] bg-on-grad text-label font-bold text-grad-ink"
+      class="press mx-0.5 mb-1.5 mt-1 flex h-10 items-center justify-center gap-1.5 rounded-[11px] bg-primary text-body font-semibold text-primary-foreground"
       @click="emit('add')"
     >
-      <Plus class="size-4" aria-hidden="true" />Catat transaksi
-      <kbd class="rounded bg-grad-ink/10 px-1.5 py-px font-mono text-2xs font-semibold">N</kbd>
+      <Plus class="size-[18px]" stroke-width="2.4" aria-hidden="true" />Catat transaksi
+      <kbd
+        class="rounded bg-primary-foreground/20 px-1.5 py-px font-mono text-2xs font-semibold"
+        >N</kbd
+      >
     </button>
 
     <nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto [scrollbar-width:none]">
-      <div class="px-3 pb-1 pt-2.5 text-2xs font-semibold uppercase tracking-widest text-on-grad-3">
-        Menu
-      </div>
       <NuxtLink
         v-for="item in NAV_ITEMS"
         :key="item.key"
@@ -83,7 +84,7 @@ const ITEM =
         :aria-current="item.key === active ? 'page' : undefined"
         :class="[
           ITEM,
-          'aria-[current=page]:bg-glass-2 aria-[current=page]:font-semibold aria-[current=page]:text-on-grad aria-[current=page]:ring-1 aria-[current=page]:ring-inset aria-[current=page]:ring-glass-line',
+          'aria-[current=page]:bg-[var(--tab-on)] aria-[current=page]:font-semibold aria-[current=page]:text-primary-accent',
         ]"
       >
         <component :is="item.icon" aria-hidden="true" />
@@ -92,7 +93,7 @@ const ITEM =
       </NuxtLink>
       <template v-if="extras?.length">
         <div
-          class="px-3 pb-1 pt-2.5 text-2xs font-semibold uppercase tracking-widest text-on-grad-3"
+          class="px-3 pb-1 pt-4 text-2xs font-semibold uppercase tracking-[0.04em] text-muted-foreground"
         >
           Input cepat
         </div>
@@ -106,7 +107,7 @@ const ITEM =
         >
           <component :is="extra.icon" aria-hidden="true" />
           <span class="text-left">{{ extra.label }}</span>
-          <small v-if="extra.count" class="mr-2.5 text-xs tabular-nums text-on-grad-3">{{
+          <small v-if="extra.count" class="mr-2.5 text-xs text-muted-foreground">{{
             extra.count
           }}</small>
         </component>
@@ -114,36 +115,28 @@ const ITEM =
     </nav>
 
     <div class="flex shrink-0 flex-col gap-2">
-      <SegmentedControl
-        v-model="theme"
-        :options="THEMES"
-        label="Tema"
-        variant="on-grad"
-        class="mx-0.5"
-      />
-      <div
-        class="grid h-11 grid-cols-[2.75rem_1fr_auto] items-center rounded-xl border border-glass-line bg-glass"
-      >
+      <Segmented v-model="theme" :options="THEMES" label="Tema" class="mx-0.5" />
+      <div class="grid h-12 grid-cols-[2.75rem_1fr_auto] items-center rounded-xl bg-background">
         <NuxtLink
           to="/settings/profile"
-          class="col-span-2 grid grid-cols-[2.75rem_1fr] items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-grad"
+          class="col-span-2 grid grid-cols-[2.75rem_1fr] items-center rounded-xl focus-visible:outline-2 focus-visible:outline-primary-accent"
           aria-label="Buka profil"
         >
           <Avatar
             :name="userName"
             :url="userAvatar"
             size="sm"
-            class="justify-self-center bg-on-grad text-grad-ink"
+            class="justify-self-center bg-primary text-primary-foreground"
           />
           <span class="flex min-w-0 flex-col leading-tight">
-            <b class="truncate text-meta">{{ userName }}</b>
-            <small class="truncate text-xs text-on-grad-2">{{ userRole }}</small>
+            <b class="truncate text-meta font-semibold">{{ userName }}</b>
+            <small class="truncate text-xs text-muted-foreground">{{ userRole }}</small>
           </span>
         </NuxtLink>
         <button
           type="button"
           aria-label="Keluar"
-          class="press press-icon mr-1.5 grid size-7 place-items-center rounded-lg text-on-grad-2 hover:bg-glass-2 hover:text-on-grad"
+          class="press press-icon mr-1.5 grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-fill-press hover:text-foreground"
           @click="emit('logout')"
         >
           <LogOut class="size-4" aria-hidden="true" />

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Perbedaan dengan Realbyte</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1D5BD8}a:hover{color:#1747B5}
+.g{display:grid;grid-template-columns:250px minmax(0,1fr) 104px 84px;gap:16px;align-items:start;padding:12px 18px;border-bottom:1px solid #EDF0F5;font-size:13.5px;line-height:1.45}
+.g:last-child{border-bottom:0}
+.g.h{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6376;padding-top:10px;padding-bottom:10px;background:#F7F8FB;border-radius:14px 14px 0 0}
+.g b{font-weight:600}
+.s{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px}
+.no{background:#FCE4E6;color:#9F1D28}
+.part{background:#FDF1D3;color:#7A4D05}
+.ok{background:#E1F4E6;color:#17602F}
+.m{font-size:12.5px;font-weight:600;color:#1D5BD8}
+.m.x{color:#5A6376;font-weight:500}
+.t{background:#fff;border:1px solid #E4E8F0;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.sec{font-size:17px;font-weight:700;letter-spacing:-0.01em;margin:0 0 10px}
+.k{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.k div{background:#fff;border:1px solid #E4E8F0;border-radius:14px;padding:14px 16px;font-size:13.5px;line-height:1.5;color:#2A3243}
+.k b{display:block;font-size:14.5px;color:#0E1525;margin-bottom:4px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#EEF1F6;border-radius:5px;padding:1px 5px}
+</style>
+</helmet>
+<div style="width: 1040px; box-sizing: border-box; padding: 48px 56px 56px; background: #F2F4F9; font-family: 'DM Sans', system-ui, sans-serif; color: #0E1525; display: flex; flex-direction: column; gap: 32px">
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1D5BD8">Telusur aplikasi · 30 Okt 2026</span>
+<h1 style="margin: 0; font-size: 34px; line-height: 1.1; letter-spacing: -0.025em">Yang belum sama dengan Realbyte</h1>
+<p style="margin: 0; font-size: 15px; line-height: 1.55; color: #3F4859; max-width: 760px">Dibandingkan dari kode di <code>app/pages</code> dan <code>app/components</code>. Kolom terakhir menandai apa yang sudah dicoba di prototipe HP sebelah kiri.</p>
+</div>
+
+<section>
+<h2 class="sec">Transaksi</h2>
+<div class="t">
+<div class="g h"><span>Perilaku Realbyte</span><span>Aplikasi sekarang</span><span>Status</span><span>Mockup</span></div>
+<div class="g"><b>Ketuk tanggal untuk mencatat di tanggal itu</b><span>Kepala hari di Harian hanya label (<code>ListGroup</code>), tidak bisa diketuk. Form selalu mulai dari hari ini.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Geser daftar ke kiri/kanan untuk pindah bulan</b><span>Hanya di pita kepala halaman, dan konten tidak ikut jari: bulan langsung berganti setelah dilepas. Area daftar tidak bisa digeser.</span><span><span class="s part">Sebagian</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Ketuk judul bulan untuk lompat ke bulan/tahun</b><span><code>MonthPicker</code> hanya punya panah ‹ ›. Lompat 8 bulan = 8 ketukan.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Kepala hari: tanggal besar, hari berwarna, masuk dan keluar terpisah</b><span>Satu label "Kamis, 30 Okt" dengan selisih bersih saja.</span><span><span class="s part">Sebagian</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Kalender: ketuk tanggal membuka daftar hari itu + tombol catat</b><span>Ketuk tanggal hanya memfilter daftar di bawah kalender, tidak bisa langsung mencatat.</span><span><span class="s part">Sebagian</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Bulanan dengan rincian per minggu</b><span>Daftar bulan saja, tanpa minggu.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Salin transaksi</b><span>Tidak ada. Yang ada "Jadikan template".</span><span><span class="s no">Belum</span></span><span class="m">Ada (di form ubah)</span></div>
+<div class="g"><b>Tahan lama untuk pilih banyak</b><span>Lewat tombol "Pilih banyak".</span><span><span class="s part">Sebagian</span></span><span class="m x">Tidak</span></div>
+</div>
+</section>
+
+<section>
+<h2 class="sec">Form catat</h2>
+<div class="t">
+<div class="g h"><span>Perilaku Realbyte</span><span>Aplikasi sekarang</span><span>Status</span><span>Mockup</span></div>
+<div class="g"><b>Papan angka sendiri dengan + − × ÷ =</b><span><code>AmountInput</code> memakai keyboard numerik iOS. Tidak bisa menghitung "25.000 + 12.500".</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Alur otomatis: Nominal → Kategori → Akun → Catatan</b><span>Setiap kolom dibuka sendiri. Grid kategori/akun tidak membuka langkah berikutnya.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Baris tanggal: ketuk untuk kalender, ‹ › per hari</b><span><code>datetime-local</code> bawaan browser. Mundur satu hari perlu membuka pemilih iOS.</span><span><span class="s part">Sebagian</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Tata letak baris: label kiri, nilai kanan</b><span>Kolom bertumpuk gaya formulir web, lebih panjang ke bawah.</span><span><span class="s part">Sebagian</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Ulangi/cicilan langsung dari form</b><span>Terpisah di Lainnya → Transaksi berulang.</span><span><span class="s no">Belum</span></span><span class="m">Ada (pilihan)</span></div>
+<div class="g"><b>Lampirkan foto ke transaksi</b><span>Foto struk hanya untuk impor (dibaca AI), tidak tersimpan di transaksi.</span><span><span class="s no">Belum</span></span><span class="m x">Tidak</span></div>
+<div class="g"><b>Simpan lalu lanjut catat</b><span>"Simpan &amp; lagi" sudah ada.</span><span><span class="s ok">Sudah</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Favorit/bookmark</b><span>Template dan "Jadikan template".</span><span><span class="s ok">Sudah</span></span><span class="m x">Tidak</span></div>
+</div>
+</section>
+
+<section>
+<h2 class="sec">Akun dan statistik</h2>
+<div class="t">
+<div class="g h"><span>Perilaku Realbyte</span><span>Aplikasi sekarang</span><span>Status</span><span>Mockup</span></div>
+<div class="g"><b>Rincian akun mengikuti bulan yang dipilih di Transaksi</b><span><code>accounts/[id]</code> menampilkan 200 transaksi terakhir, tanpa bulan dan tanpa navigasi bulan.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Ringkasan per bulan di rincian akun: saldo awal, masuk, keluar, saldo akhir</b><span>Hanya saldo sekarang.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Daftar akun menunjukkan saldo per akhir bulan terpilih</b><span>Saldo sekarang saja.</span><span><span class="s no">Belum</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Aset, utang, total</b><span>Sudah di kepala halaman Akun.</span><span><span class="s ok">Sudah</span></span><span class="m">Ada</span></div>
+<div class="g"><b>Statistik per catatan (toko/tempat)</b><span>Hanya per kategori.</span><span><span class="s no">Belum</span></span><span class="m x">Tidak</span></div>
+<div class="g"><b>Ketuk kategori → tren bulanan</b><span><code>stats/category/[id]</code>.</span><span><span class="s ok">Sudah</span></span><span class="m x">Tidak</span></div>
+</div>
+</section>
+
+<section>
+<h2 class="sec">Keputusan desain di mockup</h2>
+<div class="k">
+<div><b>Geser horizontal milik daftar, bukan baris</b>Daftar dipakai untuk pindah bulan (seperti Realbyte), jadi geser-hapus di baris diganti tombol Hapus di form ubah, dengan Urungkan di toast. Dua gestur horizontal di tempat yang sama saling bertabrakan.</div>
+<div><b>Satu panel bawah untuk angka, kategori, akun, tanggal</b>Panel menempel di bawah seperti keyboard. Pindah isi panel tanpa animasi karena dipakai puluhan kali sehari; hanya kemunculan pertama yang meluncur 280ms.</div>
+<div><b>Gestur mengikuti jari</b>Konten bergerak 1:1, arah dikunci setelah 10px, keputusan memakai proyeksi momentum (<code>v · 0,998 / 0,002</code>), lanjut dengan kecepatan jari, dan rubber-band di batas Desember 2026.</div>
+<div><b>Lembar bisa ditarik ke bawah</b>Pemilih bulan dan daftar hari bisa ditarik turun untuk menutup; lemparan cepat juga cukup. Scrim memudar sesuai jarak tarikan.</div>
+<div><b>Kaca hanya di navigasi melayang</b>Tab bar dan tombol + pakai Liquid Glass; kartu, lembar, dan form tetap solid, sesuai arah desain sebelumnya.</div>
+<div><b>Tekan terasa</b>Semua yang bisa diketuk mengecil 0,95–0,98 saat ditekan (100–160ms, ease-out). Tombol "=" berganti jadi "Lanjut" saat tidak ada operasi, jadi satu tombol yang sama memajukan langkah.</div>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
