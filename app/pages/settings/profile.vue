@@ -184,7 +184,7 @@ async function savePassword() {
             />
             <button
               type="button"
-              class="-my-1 -mr-1.5 grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground active:opacity-50"
+              class="-my-2 -mr-3 grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground active:opacity-50"
               :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
               @click="showPassword = !showPassword"
             >

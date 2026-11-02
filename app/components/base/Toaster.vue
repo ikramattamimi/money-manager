@@ -27,7 +27,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <button
           v-if="toast.current.value.undo"
           type="button"
-          class="h-8 shrink-0 rounded-[9px] bg-[color-mix(in_srgb,var(--toast-fg)_16%,transparent)] px-3 text-[14px] font-semibold text-[var(--toast-fg)] active:scale-95"
+          class="relative h-8 shrink-0 rounded-[9px] bg-[color-mix(in_srgb,var(--toast-fg)_16%,transparent)] px-3 text-[14px] font-semibold text-[var(--toast-fg)] active:scale-95"
           @click="toast.runUndo()"
         >
           Urungkan
@@ -50,6 +50,12 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 }
 .toast button {
   transition: transform 120ms var(--ease-out);
+}
+/* Area ketuk 44px; tampilannya tetap 32px */
+.toast button::after {
+  content: '';
+  position: absolute;
+  inset: -6px -4px;
 }
 @starting-style {
   .toast {

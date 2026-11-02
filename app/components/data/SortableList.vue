@@ -103,7 +103,8 @@ watch(
         'relative flex items-center rounded-[10px] bg-card',
         dragIndex === index
           ? 'z-10 shadow-float'
-          : dragIndex !== null && 'transition-transform duration-200 ease-out',
+          : dragIndex !== null &&
+            'transition-transform duration-200 ease-out motion-reduce:transition-none',
       ]"
       :style="{
         transform:

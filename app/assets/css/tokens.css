@@ -15,7 +15,7 @@
   --card: #ffffff;
   --surface-2: #f7f7fa;
   --muted-foreground: #6c6c70;
-  --faint: #737378; /* teks meta; --ter hanya untuk placeholder dan ikon */
+  --faint: #6e6e73; /* teks meta (4,5:1 di atas --background); --ter hanya untuk placeholder dan ikon */
   --ter: #8e8e93;
   --border: #e3e3e8;
   --border-strong: #c7c7cc;
@@ -145,7 +145,7 @@
   --card: #1c1c1e;
   --surface-2: #2c2c2e;
   --muted-foreground: #98989f;
-  --faint: #8d8d93;
+  --faint: #94949a;
   --ter: #636366;
   --border: #38383a;
   --border-strong: #48484a;

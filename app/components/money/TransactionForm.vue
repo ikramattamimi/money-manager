@@ -924,7 +924,7 @@ const panelTitle = computed(() =>
             type="button"
             aria-label="Tukar akun asal dan tujuan"
             :disabled="!form.toAccountId"
-            class="tx-swap absolute right-3.5 top-1/2 z-[2] -mt-[18px] grid size-9 place-items-center rounded-full bg-card text-primary-accent active:scale-90 disabled:opacity-40"
+            class="tx-swap absolute right-3.5 top-1/2 z-[2] -mt-[22px] grid size-11 place-items-center rounded-full bg-card text-primary-accent active:scale-90 disabled:opacity-40"
             @click="swapAccounts"
           >
             <ArrowDownUp class="size-[18px]" stroke-width="2.2" aria-hidden="true" />
@@ -1213,9 +1213,8 @@ const panelTitle = computed(() =>
   box-shadow: var(--shadow-seg);
 }
 .tx-pill[data-ready] .tx-pill-hl {
-  transition:
-    transform 250ms var(--ease-out),
-    width 250ms var(--ease-out);
+  /* Hanya transform yang meluncur; lebar pil langsung menyesuaikan */
+  transition: transform 250ms var(--ease-out);
 }
 .tx-pill-btn,
 .tx-press,

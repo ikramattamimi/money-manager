@@ -5,9 +5,16 @@ import { FIELD_INPUT } from './field';
 // saat diketik ("25.000"), keyboard angka di HP. Pasangan AmountInput.
 const model = defineModel<number>({ required: true });
 // `label`: nama untuk pembaca layar kalau isian tidak punya <label for> sendiri
-defineProps<{ id: string; invalid?: boolean; placeholder?: string; label?: string }>();
+const props = defineProps<{
+  id: string;
+  invalid?: boolean;
+  placeholder?: string;
+  label?: string;
+}>();
 
 const display = computed(() => (model.value ? model.value.toLocaleString('id-ID') : ''));
+// Lebar mengikuti isi supaya "Rp" menempel di depan angka (rata kanan baris)
+const width = computed(() => `${(display.value || (props.placeholder ?? '0')).length + 1}ch`);
 
 function onInput(event: Event) {
   const el = event.target as HTMLInputElement;
@@ -29,7 +36,8 @@ function onInput(event: Event) {
     :placeholder="placeholder ?? '0'"
     :aria-label="label"
     :aria-invalid="invalid || undefined"
-    :class="[FIELD_INPUT, 'font-semibold']"
+    :class="[FIELD_INPUT, 'max-w-full flex-none font-semibold']"
+    :style="{ width }"
     @input="onInput"
   />
 </template>

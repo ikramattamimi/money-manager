@@ -70,7 +70,37 @@ onBeforeUnmount(() => {
 });
 
 function onKey(event: KeyboardEvent) {
+  // Dialog peringatan di atas lembar menangani Esc dan Tab sendiri
+  if (document.querySelector('[role="alertdialog"]')) return;
   if (event.key === 'Escape') open.value = false;
+  else if (event.key === 'Tab') trapTab(event);
+}
+
+/** Fokus tidak keluar dari lembar: Tab berputar di antara kontrol di dalamnya */
+function trapTab(event: KeyboardEvent) {
+  const el = sheet.value;
+  if (!el) return;
+  const items = [
+    ...el.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ].filter((node) => node.offsetParent !== null);
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = document.activeElement;
+  if (!first || !last) {
+    event.preventDefault();
+    el.focus({ preventScroll: true });
+  } else if (!el.contains(active) || (active === el && event.shiftKey)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus({ preventScroll: true });
+  } else if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus({ preventScroll: true });
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus({ preventScroll: true });
+  }
 }
 
 // ----- tarik turun -----
@@ -116,10 +146,11 @@ function up(event: PointerEvent) {
     open.value = false;
     return;
   }
-  el.style.transition = 'transform 300ms var(--ease-drawer)';
+  // Reduce Motion: kembali ke posisi tanpa meluncur
+  el.style.transition = reduceMotion() ? 'none' : 'transform 300ms var(--ease-drawer)';
   el.style.transform = 'translateY(0)';
   if (scrim.value) {
-    scrim.value.style.transition = 'opacity 200ms ease-out';
+    scrim.value.style.transition = reduceMotion() ? 'none' : 'opacity 200ms ease-out';
     scrim.value.style.opacity = '1';
   }
 }

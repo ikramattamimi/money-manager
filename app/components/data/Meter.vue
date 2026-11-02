@@ -27,7 +27,7 @@ const pct = computed(() => Math.min(1, Math.max(0, props.value)));
   >
     <span
       :class="[
-        'block h-full origin-left rounded-full transition-transform duration-300 ease-out',
+        'block h-full origin-left rounded-full transition-transform duration-300 ease-out motion-reduce:transition-none',
         TONE_FILL[props.tone],
       ]"
       :style="{ transform: `scaleX(${pct})` }"

@@ -143,7 +143,8 @@ const accountChips = ref<HTMLElement>();
 function withAccount(run: () => void) {
   if (accountId.value) return run();
   needAccount.value = true;
-  accountChips.value?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  accountChips.value?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
 }
 
 function choose(event: Event) {

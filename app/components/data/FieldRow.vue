@@ -4,7 +4,7 @@ import GroupRow from '@/components/ios/GroupRow.vue';
 // Baris isian form gaya iOS (mockup label.row + input.fin): label di kiri,
 // kontrol (input tanpa bingkai, tombol pilihan) di kanan, di dalam
 // GroupedList. Pesan salah tampil merah di bawah label.
-withDefaults(
+const props = withDefaults(
   defineProps<{
     label: string;
     /** id kontrol di slot, supaya ketuk label memfokuskan input */
@@ -15,6 +15,10 @@ withDefaults(
   }>(),
   { for: undefined, error: '', labelWidth: 96 },
 );
+
+function focusField() {
+  if (props.for) document.getElementById(props.for)?.focus();
+}
 </script>
 
 <template>
@@ -26,7 +30,8 @@ withDefaults(
         :style="{ width: `${labelWidth}px` }"
         >{{ label }}</label
       >
-      <span class="flex min-w-0 flex-1 items-center justify-end gap-2">
+      <!-- Ketuk ruang kosong baris = fokus ke isian (isian bisa lebih sempit dari baris) -->
+      <span class="flex min-w-0 flex-1 items-center justify-end gap-2" @click.self="focusField">
         <slot />
       </span>
     </span>

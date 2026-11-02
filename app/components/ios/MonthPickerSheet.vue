@@ -45,7 +45,7 @@ function pick(y: number, m: number) {
       <button
         type="button"
         aria-label="Tahun sebelumnya"
-        class="grid size-9 place-items-center rounded-[10px] bg-fill active:bg-fill-press"
+        class="grid size-11 place-items-center rounded-[10px] bg-fill active:bg-fill-press"
         @click="shownYear--"
       >
         <ChevronLeft class="size-[18px]" stroke-width="2.2" aria-hidden="true" />
@@ -55,7 +55,7 @@ function pick(y: number, m: number) {
         type="button"
         aria-label="Tahun berikutnya"
         :disabled="(shownYear + 1) * 12 > maxIndex"
-        class="grid size-9 place-items-center rounded-[10px] bg-fill active:bg-fill-press disabled:opacity-30"
+        class="grid size-11 place-items-center rounded-[10px] bg-fill active:bg-fill-press disabled:opacity-30"
         @click="shownYear++"
       >
         <ChevronRight class="size-[18px]" stroke-width="2.2" aria-hidden="true" />

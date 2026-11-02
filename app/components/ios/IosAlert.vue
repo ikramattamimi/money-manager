@@ -5,16 +5,43 @@
 const alert = useAlert();
 const cancelBtn = ref<HTMLButtonElement>();
 
+const dialog = ref<HTMLElement>();
+let lastFocus: HTMLElement | null = null;
+
 function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') alert.answer(false);
+  else if (event.key === 'Tab') {
+    // Fokus berputar di dua tombol dialog
+    const btns = [...(dialog.value?.querySelectorAll<HTMLElement>('button') ?? [])];
+    const first = btns[0];
+    const last = btns[btns.length - 1];
+    if (!first || !last) return;
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    } else if (!dialog.value?.contains(active)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 }
 watch(
   () => alert.current.value?.id,
   (id) => {
     if (id) {
+      // Fokus asal disimpan sekali; dialog berurutan tetap kembali ke kontrol semula
+      if (!lastFocus) lastFocus = document.activeElement as HTMLElement | null;
       document.addEventListener('keydown', onKey);
       nextTick(() => cancelBtn.value?.focus());
-    } else document.removeEventListener('keydown', onKey);
+    } else {
+      document.removeEventListener('keydown', onKey);
+      lastFocus?.focus({ preventScroll: true });
+      lastFocus = null;
+    }
   },
 );
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
@@ -25,6 +52,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     <div class="ios-alert-scrim fixed inset-0 z-[90] bg-scrim" aria-hidden="true" />
     <div
       :key="alert.current.value.id"
+      ref="dialog"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="ios-alert-title"

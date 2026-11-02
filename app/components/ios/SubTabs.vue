@@ -14,7 +14,7 @@ const model = defineModel<T>({ required: true });
       type="button"
       role="tab"
       :aria-selected="model === o.value"
-      class="relative h-10 flex-1 text-center text-[14px] font-semibold tracking-[-0.01em] text-muted-foreground aria-selected:text-foreground aria-selected:after:absolute aria-selected:after:inset-x-[18%] aria-selected:after:bottom-0 aria-selected:after:h-[2.5px] aria-selected:after:rounded-sm aria-selected:after:bg-primary-accent"
+      class="relative h-11 flex-1 text-center text-[14px] font-semibold tracking-[-0.01em] text-muted-foreground aria-selected:text-foreground aria-selected:after:absolute aria-selected:after:inset-x-[18%] aria-selected:after:bottom-0 aria-selected:after:h-[2.5px] aria-selected:after:rounded-sm aria-selected:after:bg-primary-accent"
       @click="model = o.value"
     >
       {{ o.label }}

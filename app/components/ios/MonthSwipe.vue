@@ -38,9 +38,11 @@ let justDragged = false;
 let pendingDir: 1 | -1 | 0 = 0;
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Reduce Motion: lepas gestur langsung pindah, tanpa meluncur */
+const glide = (css: string) => (reduceMotion() ? 'none' : css);
 
 function setHints(x: number, settle: boolean) {
-  const t = settle ? 'opacity 160ms ease-out' : 'none';
+  const t = settle ? glide('opacity 160ms ease-out') : 'none';
   if (hintL.value) {
     hintL.value.style.transition = t;
     hintL.value.style.opacity = String(x > 0 ? Math.min(x / 90, 1) : 0);
@@ -112,20 +114,23 @@ function up(e: PointerEvent) {
   if (dir !== 0 && Math.abs(v) > 0.05 && Math.sign(v) === dir) dir = 0;
   setHints(0, true);
   if (!dir) {
-    el.style.transition = 'transform 320ms var(--ease-drawer), opacity 200ms ease-out';
+    el.style.transition = glide('transform 320ms var(--ease-drawer), opacity 200ms ease-out');
     el.style.transform = 'translateX(0)';
     el.style.opacity = '1';
     return;
   }
   const remaining = w - Math.abs(d.dx);
   const dur = Math.max(110, Math.min(240, Math.abs(v) > 0.05 ? remaining / Math.abs(v) : 220));
-  el.style.transition = `transform ${dur}ms var(--ease-out), opacity ${dur}ms ease-out`;
+  el.style.transition = glide(`transform ${dur}ms var(--ease-out), opacity ${dur}ms ease-out`);
   el.style.transform = `translateX(${dir > 0 ? -w : w}px)`;
   el.style.opacity = '0';
-  setTimeout(() => {
-    pendingDir = dir;
-    emit('shift', dir);
-  }, dur);
+  setTimeout(
+    () => {
+      pendingDir = dir;
+      emit('shift', dir);
+    },
+    reduceMotion() ? 0 : dur,
+  );
 }
 
 function swallow(e: Event) {

@@ -75,6 +75,20 @@
   .press-icon:active {
     transform: scale(0.92);
   }
+
+  /* Fokus papan ketik: cincin aksen untuk kontrol tanpa gaya fokus sendiri
+     (utilitas outline-none / ring di komponen tetap menang) */
+  :where(
+    a,
+    button,
+    [role='button'],
+    [role='tab'],
+    summary,
+    [tabindex]:not([tabindex='-1'])
+  ):focus-visible {
+    outline: 2px solid var(--primary-accent);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -83,7 +97,8 @@
   *::after {
     animation: none !important;
   }
-  .press:active {
+  .press:active,
+  .press-icon:active {
     transform: none;
   }
 }

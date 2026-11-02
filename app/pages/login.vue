@@ -196,7 +196,7 @@ const activeCell = computed(() => Math.min(code.value.length, OTP_LENGTH - 1));
               />
               <button
                 type="button"
-                class="-mr-2 grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground active:opacity-50"
+                class="-mr-3 grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground active:opacity-50"
                 :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
                 @click="showPassword = !showPassword"
               >
