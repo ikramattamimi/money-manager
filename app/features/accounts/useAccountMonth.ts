@@ -14,6 +14,33 @@ export const TREND_MONTHS = 6;
  * database; pemanggil memakai saldo sekarang (daftar) atau riwayat akun
  * (rincian).
  */
+/**
+ * Saldo semua akun per bulan untuk satu tahun (Januari sampai `endMonth`),
+ * untuk chart tren yang digeser per tahun. Bentuk hasil sama dengan
+ * useAccountMonths.
+ */
+export function useAccountYear(
+  year: Readonly<Ref<number>>,
+  endMonth: Readonly<Ref<number>>,
+) {
+  const { bookId, monthStartDay } = useActiveBook();
+  const query = useQuery({
+    queryKey: computed(() =>
+      accountKeys.months(bookId.value, year.value, endMonth.value, endMonth.value, monthStartDay.value),
+    ),
+    queryFn: async () => {
+      const plan = monthPlan(year.value, endMonth.value, endMonth.value, monthStartDay.value);
+      const rows = await accountsApi.balancesAt(bookId.value!, plan.cuts);
+      return { plan, byAccount: rows ? fromBalancesAt(rows, plan) : null };
+    },
+    enabled: computed(() => !!bookId.value),
+    placeholderData: (prev) => prev,
+  });
+  const months = computed(() => query.data.value?.plan.months ?? []);
+  const byAccount = computed(() => query.data.value?.byAccount ?? null);
+  return { query, months, byAccount };
+}
+
 export function useAccountMonths(year: Readonly<Ref<number>>, month: Readonly<Ref<number>>) {
   const { bookId, monthStartDay } = useActiveBook();
 

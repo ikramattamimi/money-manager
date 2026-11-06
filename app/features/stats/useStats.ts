@@ -132,25 +132,33 @@ export function useBreakdown(type: Ref<'income' | 'expense'>) {
 }
 
 /** Tren pemasukan/pengeluaran `months` bulan berakhir di bulan terakhir periode */
-export function useTrend(months = 6, categoryId: Ref<string | null> = ref(null)) {
+export function useTrend(
+  months: MaybeRefOrGetter<number> = 6,
+  categoryId: Ref<string | null> = ref(null),
+  /** Bulan terakhir yang dimuat; kosong = bulan akhir periode terpilih */
+  end?: Ref<{ year: number; month: number }>,
+) {
   const { bookId } = useActiveBook();
   const { bounds } = useStatsPeriod();
+  const to = computed(
+    () => end?.value ?? { year: bounds.value.endYear, month: bounds.value.endMonth },
+  );
   return useQuery({
     queryKey: computed(() =>
       statsKeys.trend(
         bookId.value,
-        bounds.value.endYear,
-        bounds.value.endMonth,
-        months,
+        to.value.year,
+        to.value.month,
+        toValue(months),
         categoryId.value,
       ),
     ),
     queryFn: () =>
       statsApi.trend(
         bookId.value!,
-        bounds.value.endYear,
-        bounds.value.endMonth,
-        months,
+        to.value.year,
+        to.value.month,
+        toValue(months),
         categoryId.value,
       ),
     enabled: computed(() => !!bookId.value),

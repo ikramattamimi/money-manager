@@ -37,7 +37,7 @@ import TotalCard from '@/components/money/TotalCard.vue';
 import { accountsApi, type Account, type AccountTotal } from '@/features/accounts/api';
 import { accountKeys } from '@/features/accounts/keys';
 import { groupStyle } from '@/features/accounts/style';
-import { useAccountMonths } from '@/features/accounts/useAccountMonth';
+import { useAccountMonths, useAccountYear } from '@/features/accounts/useAccountMonth';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useMonthTransactions } from '@/features/transactions/useTransactions';
@@ -46,7 +46,7 @@ import { MONTHS_LONG, MONTHS_SHORT } from '@/lib/time';
 
 // Tab Akun (mockup accounts): bar "Akun" dengan … (menu: Total akun, grup,
 // pilih banyak, urutkan, buku) dan +; strip Aset / Liabilitas / Total; kartu
-// total akun mendatar; tren aset bersih 6 bulan; grup akun yang bisa dilipat
+// total akun mendatar; tren aset bersih per tahun (digeser, bulan bisa diketuk); grup akun yang bisa dilipat
 // dengan total per grup. Saldo = saldo per akhir bulan terpilih (bulan sama
 // dengan tab Transaksi). Tahan baris = pilih banyak (pindah grup, arsipkan,
 // atur total, dengan Urungkan). iPad/desktop: grup 2 kolom, form di dialog.
@@ -119,10 +119,28 @@ const totalCards = computed(() =>
 );
 
 // ---------- tren aset bersih ----------
+// Chart digeser per tahun: tahun berjalan hanya sampai bulan ini, tahun lain
+// penuh Jan–Des. Tahun yang tampil mengikuti bulan terpilih bila berpindah
+// tahun lewat panah/geser halaman.
+const { current } = selectedMonth;
+const MAX_YEARS_BACK = 11;
+const viewYear = ref(year.value);
+watch(year, (y) => (viewYear.value = y));
+const viewEnd = computed(() => (viewYear.value >= current.value.year ? current.value.month : 12));
+const yearData = useAccountYear(viewYear, viewEnd);
+const canPrevYear = computed(() => viewYear.value > current.value.year - MAX_YEARS_BACK);
+const canNextYear = computed(() => viewYear.value < current.value.year);
+function shiftYear(delta: 1 | -1) {
+  viewYear.value += delta;
+}
+function pickTrendMonth(key: string) {
+  const [y, m] = key.split('-').map(Number) as [number, number];
+  selectedMonth.set(y, m);
+}
 const trend = computed(() => {
-  const byAccount = monthly.byAccount.value;
+  const byAccount = yearData.byAccount.value;
   if (!byAccount) return [];
-  return monthly.months.value.map((m, k) => ({
+  return yearData.months.value.map((m, k) => ({
     key: `${m.year}-${m.month}`,
     label: MONTHS_SHORT[m.month - 1]!,
     value: active.value
@@ -437,15 +455,21 @@ function openTotal(total: AccountTotal | null) {
       </div>
 
       <NetWorthSpark
+        :year="viewYear"
+        :can-prev="canPrevYear"
+        :can-next="canNextYear"
         :points="trend"
         :current="`${year}-${month}`"
+        :loading="yearData.query.isPlaceholderData.value"
         :note="
           monthly.available.value
-            ? accounts.isPending.value || monthly.query.isPending.value
+            ? accounts.isPending.value || yearData.query.isPending.value
               ? 'Memuat…'
               : undefined
             : 'Tren belum tersedia: database perlu diperbarui.'
         "
+        @pick="pickTrendMonth"
+        @year="shiftYear"
       />
 
       <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />

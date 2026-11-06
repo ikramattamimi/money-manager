@@ -173,7 +173,7 @@ const rows = computed(() =>
 }
 /* Isi bar selebar penuh lalu dipotong (bukan scaleX supaya sudut 7px tidak
    gepeng). Hanya bergerak saat nilai berganti, mis. data bulan baru tiba;
-   Reduce Motion: langsung ke nilai baru seperti TrendBars. */
+   Reduce Motion: langsung ke nilai baru seperti grafik tren. */
 .budget-fill {
   clip-path: inset(0 calc(100% - var(--w)) 0 0 round 7px);
   transition: clip-path 300ms var(--ease-out);
