@@ -165,8 +165,8 @@ async function remove() {
         class="flex w-full flex-col items-center gap-1 bg-card px-5 pb-4 pt-6"
         @click="keypad = true"
       >
-        <span class="text-meta text-muted-foreground">Batas per bulan mulai {{ monthLabel }}</span>
-        <span class="min-h-[17px] text-meta text-muted-foreground">{{ keypad ? expr : '' }}</span>
+        <span class="text-note text-muted-foreground">Batas per bulan mulai {{ monthLabel }}</span>
+        <span class="min-h-[17px] text-note text-muted-foreground">{{ keypad ? expr : '' }}</span>
         <span class="flex items-center text-[32px] font-bold tracking-[-0.03em]">
           {{ formatRupiah(amount) }}
           <span v-if="keypad" class="budget-caret" aria-hidden="true" />
@@ -176,8 +176,8 @@ async function remove() {
       <div class="mx-4 mt-3.5 overflow-hidden rounded-group bg-card">
         <div class="flex min-h-12 items-center gap-3 py-2 pl-4 pr-3.5">
           <span class="flex min-w-0 flex-1 flex-col">
-            <b class="text-row font-medium">Bawa sisa ke bulan berikutnya</b>
-            <span class="text-meta text-muted-foreground"
+            <b class="text-label font-medium">Bawa sisa ke bulan berikutnya</b>
+            <span class="text-note text-muted-foreground"
               >Sisa bulan lalu ditambahkan ke batas bulan ini</span
             >
           </span>
@@ -189,7 +189,7 @@ async function remove() {
         <IosButton block :disabled="amount <= 0" @click="save">Simpan</IosButton>
         <IosButton v-if="budget" block variant="red" @click="remove">Hapus budget</IosButton>
       </div>
-      <p class="mx-8 mt-3 text-meta text-muted-foreground">
+      <p class="mx-8 mt-3 text-note text-muted-foreground">
         Bulan sebelum {{ monthLabel }} tetap memakai nominal lama.
       </p>
     </main>

@@ -11,6 +11,8 @@ const props = defineProps<{
   cat: string;
   sub: string;
   title: string;
+  /** Keterangan: tampil di samping catatan, lebih kecil dan abu */
+  desc?: string;
   acct: string;
   amount: string;
   tone: 'inc' | 'exp' | 'trf';
@@ -102,20 +104,23 @@ defineExpose({ flash });
       >
         <Check class="size-[13px]" stroke-width="3.4" />
       </span>
-      <span class="flex min-w-0 flex-col text-meta leading-tight text-muted-foreground">
+      <span class="flex min-w-0 flex-col text-2xs leading-tight text-muted-foreground">
         <span class="truncate">{{ cat }}</span>
-        <i v-if="sub" class="truncate text-xs not-italic text-faint">{{ sub }}</i>
+        <i v-if="sub" class="truncate text-[10px] not-italic text-faint">{{ sub }}</i>
       </span>
     </span>
     <span class="flex min-w-0 flex-col">
-      <b class="truncate text-body font-semibold tracking-[-0.01em]">{{ title }}</b>
-      <span class="truncate text-note text-muted-foreground">{{ acct }}</span>
+      <span class="flex min-w-0 items-baseline gap-1.5">
+        <b class="max-w-[70%] shrink-0 truncate text-label font-semibold tracking-[-0.01em]">{{ title }}</b>
+        <span v-if="desc" class="min-w-0 flex-1 truncate text-note font-medium text-faint">{{ desc }}</span>
+      </span>
+      <span class="truncate text-2xs text-muted-foreground">{{ acct }}</span>
     </span>
     <span class="flex flex-col items-end whitespace-nowrap">
       <!-- Ukuran sama dengan total per hari di DayGroup -->
       <span :class="['text-amount font-semibold', TONE[tone]]">{{ amount }}</span>
-      <s v-if="was" class="text-xs text-faint">{{ was }}</s>
-      <small v-if="balance" class="text-xs font-medium text-muted-foreground">{{ balance }}</small>
+      <s v-if="was" class="text-2xs text-faint">{{ was }}</s>
+      <small v-if="balance" class="text-2xs font-medium text-muted-foreground">{{ balance }}</small>
     </span>
   </button>
 </template>

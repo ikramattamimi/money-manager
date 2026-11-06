@@ -94,9 +94,9 @@ const strip = computed(() => {
     else debts -= b;
   }
   return [
-    { label: 'Aset', value: formatShort(assets), tone: 'inc' as const },
-    { label: 'Liabilitas', value: formatShort(debts), tone: 'exp' as const },
-    { label: 'Total', value: formatShort(assets - debts) },
+    { label: 'Aset', value: formatRupiah(assets), tone: 'inc' as const },
+    { label: 'Liabilitas', value: formatRupiah(debts), tone: 'exp' as const },
+    { label: 'Total', value: formatRupiah(assets - debts) },
   ];
 });
 
@@ -305,7 +305,7 @@ function openTotal(total: AccountTotal | null) {
           v-else
           to="/settings/books"
           :aria-label="`Buku ${book?.name ?? ''}, ganti buku`"
-          class="flex h-11 max-w-[120px] items-center gap-1 px-3 text-body text-primary-accent active:opacity-50"
+          class="flex h-11 max-w-[120px] items-center gap-1 px-3 text-label text-primary-accent active:opacity-50"
         >
           <BookOpen class="size-4 shrink-0" aria-hidden="true" />
           <span class="truncate">{{ book?.name }}</span>
@@ -331,12 +331,12 @@ function openTotal(total: AccountTotal | null) {
       </template>
     </NavBar>
 
-    <SummaryStrip :items="strip" />
+    <SummaryStrip :items="strip" dense />
 
     <!-- Bulan terpilih (sama dengan Transaksi dan Statistik): saldo yang tampil adalah saldo akhir bulan itu -->
     <div
       :class="[
-        'flex items-center gap-2 px-4 py-2 text-meta',
+        'flex items-center gap-2 px-4 py-2 text-note',
         selectedMonth.isCurrent.value
           ? 'bg-card text-muted-foreground shadow-[inset_0_-0.5px_0_var(--sep)]'
           : 'bg-primary-soft text-primary-accent',
@@ -391,7 +391,7 @@ function openTotal(total: AccountTotal | null) {
           </div>
         </section>
       </div>
-      <p class="m-0 px-8 pt-2 text-meta text-muted-foreground">
+      <p class="m-0 px-8 pt-2 text-note text-muted-foreground">
         Seret pegangan di kanan untuk mengubah urutan.
       </p>
     </template>
@@ -462,7 +462,7 @@ function openTotal(total: AccountTotal | null) {
         <section v-for="g in views" :key="g.id">
           <button
             type="button"
-            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pl-8 pr-8 pt-[18px] text-left text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pl-8 pr-8 pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
             :aria-expanded="!collapsed.includes(g.id)"
             @click="toggleGroup(g.id)"
           >
@@ -505,7 +505,7 @@ function openTotal(total: AccountTotal | null) {
       <template v-if="archived.length">
         <button
           type="button"
-          class="mt-2 flex w-full items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-left text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+          class="mt-2 flex w-full items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
           :aria-expanded="showArchived"
           @click="showArchived = !showArchived"
         >
@@ -540,7 +540,7 @@ function openTotal(total: AccountTotal | null) {
 
       <p
         v-if="canEdit && views.length && !selecting"
-        class="m-0 px-8 pt-3 text-center text-meta text-muted-foreground"
+        class="m-0 px-8 pt-3 text-center text-note text-muted-foreground"
       >
         Tahan akun untuk memilih banyak.
       </p>
@@ -553,7 +553,7 @@ function openTotal(total: AccountTotal | null) {
       role="toolbar"
       aria-label="Aksi untuk akun terpilih"
     >
-      <span class="px-1 text-meta text-muted-foreground">
+      <span class="px-1 text-note text-muted-foreground">
         <b class="text-foreground">{{ chosen.length }}</b> dari {{ visible.length }} akun dipilih
       </span>
       <div class="grid grid-cols-3 gap-2">

@@ -236,11 +236,11 @@ const noteRows = computed(() => {
             :key="k.value"
             type="button"
             :aria-pressed="kind === k.value"
-            class="relative flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-meta font-semibold text-muted-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-1/4 aria-pressed:after:bottom-0 aria-pressed:after:h-[2.5px] aria-pressed:after:rounded-sm aria-pressed:after:bg-foreground"
+            class="relative flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-note font-semibold text-muted-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-1/4 aria-pressed:after:bottom-0 aria-pressed:after:h-[2.5px] aria-pressed:after:rounded-sm aria-pressed:after:bg-foreground"
             @click="kind = k.value"
           >
             {{ k.label }}
-            <b :class="['text-body', k.cls]">{{ formatRupiah(k.total) }}</b>
+            <b :class="['text-amount', k.cls]">{{ formatRupiah(k.total) }}</b>
           </button>
         </div>
 
@@ -275,8 +275,8 @@ const noteRows = computed(() => {
                 :style="{ background: `var(--tone-${IOS_TONE[s.tone]})` }"
                 >{{ percent(s.value) }}%</span
               >
-              <b class="min-w-0 flex-1 truncate text-row font-medium">{{ s.label }}</b>
-              <span class="shrink-0 text-row font-semibold">{{ formatRupiah(s.value) }}</span>
+              <b class="min-w-0 flex-1 truncate text-label font-medium">{{ s.label }}</b>
+              <span class="shrink-0 text-amount font-semibold">{{ formatRupiah(s.value) }}</span>
               <ChevronRight
                 class="size-[18px] shrink-0 text-chevron"
                 stroke-width="2.6"
@@ -319,7 +319,7 @@ const noteRows = computed(() => {
           />
         </div>
         <div class="flex items-center gap-2 bg-card px-4 pb-3">
-          <span class="text-meta text-muted-foreground">Urutkan</span>
+          <span class="text-note text-muted-foreground">Urutkan</span>
           <Segmented v-model="noteSort" :options="SORTS" label="Urutkan" class="flex-1" />
         </div>
         <EmptyCard
@@ -343,12 +343,12 @@ const noteRows = computed(() => {
             class="note-row flex min-h-12 items-center gap-3 py-2 pl-4 pr-3.5"
           >
             <span class="flex min-w-0 flex-1 flex-col">
-              <b class="truncate text-row font-medium">{{ n.note }}</b>
-              <span class="text-meta text-muted-foreground">{{ n.tx_count }} transaksi</span>
+              <b class="truncate text-label font-medium">{{ n.note }}</b>
+              <span class="text-note text-muted-foreground">{{ n.tx_count }} transaksi</span>
             </span>
             <span
               :class="[
-                'shrink-0 text-row font-semibold',
+                'shrink-0 text-amount font-semibold',
                 kind === 'expense' ? 'text-exp' : 'text-inc',
               ]"
               >{{ formatRupiah(n.total) }}</span
@@ -364,7 +364,7 @@ const noteRows = computed(() => {
         v-for="k in KINDS"
         :key="k.value"
         type="button"
-        class="flex h-[50px] w-full items-center gap-2.5 px-1 text-left text-row shadow-[inset_0_-0.5px_0_var(--sep)] last:shadow-none"
+        class="flex h-[50px] w-full items-center gap-2.5 px-1 text-left text-label shadow-[inset_0_-0.5px_0_var(--sep)] last:shadow-none"
         @click="pickKind(k.value)"
       >
         <span
@@ -376,11 +376,11 @@ const noteRows = computed(() => {
         <b v-if="period.kind === k.value" class="text-primary-accent">✓</b>
       </button>
       <div v-if="period.kind === 'range'" class="grid grid-cols-2 gap-3 pb-1 pt-3">
-        <label class="flex flex-col gap-1 text-meta text-muted-foreground">
+        <label class="flex flex-col gap-1 text-note text-muted-foreground">
           Dari
           <input v-model="rangeFrom" type="date" class="field-input" :max="rangeTo" />
         </label>
-        <label class="flex flex-col gap-1 text-meta text-muted-foreground">
+        <label class="flex flex-col gap-1 text-note text-muted-foreground">
           Sampai
           <input v-model="rangeTo" type="date" class="field-input" :min="rangeFrom" />
         </label>
@@ -400,7 +400,7 @@ const noteRows = computed(() => {
       @pick="pickMonth"
     />
     <IosSheet v-model:open="weekPickOpen" title="Pilih minggu">
-      <label class="flex flex-col gap-1 text-meta text-muted-foreground">
+      <label class="flex flex-col gap-1 text-note text-muted-foreground">
         Tanggal mana saja di minggu itu
         <input
           :value="weekDate"
@@ -424,7 +424,7 @@ const noteRows = computed(() => {
           type="button"
           :aria-pressed="bounds.label === String(y)"
           :class="[
-            'year-cell h-12 rounded-xl text-body font-semibold active:scale-95',
+            'year-cell h-12 rounded-xl text-label font-semibold active:scale-95',
             bounds.label === String(y) ? 'bg-primary text-primary-foreground' : 'bg-fill',
           ]"
           @click="pickYear(y)"

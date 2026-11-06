@@ -241,7 +241,7 @@ const editor = useTxEditor();
           @pick="pickMonth"
         />
       </div>
-      <p v-else class="mx-8 mb-0 mt-3 text-meta text-muted-foreground">
+      <p v-else class="mx-8 mb-0 mt-3 text-note text-muted-foreground">
         Pengeluaran di kategori yang belum punya budget bulan ini.
       </p>
 

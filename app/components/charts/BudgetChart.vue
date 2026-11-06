@@ -118,7 +118,7 @@ const line = computed(() =>
         v-for="b in bars"
         :key="b.key"
         :class="[
-          'text-center text-meta',
+          'text-center text-note',
           b.selected ? 'font-bold text-foreground' : 'font-medium',
           b.now && !b.selected ? 'text-exp' : !b.selected && 'text-muted-foreground',
         ]"

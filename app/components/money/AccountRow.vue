@@ -81,8 +81,8 @@ onBeforeUnmount(() => clearTimeout(timer));
     </span>
     <ToneIcon :icon="icon" :tone="tone" size="sm" solid />
     <span class="flex min-w-0 flex-1 flex-col">
-      <b class="truncate text-row font-medium tracking-[-0.01em]">{{ name }}</b>
-      <span v-if="subtitle" class="truncate text-meta text-muted-foreground">{{ subtitle }}</span>
+      <b class="truncate text-label font-medium tracking-[-0.01em]">{{ name }}</b>
+      <span v-if="subtitle" class="truncate text-note text-muted-foreground">{{ subtitle }}</span>
     </span>
     <span
       :class="[

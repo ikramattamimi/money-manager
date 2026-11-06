@@ -25,8 +25,8 @@ withDefaults(
       ]"
       >{{ name }}</small
     >
-    <b v-if="value" class="truncate text-sheet font-bold tracking-[-0.025em]">{{ value }}</b>
-    <span v-if="caption" class="truncate text-xs text-muted-foreground">{{ caption }}</span>
+    <b v-if="value" class="truncate text-body font-bold tracking-[-0.025em]">{{ value }}</b>
+    <span v-if="caption" class="truncate text-2xs text-muted-foreground">{{ caption }}</span>
   </button>
 </template>
 

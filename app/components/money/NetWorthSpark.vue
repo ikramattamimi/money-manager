@@ -39,15 +39,15 @@ const summary = computed(() =>
 <template>
   <section class="mx-4 mt-3.5 rounded-group bg-card px-4 pb-2.5 pt-3">
     <div class="flex items-baseline justify-between gap-3">
-      <b class="text-body font-bold tracking-[-0.01em]">Tren aset bersih</b>
+      <b class="text-label font-bold tracking-[-0.01em]">Tren aset bersih</b>
       <span
         v-if="!note && points.length > 1"
-        :class="['text-meta font-semibold', diff >= 0 ? 'text-ok' : 'text-exp']"
+        :class="['text-note font-semibold', diff >= 0 ? 'text-ok' : 'text-exp']"
       >
         {{ diff >= 0 ? '▲' : '▼' }} {{ formatShort(Math.abs(diff)) }} / {{ points.length }} bln
       </span>
     </div>
-    <p v-if="note" class="m-0 py-3 text-meta text-muted-foreground">{{ note }}</p>
+    <p v-if="note" class="m-0 py-3 text-note text-muted-foreground">{{ note }}</p>
     <template v-else-if="points.length">
       <div
         class="relative mt-1 h-[70px]"

@@ -29,7 +29,7 @@ const total = computed(() => props.items.reduce((s, i) => s + i.value, 0) || 1);
     >
       <ToneIcon :icon="item.icon" :tone="item.tone" size="sm" />
       <span class="flex min-w-0 flex-col gap-1.5">
-        <b class="truncate text-meta font-semibold">
+        <b class="truncate text-note font-semibold">
           {{ item.label }}
           <span class="font-medium tabular-nums text-faint"
             >{{ Math.round((item.value / total) * 100) }}%</span
@@ -37,7 +37,7 @@ const total = computed(() => props.items.reduce((s, i) => s + i.value, 0) || 1);
         </b>
         <Meter :value="item.value / max" :tone="item.tone" :label="item.label" />
       </span>
-      <b class="text-meta font-bold tabular-nums">{{ item.display }}</b>
+      <b class="text-note font-bold tabular-nums">{{ item.display }}</b>
     </div>
   </div>
 </template>

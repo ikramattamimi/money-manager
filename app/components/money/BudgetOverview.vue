@@ -68,7 +68,7 @@ const rows = computed(() =>
 
 <template>
   <div>
-    <div class="bg-card pb-0.5 pt-2.5 text-center text-body font-semibold tracking-[-0.01em]">
+    <div class="bg-card pb-0.5 pt-2.5 text-center text-label font-semibold tracking-[-0.01em]">
       {{ range }}
     </div>
     <EmptyCard
@@ -78,12 +78,16 @@ const rows = computed(() =>
     >
       <IosButton v-if="canEdit" variant="soft" to="/stats/budget">Atur budget</IosButton>
     </EmptyCard>
-    <template v-else>
+    <!-- Data bulan sebelumnya sambil menunggu: redup, sama seperti donat dan Ringkasan -->
+    <div
+      v-else
+      :class="['transition-opacity duration-200', query.isPlaceholderData.value && 'opacity-60']"
+    >
       <div
         class="flex items-end gap-3 bg-card px-4 pb-3.5 pt-4 shadow-[inset_0_-0.5px_0_var(--sep)]"
       >
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <small class="text-meta text-muted-foreground">Sisa (bulanan)</small>
+          <small class="text-note text-muted-foreground">Sisa (bulanan)</small>
           <b
             :class="[
               'text-[32px] font-bold leading-[1.1] tracking-[-0.035em]',
@@ -94,7 +98,7 @@ const rows = computed(() =>
         </div>
         <NuxtLink
           to="/stats/budget"
-          class="budget-set mb-1 inline-flex h-[38px] items-center gap-1 rounded-[10px] bg-fill pl-3.5 pr-2.5 text-body font-semibold active:scale-[0.96]"
+          class="budget-set mb-1 inline-flex h-[38px] items-center gap-1 rounded-[10px] bg-fill pl-3.5 pr-2.5 text-label font-semibold active:scale-[0.96]"
         >
           Atur budget<ChevronRight class="size-3.5" stroke-width="2.6" aria-hidden="true" />
         </NuxtLink>
@@ -109,10 +113,10 @@ const rows = computed(() =>
           ]"
         >
           <span class="flex min-w-0 flex-col gap-1">
-            <span class="flex items-center gap-1.5 truncate text-[13.5px] text-muted-foreground">
+            <span class="flex items-center gap-1.5 truncate text-note text-muted-foreground">
               <ToneIcon :icon="b.icon" :tone="b.tone" size="xs" />{{ b.label }}
             </span>
-            <b class="whitespace-nowrap text-row font-semibold tracking-[-0.01em]">{{
+            <b class="whitespace-nowrap text-amount font-semibold tracking-[-0.01em]">{{
               b.budget
             }}</b>
           </span>
@@ -127,20 +131,20 @@ const rows = computed(() =>
             >
               <i
                 :class="[
-                  'absolute inset-y-0 left-0 rounded-[7px]',
+                  'budget-fill absolute inset-0',
                   b.over ? 'bg-[var(--tone-red)]' : 'bg-[var(--tone-blue)]',
                 ]"
-                :style="{ width: `${b.width}%` }"
+                :style="{ '--w': `${b.width}%` }"
               />
               <em
                 :class="[
-                  'absolute right-2 top-1/2 -translate-y-1/2 text-[14px] font-semibold not-italic',
+                  'absolute right-2 top-1/2 -translate-y-1/2 text-label font-semibold not-italic',
                   b.pctOnBar ? 'text-white' : 'text-foreground',
                 ]"
                 >{{ b.pct }}</em
               >
             </span>
-            <span class="flex justify-between gap-2 whitespace-nowrap text-body font-medium">
+            <span class="flex justify-between gap-2 whitespace-nowrap text-label font-medium">
               <span :class="b.over ? 'text-exp' : 'text-inc'">{{ b.spent }}</span>
               <span>{{ b.left }}</span>
             </span>
@@ -151,21 +155,33 @@ const rows = computed(() =>
           :to="`/stats/budget/other?month=${year}-${String(month).padStart(2, '0')}`"
           class="budget-row grid grid-cols-[minmax(0,40%)_minmax(0,1fr)_auto] items-center gap-x-2 px-4 py-3 active:bg-fill-press"
         >
-          <b class="text-row font-medium">Lainnya</b>
-          <span class="flex justify-between gap-2 whitespace-nowrap pl-1.5 text-body font-medium">
+          <b class="text-label font-medium">Lainnya</b>
+          <span class="flex justify-between gap-2 whitespace-nowrap pl-1.5 text-label font-medium">
             <span class="text-muted-foreground">Tanpa budget</span>
             <span>{{ formatRupiah(other) }}</span>
           </span>
           <ChevronRight class="-ml-2 size-4 text-chevron" stroke-width="2.6" aria-hidden="true" />
         </NuxtLink>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .budget-set {
   transition: transform 140ms var(--ease-out);
+}
+/* Isi bar selebar penuh lalu dipotong (bukan scaleX supaya sudut 7px tidak
+   gepeng). Hanya bergerak saat nilai berganti, mis. data bulan baru tiba;
+   Reduce Motion: langsung ke nilai baru seperti TrendBars. */
+.budget-fill {
+  clip-path: inset(0 calc(100% - var(--w)) 0 0 round 7px);
+  transition: clip-path 300ms var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .budget-fill {
+    transition: none;
+  }
 }
 .budget-row {
   position: relative;
