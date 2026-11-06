@@ -15,6 +15,8 @@ const props = defineProps<{
   points: readonly { key: string; label: string; value: number }[];
   /** Kunci titik bulan terpilih */
   current?: string;
+  /** Judul kartu; berganti nama total saat satu total dipilih */
+  title?: string;
   /** Teks pengganti kalau data tidak tersedia */
   note?: string;
   loading?: boolean;
@@ -53,10 +55,12 @@ const summary = computed(() =>
 <template>
   <section class="mx-4 mt-3.5 rounded-group bg-card px-3 pb-2.5 pt-3">
     <div class="flex items-baseline justify-between gap-3 px-1">
-      <b class="text-label font-bold tracking-[-0.01em]">Tren aset bersih</b>
+      <b class="min-w-0 truncate text-label font-bold tracking-[-0.01em]">{{
+        title ?? 'Tren aset bersih'
+      }}</b>
       <span
         v-if="!note && points.length > 1"
-        :class="['text-note font-semibold', diff >= 0 ? 'text-ok' : 'text-exp']"
+        :class="['shrink-0 text-note font-semibold', diff >= 0 ? 'text-ok' : 'text-exp']"
       >
         {{ diff >= 0 ? '▲' : '▼' }} {{ formatShort(Math.abs(diff)) }} / {{ points.length }} bln
       </span>

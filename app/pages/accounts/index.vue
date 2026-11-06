@@ -73,7 +73,11 @@ const { md } = useBreakpoint();
 const swipeKey = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`);
 
 // Jumlah transaksi per akun di bulan itu (daftar bulan sudah termuat bersama tab Transaksi)
-const monthTx = useMonthTransactions(year, month);
+const monthTx = useMonthTransactions(year, month, { keep: true });
+// Bulan baru dimuat: isi baru masuk setelah datanya tiba (MonthSwipe `loading`), seperti rincian budget
+const switching = computed(
+  () => monthly.query.isPlaceholderData.value || monthTx.isPlaceholderData.value,
+);
 const txCount = computed(() => {
   const out = new Map<string, number>();
   for (const t of monthTx.data.value ?? []) {
@@ -100,17 +104,33 @@ const strip = computed(() => {
   ];
 });
 
-const views = computed(() =>
-  grouped.value.map((g) => {
-    const items = g.accounts.map((a) => ({ account: a, balance: balanceOf(a) }));
-    return {
-      ...g,
-      style: groupStyle(g),
-      items,
-      total: items.reduce((s, i) => s + i.balance, 0),
-    };
-  }),
-);
+// Total terpilih (ketuk kartu): chart dan daftar hanya untuk akun di total itu
+// useState: bertahan saat membuka rincian akun lalu kembali
+const scopeId = useState<string | null>('acc:scope', () => null);
+const scope = computed(() => totalViews.value.find((t) => t.id === scopeId.value) ?? null);
+// Total dihapus/diganti dari halaman lain: kembali ke semua akun
+watch(scope, (s) => s || (scopeId.value = null));
+function toggleScope(t: AccountTotal) {
+  scopeId.value = scopeId.value === t.id ? null : t.id;
+}
+
+const views = computed(() => {
+  const inScope = scope.value ? new Set(scope.value.accounts.map((a) => a.id)) : null;
+  return grouped.value
+    .map((g) => {
+      const items = g.accounts
+        .filter((a) => !inScope || inScope.has(a.id))
+        .map((a) => ({ account: a, balance: balanceOf(a) }));
+      return {
+        ...g,
+        accounts: items.map((i) => i.account),
+        style: groupStyle(g),
+        items,
+        total: items.reduce((s, i) => s + i.balance, 0),
+      };
+    })
+    .filter((g) => g.items.length > 0);
+});
 const totalCards = computed(() =>
   totalViews.value.map((t) => ({
     ...t,
@@ -143,9 +163,10 @@ const trend = computed(() => {
   return yearData.months.value.map((m, k) => ({
     key: `${m.year}-${m.month}`,
     label: MONTHS_SHORT[m.month - 1]!,
-    value: active.value
-      .filter((a) => a.include_in_total)
-      .reduce((s, a) => s + (byAccount.get(a.id)?.[k]?.end ?? 0), 0),
+    value: (scope.value
+      ? scope.value.accounts
+      : active.value.filter((a) => a.include_in_total)
+    ).reduce((s, a) => s + (byAccount.get(a.id)?.[k]?.end ?? 0), 0),
   }));
 });
 
@@ -180,7 +201,7 @@ const client = useQueryClient();
 const toast = useToast();
 const selecting = ref(false);
 const selected = ref<string[]>([]);
-const visible = computed(() => grouped.value.flatMap((g) => g.accounts));
+const visible = computed(() => views.value.flatMap((g) => g.accounts));
 const chosen = computed(() => visible.value.filter((a) => selected.value.includes(a.id)));
 function toggle(id: string) {
   selected.value = selected.value.includes(id)
@@ -420,59 +441,99 @@ function openTotal(total: AccountTotal | null) {
       :prev-label="selectedMonth.neighborLabel(-1)"
       :next-label="selectedMonth.neighborLabel(1)"
       :can-next="selectedMonth.canNext.value"
+      :loading="switching"
       :disabled="md || selecting"
       class="min-h-[60dvh]"
       @shift="selectedMonth.shift"
     >
-      <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
-      <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
-        <template #aside>
-          <NuxtLink to="/accounts/totals" class="normal-case text-primary-accent active:opacity-50">
-            Kelola ›
-          </NuxtLink>
-        </template>
-      </SectionHeader>
-      <div
-        v-if="totalCards.length || canEdit"
-        class="flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        <TotalCard
-          v-for="t in totalCards"
-          :key="t.id"
-          :name="t.name"
-          :value="formatShort(t.value)"
-          :caption="`${t.accounts.length} akun${t.on_transactions ? ' · di Transaksi' : ''}`"
-          :on="t.on_transactions"
-          @click="openTotal(t)"
-        />
-        <TotalCard
-          v-if="canEdit"
-          add
-          name="+ Total baru"
-          caption="Kelompokkan akun"
-          @click="openTotal(null)"
-        />
-      </div>
+      <!-- Kartu total dan chart diam saat pindah bulan (seperti rincian budget); hanya daftar akun yang bergeser -->
+      <template #fixed>
+        <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
+        <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
+          <template #aside>
+            <NuxtLink
+              to="/accounts/totals"
+              class="normal-case text-primary-accent active:opacity-50"
+            >
+              Kelola ›
+            </NuxtLink>
+          </template>
+        </SectionHeader>
+        <div
+          v-if="totalCards.length || canEdit"
+          class="flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <TotalCard
+            v-for="t in totalCards"
+            :key="t.id"
+            :name="t.name"
+            :value="formatShort(t.value)"
+            :caption="`${t.accounts.length} akun${t.on_transactions ? ' · di Transaksi' : ''}`"
+            :on="t.on_transactions"
+            :selected="t.id === scopeId"
+            @click="toggleScope(t)"
+          />
+          <TotalCard
+            v-if="canEdit"
+            add
+            name="+ Total baru"
+            caption="Kelompokkan akun"
+            @click="openTotal(null)"
+          />
+        </div>
 
-      <NetWorthSpark
-        :year="viewYear"
-        :can-prev="canPrevYear"
-        :can-next="canNextYear"
-        :points="trend"
-        :current="`${year}-${month}`"
-        :loading="yearData.query.isPlaceholderData.value"
-        :note="
-          monthly.available.value
-            ? accounts.isPending.value || yearData.query.isPending.value
-              ? 'Memuat…'
-              : undefined
-            : 'Tren belum tersedia: database perlu diperbarui.'
-        "
-        @pick="pickTrendMonth"
-        @year="shiftYear"
-      />
+        <!-- Filter aktif: bisa diubah atau dilepas tanpa mencari kartunya lagi -->
+        <div
+          v-if="scope"
+          class="mx-4 mt-2.5 flex items-center gap-3 px-1 text-note text-muted-foreground"
+        >
+          <span class="min-w-0 flex-1 truncate">
+            Menampilkan <b class="text-foreground">{{ scope.accounts.length }} akun</b> di
+            {{ scope.name }}
+          </span>
+          <button
+            v-if="canEdit"
+            type="button"
+            class="shrink-0 font-semibold text-primary-accent active:opacity-50"
+            @click="openTotal(scope)"
+          >
+            Ubah
+          </button>
+          <button
+            type="button"
+            class="shrink-0 font-semibold text-primary-accent active:opacity-50"
+            @click="scopeId = null"
+          >
+            Semua akun
+          </button>
+        </div>
+
+        <NetWorthSpark
+          :title="scope ? `Tren ${scope.name}` : 'Tren aset bersih'"
+          :year="viewYear"
+          :can-prev="canPrevYear"
+          :can-next="canNextYear"
+          :points="trend"
+          :current="`${year}-${month}`"
+          :loading="yearData.query.isPlaceholderData.value"
+          :note="
+            monthly.available.value
+              ? accounts.isPending.value || yearData.query.isPending.value
+                ? 'Memuat…'
+                : undefined
+              : 'Tren belum tersedia: database perlu diperbarui.'
+          "
+          @pick="pickTrendMonth"
+          @year="shiftYear"
+        />
+      </template>
 
       <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />
+      <EmptyCard
+        v-else-if="!views.length && scope"
+        :title="`${scope.name} belum berisi akun`"
+        description="Atur lewat Ubah, atau tahan akun lalu pilih Atur total."
+      />
       <EmptyCard
         v-else-if="!views.length"
         title="Belum ada akun"

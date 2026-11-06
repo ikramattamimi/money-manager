@@ -94,13 +94,23 @@ watch([view, year, month], () => selection.stop());
 onBeforeUnmount(() => selection.stop());
 
 // ---------- cakupan: total yang tampil di Transaksi (mis. Uang bulanan) atau semua ----------
-const { accounts, transactionsTotal } = useAccounts();
-const showAll = useState('tx:all-accounts', () => false);
+const { accounts, totalViews, transactionsTotal } = useAccounts();
+// null = ikut total yang ditandai "Tampilkan di Transaksi"; 'all' = semua akun; selain itu id total
+const scopeChoice = useState<string | null>('tx:scope', () => null);
+// Penanda Transaksi berganti dari Akun: kembali ke bawaan yang baru
 watch(
   () => transactionsTotal.value?.id,
-  (id, old) => old !== undefined && id !== old && (showAll.value = false),
+  (id, old) => old !== undefined && id !== old && (scopeChoice.value = null),
 );
-const scope = computed(() => (showAll.value ? null : transactionsTotal.value));
+const scope = computed(() => {
+  if (scopeChoice.value === 'all') return null;
+  const picked = scopeChoice.value && totalViews.value.find((t) => t.id === scopeChoice.value);
+  return picked || transactionsTotal.value;
+});
+function pickScope(id: string | null) {
+  // Memilih total bawaan disimpan sebagai null supaya ikut bila penandanya diganti
+  scopeChoice.value = id !== null && id === transactionsTotal.value?.id ? null : (id ?? 'all');
+}
 const scopeId = computed(() => scope.value?.id ?? null);
 const scopeIds = computed(() =>
   scope.value
@@ -112,7 +122,12 @@ const scopeIds = computed(() =>
 watch(scopeId, () => selection.stop());
 
 // ---------- data ----------
-const { data: txs, isPending, error } = useMonthTransactions(year, month);
+const {
+  data: txs,
+  isPending,
+  isPlaceholderData: switching,
+  error,
+} = useMonthTransactions(year, month, { keep: true });
 const rootOf = (id: string | null) =>
   id ? (categories.byId.value.get(id)?.parent_id ?? id) : null;
 const list = computed(() => {
@@ -291,27 +306,35 @@ watch([highlight, list], ([id]) => {
       <SubTabs v-model="view" :options="VIEWS" label="Tampilan transaksi" />
     </NavBar>
 
-    <!-- Total yang tampil di Transaksi (mockup .scope): ketuk untuk semua akun -->
+    <!-- Cakupan (mockup .scope): semua akun atau salah satu total; yang ditandai di Akun jadi bawaan -->
     <div
-      v-if="transactionsTotal"
-      class="flex items-center gap-2 bg-card px-4 py-2 shadow-[inset_0_0.5px_0_var(--sep)]"
+      v-if="totalViews.length"
+      class="flex items-center gap-2 overflow-x-auto bg-card px-4 py-2 shadow-[inset_0_0.5px_0_var(--sep)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      role="group"
+      aria-label="Cakupan akun"
     >
       <button
-        type="button"
-        :aria-pressed="!showAll"
-        :class="[
-          'scope-chip inline-flex h-[30px] items-center gap-[5px] rounded-full px-[11px] text-meta font-semibold active:scale-[0.96] [&_svg]:size-3.5',
-          showAll ? 'bg-fill' : 'bg-primary-soft text-primary-accent',
+        v-for="opt in [
+          { id: null, name: 'Semua akun', sum: 0 },
+          ...totalViews.map((t) => ({ id: t.id, name: t.name, sum: t.sum })),
         ]"
-        @click="showAll = !showAll"
+        :key="opt.id ?? 'all'"
+        type="button"
+        :aria-pressed="(scope?.id ?? null) === opt.id"
+        :class="[
+          'scope-chip inline-flex h-[30px] shrink-0 items-center gap-[5px] rounded-full px-[11px] text-meta font-semibold active:scale-[0.96] [&_svg]:size-3.5',
+          (scope?.id ?? null) === opt.id ? 'bg-primary-soft text-primary-accent' : 'bg-fill',
+        ]"
+        @click="pickScope(opt.id)"
       >
-        <component :is="showAll ? Layers : Sigma" stroke-width="2.6" aria-hidden="true" />
-        {{ showAll ? 'Semua akun' : transactionsTotal.name }}
-        <span class="font-medium text-muted-foreground">· ganti</span>
+        <component :is="opt.id ? Sigma : Layers" stroke-width="2.6" aria-hidden="true" />
+        {{ opt.name }}
+        <span
+          v-if="opt.id && (scope?.id ?? null) === opt.id"
+          class="font-medium text-muted-foreground"
+          >· {{ formatRupiah(opt.sum) }}</span
+        >
       </button>
-      <span v-if="!showAll" class="ml-auto text-meta font-semibold text-muted-foreground">{{
-        formatRupiah(transactionsTotal.sum)
-      }}</span>
     </div>
 
     <!-- Filter aktif: ringkas dan bisa dihapus -->
@@ -343,6 +366,7 @@ watch([highlight, list], ([id]) => {
         :prev-label="selected.neighborLabel(-1)"
         :next-label="selected.neighborLabel(1)"
         :can-next="selected.canNext.value"
+        :loading="switching"
         :disabled="md || selection.selecting.value"
         class="min-h-[60dvh]"
         @shift="selected.shift"
@@ -492,9 +516,10 @@ watch([highlight, list], ([id]) => {
                     >Masuk {{ formatShort(y.income) }} · Keluar {{ formatShort(y.expense) }}</span
                   >
                 </span>
-                <span :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']">{{
-                  formatShort(y.net)
-                }}</span>
+                <span
+                  :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']"
+                  >{{ formatShort(y.net) }}</span
+                >
                 <ChevronRight
                   class="size-[18px] text-chevron"
                   stroke-width="2.6"

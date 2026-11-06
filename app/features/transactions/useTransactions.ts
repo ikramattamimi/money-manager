@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query';
 import { accountKeys } from '@/features/accounts/keys';
 import type { Account } from '@/features/accounts/api';
-import { useActiveBook } from '@/features/books/useActiveBook';
+import { keepWithinBook, useActiveBook } from '@/features/books/useActiveBook';
 import type { TablesUpdate } from '@/lib/database.types';
 import { addMonths, periodOf } from '@/lib/time';
 import { uuid } from '@/lib/uuid';
@@ -10,7 +10,16 @@ import { balanceEffects } from './effects';
 import { transactionKeys } from './keys';
 
 /** Transaksi satu periode bulan (WIB). Periode sebelah di-prefetch supaya pindah bulan terasa langsung. */
-export function useMonthTransactions(year: Ref<number>, month: Ref<number>) {
+/**
+ * `keep`: selama bulan baru dimuat, tetap tampilkan daftar bulan sebelumnya
+ * (`isPlaceholderData`), seperti Statistik, supaya pindah bulan tidak berkedip
+ * lewat kartu "Memuat…".
+ */
+export function useMonthTransactions(
+  year: Ref<number>,
+  month: Ref<number>,
+  options: { keep?: boolean } = {},
+) {
   const { bookId, monthStartDay } = useActiveBook();
   const client = useQueryClient();
 
@@ -21,6 +30,7 @@ export function useMonthTransactions(year: Ref<number>, month: Ref<number>) {
     queryFn: () =>
       transactionsApi.listMonth(bookId.value!, year.value, month.value, monthStartDay.value),
     enabled: computed(() => !!bookId.value),
+    placeholderData: options.keep ? keepWithinBook(bookId) : undefined,
   });
 
   watch(

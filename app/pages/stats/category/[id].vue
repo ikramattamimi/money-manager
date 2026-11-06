@@ -4,6 +4,7 @@ import LineTrend from '@/components/charts/LineTrend.vue';
 import { IOS_TONE } from '@/components/data/tone';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
 import GroupedList from '@/components/ios/GroupedList.vue';
+import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import NavBar from '@/components/ios/NavBar.vue';
 import DayGroup from '@/components/money/DayGroup.vue';
 import TxRow from '@/components/money/TxRow.vue';
@@ -11,7 +12,7 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useSearch } from '@/features/search/useSearch';
 import { statsApi } from '@/features/stats/api';
-import { todayWib } from '@/features/stats/period';
+import { hasNext, shiftPeriod, todayWib } from '@/features/stats/period';
 import { statsKeys, useBreakdown, useStatsPeriod, useTrend } from '@/features/stats/useStats';
 import { groupByDay } from '@/features/transactions/grouping';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
@@ -67,6 +68,20 @@ const canNextYear = computed(() => viewYear.value < today.value.year);
 function shiftYear(delta: 1 | -1) {
   viewYear.value += delta;
 }
+
+// Geser isi = periode berikutnya/sebelumnya, sama dengan Statistik dan rincian budget:
+// grafik diam di tempat, hanya daftar di bawahnya yang bergeser
+const { md } = useBreakpoint();
+const canNext = computed(() => hasNext(period.value, new Date(), monthStartDay.value));
+const shift = (delta: number) =>
+  (period.value = shiftPeriod(period.value, delta, monthStartDay.value));
+const neighbor = (delta: number) => {
+  const p = shiftPeriod(period.value, delta, monthStartDay.value);
+  if (p.kind === 'month') return MONTHS_SHORT[Number(p.anchor.slice(5, 7)) - 1] ?? '';
+  if (p.kind === 'year') return p.anchor.slice(0, 4);
+  return delta < 0 ? 'Sebelumnya' : 'Berikutnya';
+};
+const swipeKey = computed(() => `${period.value.kind}:${bounds.value.from}`);
 
 const trend = useTrend(
   () => viewEnd.value.month,
@@ -172,68 +187,81 @@ const days = computed(() => groupByDay(rows.value));
   >
     <NavBar :title="name" back="Statistik" back-to="/stats" line class="sticky top-0 md:static" />
 
-    <div class="bg-card px-4 pb-1.5 pt-3.5">
-      <b class="text-body">{{ bounds.label }}</b>
-      <LineTrend
-        class="mt-2"
-        :year="viewYear"
-        :can-prev="canPrevYear"
-        :can-next="canNextYear"
-        :points="points"
-        :color="color"
-        :loading="isNone ? noneTx.isFetching.value : trend.isPlaceholderData.value"
-        :label="`${name} per bulan, ${viewYear}`"
-        @pick="pickMonth"
-        @year="shiftYear"
-      />
-    </div>
-
-    <GroupedList
-      v-if="!isNone"
-      :label="`Sub-kategori · ${bounds.label}`"
-      :aside="formatRupiah(slice?.value ?? 0)"
+    <MonthSwipe
+      :month-key="swipeKey"
+      :loading="isNone ? noneTx.isFetching.value : results.isPlaceholderData.value"
+      :prev-label="neighbor(-1)"
+      :next-label="neighbor(1)"
+      :can-next="canNext"
+      :disabled="md"
+      class="min-h-[60dvh]"
+      @shift="shift"
     >
-      <p v-if="!slice?.children.length" class="m-0 px-4 py-3.5 text-note text-muted-foreground">
-        Tidak ada transaksi di periode ini.
-      </p>
-      <div
-        v-for="c in slice?.children ?? []"
-        :key="c.id"
-        class="sub-row flex min-h-11 items-center gap-3 py-1.5 pl-4 pr-3.5"
-      >
-        <span
-          class="grid h-5 min-w-10 place-items-center rounded-[6px] text-2xs font-bold text-white"
-          :style="{ background: color }"
-          >{{ pct(c.value) }}%</span
-        >
-        <b class="min-w-0 flex-1 truncate text-label font-medium">{{ c.label }}</b>
-        <span class="shrink-0 text-amount font-semibold">{{ formatRupiah(c.value) }}</span>
-      </div>
-    </GroupedList>
+      <template #fixed>
+        <div class="bg-card px-4 pb-1.5 pt-3.5">
+          <b class="text-body">{{ bounds.label }}</b>
+          <LineTrend
+            class="mt-2"
+            :year="viewYear"
+            :can-prev="canPrevYear"
+            :can-next="canNextYear"
+            :points="points"
+            :color="color"
+            :loading="isNone ? noneTx.isFetching.value : trend.isPlaceholderData.value"
+            :label="`${name} per bulan, ${viewYear}`"
+            @pick="pickMonth"
+            @year="shiftYear"
+          />
+        </div>
+      </template>
 
-    <EmptyCard
-      v-if="!pending && !rows.length"
-      title="Belum ada transaksi"
-      :description="`Tidak ada transaksi ${name} di ${bounds.label}.`"
-    />
-    <div v-else class="pb-4">
-      <DayGroup
-        v-for="d in days"
-        :key="d.key"
-        :day-key="d.key"
-        :income="d.income"
-        :expense="d.expense"
+      <GroupedList
+        v-if="!isNone"
+        :label="`Sub-kategori · ${bounds.label}`"
+        :aside="formatRupiah(slice?.value ?? 0)"
       >
-        <TxRow
-          v-for="t in d.items"
-          :id="t.id"
-          :key="t.id"
-          v-bind="rowView(t)"
-          :selectable="false"
-          @open="editor.edit(t)"
-        />
-      </DayGroup>
-    </div>
+        <p v-if="!slice?.children.length" class="m-0 px-4 py-3.5 text-note text-muted-foreground">
+          Tidak ada transaksi di periode ini.
+        </p>
+        <div
+          v-for="c in slice?.children ?? []"
+          :key="c.id"
+          class="sub-row flex min-h-11 items-center gap-3 py-1.5 pl-4 pr-3.5"
+        >
+          <span
+            class="grid h-5 min-w-10 place-items-center rounded-[6px] text-2xs font-bold text-white"
+            :style="{ background: color }"
+            >{{ pct(c.value) }}%</span
+          >
+          <b class="min-w-0 flex-1 truncate text-label font-medium">{{ c.label }}</b>
+          <span class="shrink-0 text-amount font-semibold">{{ formatRupiah(c.value) }}</span>
+        </div>
+      </GroupedList>
+
+      <EmptyCard
+        v-if="!pending && !rows.length"
+        title="Belum ada transaksi"
+        :description="`Tidak ada transaksi ${name} di ${bounds.label}.`"
+      />
+      <div v-else class="pb-4">
+        <DayGroup
+          v-for="d in days"
+          :key="d.key"
+          :day-key="d.key"
+          :income="d.income"
+          :expense="d.expense"
+        >
+          <TxRow
+            v-for="t in d.items"
+            :id="t.id"
+            :key="t.id"
+            v-bind="rowView(t)"
+            :selectable="false"
+            @open="editor.edit(t)"
+          />
+        </DayGroup>
+      </div>
+    </MonthSwipe>
   </div>
 </template>
 
