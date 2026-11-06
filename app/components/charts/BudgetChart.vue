@@ -7,9 +7,9 @@ import { formatShort } from '@/lib/format';
 // melewati ujung pindah tahun (YearScroller), titik terpilih berlubang yang
 // meluncur ke kolom baru, tinggi batang dan posisi garis meluncur saat data
 // berganti (useTweened), tekan/hover kolom berupa latar translusen.
-// Batang pengeluaran per bulan (yang melewati budget berwarna penuh, yang
-// masih aman lebih pudar) dan garis budget tebal dengan nominal di tiap
-// titik. Bulan berjalan labelnya merah.
+// Batang pengeluaran per bulan (merah) dan garis budget (oranye) (yang melewati budget berwarna penuh, yang
+// masih aman lebih pudar) dan garis budget tebal dengan titik. Bulan
+// berjalan labelnya merah.
 const props = defineProps<{
   year: number;
   canPrev: boolean;
@@ -29,7 +29,7 @@ const emit = defineEmits<{ pick: [key: string]; year: [delta: 1 | -1] }>();
 
 const COL = 64;
 const H = 100; // tinggi area batang dan garis
-const TOP = 30; // ruang nominal budget di atas titik tertinggi
+const TOP = 12; // ruang di atas titik tertinggi
 const FOOT = 26; // baris label bulan
 const tween = useTweened(() => props.points.flatMap((p) => [p.spent, p.budget]));
 const max = computed(() => Math.max(1, ...tween.value));
@@ -58,7 +58,6 @@ const line = computed(() =>
 );
 const active = computed(() => cols.value.find((c) => c.selected && c.budget > 0));
 const activeIndex = computed(() => props.points.findIndex((p) => p.selected));
-const fmt = (v: number) => v.toLocaleString('id-ID');
 const width = computed(() => props.points.length * COL);
 const height = TOP + H + FOOT;
 </script>
@@ -98,13 +97,13 @@ const height = TOP + H + FOOT;
             v-if="line"
             :points="line"
             fill="none"
-            stroke="var(--tone-red)"
+            stroke="var(--tone-orange)"
             stroke-width="4"
             stroke-linejoin="round"
             stroke-linecap="round"
           />
           <template v-for="c in cols" :key="`dot-${c.key}`">
-            <circle v-if="c.budget > 0" :cx="c.cx" :cy="c.cy" r="5.5" fill="var(--tone-red)" />
+            <circle v-if="c.budget > 0" :cx="c.cx" :cy="c.cy" r="5.5" fill="var(--tone-orange)" />
           </template>
         </svg>
         <!-- Titik terpilih: berlubang, meluncur ke titik baru. Titik penuh tidak
@@ -112,7 +111,7 @@ const height = TOP + H + FOOT;
              berlatar kartu menutupinya begitu tiba. -->
         <i
           v-if="active"
-          class="budget-sel pointer-events-none absolute left-0 top-0 size-[14px] rounded-full border-[3.5px] border-[var(--tone-red)] bg-card"
+          class="budget-sel pointer-events-none absolute left-0 top-0 size-[14px] rounded-full border-[3.5px] border-[var(--tone-orange)] bg-card"
           :style="{ transform: `translate(${active.cx - 7}px, ${active.cy - 7}px)` }"
           aria-hidden="true"
         />
@@ -127,16 +126,6 @@ const height = TOP + H + FOOT;
             :style="{ width: `${COL}px` }"
             @click="emit('pick', c.key)"
           >
-            <span
-              v-if="c.budget > 0"
-              :class="[
-                'budget-val absolute left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap pb-2 text-[10px] tabular-nums',
-                c.selected ? 'font-bold text-foreground' : 'font-medium text-muted-foreground',
-              ]"
-              :style="{ top: `${c.cy}px` }"
-              aria-hidden="true"
-              >{{ fmt(c.budget) }}</span
-            >
             <span
               :class="[
                 'budget-label absolute inset-x-0 bottom-0 flex items-center justify-center text-note',
@@ -153,7 +142,7 @@ const height = TOP + H + FOOT;
     </YearScroller>
     <div class="flex justify-center gap-3.5 pt-1.5 text-xs text-muted-foreground">
       <span class="inline-flex items-center gap-[5px]"
-        ><i class="h-[3px] w-3.5 rounded-sm bg-[var(--tone-red)]" />Budget</span
+        ><i class="h-[3px] w-3.5 rounded-sm bg-[var(--tone-orange)]" />Budget</span
       >
       <span class="inline-flex items-center gap-[5px]"
         ><i class="h-2.5 w-[9px] rounded-sm bg-[var(--tone-red)] opacity-55" />Terpakai</span
@@ -173,14 +162,12 @@ const height = TOP + H + FOOT;
 .budget-bar {
   transition: fill-opacity 200ms ease;
 }
-.budget-val,
 .budget-label {
   transition: color 200ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .budget-sel,
   .budget-bar,
-  .budget-val,
   .budget-label {
     transition: none;
   }

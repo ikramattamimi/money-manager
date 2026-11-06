@@ -2,10 +2,11 @@
 import YearScroller from '@/components/charts/YearScroller.vue';
 import { formatShort } from '@/lib/format';
 
-// Tren aset bersih per tahun di halaman Akun: garis aksen dengan area
-// gradien, angka tiap bulan di atas titik, bisa digeser dan diketuk (pindah
+// Tren aset bersih per tahun di halaman Akun: garis aksen polos (tanpa area
+// gradien), angka tiap bulan di atas titik, bisa digeser dan diketuk (pindah
 // ke bulan itu). Tahun berjalan hanya sampai bulan ini; tarik melewati ujung
-// pindah tahun. Perubahan sepanjang tahun yang tampil di kanan atas (naik
+// pindah tahun. Bulan terpilih ditandai titiknya saja (lebih besar, penuh),
+// tanpa latar atau bayangan. Perubahan sepanjang tahun yang tampil di kanan atas (naik
 // hijau, turun merah). Tanpa animasi masuk: data, bukan hiasan.
 const props = defineProps<{
   year: number;
@@ -26,7 +27,6 @@ const FOOT = 22; // baris label bulan
 const PLOT_TOP = 36; // ruang angka di atas titik tertinggi
 const PLOT_BOTTOM = H - FOOT - 14;
 const W = computed(() => props.points.length * COL);
-const gid = `nw-${useId()}`;
 
 const coords = computed(() => {
   const values = props.points.map((p) => p.value);
@@ -41,11 +41,6 @@ const coords = computed(() => {
   }));
 });
 const line = computed(() => coords.value.map((c) => `${c.x},${c.y}`).join(' '));
-const area = computed(() =>
-  coords.value.length
-    ? `${coords.value[0]!.x},${H - FOOT} ${line.value} ${coords.value.at(-1)!.x},${H - FOOT}`
-    : '',
-);
 const active = computed(() => props.points.findIndex((p) => p.key === props.current));
 const diff = computed(() =>
   props.points.length > 1 ? props.points.at(-1)!.value - props.points[0]!.value : 0,
@@ -89,21 +84,7 @@ const summary = computed(() =>
         :aria-label="`Aset bersih ${year}: ${summary}`"
       >
         <svg :width="W" :height="H" class="absolute inset-0" aria-hidden="true">
-          <defs>
-            <linearGradient :id="gid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="var(--primary-accent)" stop-opacity="0.22" />
-              <stop offset="1" stop-color="var(--primary-accent)" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-          <line
-            x1="0"
-            :x2="W"
-            :y1="H - FOOT"
-            :y2="H - FOOT"
-            stroke="var(--sep)"
-            stroke-width="1"
-          />
-          <polygon v-if="coords.length > 1" :points="area" :fill="`url(#${gid})`" />
+          <line x1="0" :x2="W" :y1="H - FOOT" :y2="H - FOOT" stroke="var(--sep)" stroke-width="1" />
           <polyline
             :points="line"
             fill="none"
@@ -121,8 +102,7 @@ const summary = computed(() =>
             :aria-label="`${c.label} ${year}: ${formatShort(c.value)}`"
             :aria-pressed="c.selected"
             :class="[
-              'relative shrink-0 rounded-[10px] transition-colors duration-150 active:bg-fill-press',
-              c.selected && 'bg-fill/70',
+              'relative shrink-0 rounded-[10px] transition-colors duration-150 active:bg-[var(--glass-press)]',
             ]"
             :style="{ width: `${COL}px` }"
             @click="emit('pick', c.key)"
@@ -139,9 +119,7 @@ const summary = computed(() =>
             <span
               :class="[
                 'absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary-accent transition-[width,height,background-color] duration-150',
-                c.selected
-                  ? 'size-3 bg-primary-accent shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary-accent)_18%,transparent)]'
-                  : 'size-2 bg-card',
+                c.selected ? 'size-3 bg-primary-accent' : 'size-2 bg-card',
               ]"
               :style="{ top: `${c.y}px` }"
               aria-hidden="true"
