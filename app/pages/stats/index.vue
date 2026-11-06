@@ -51,7 +51,14 @@ const SUBS = [
 const sub = useState<(typeof SUBS)[number]['value']>('stats:sub', () => 'stats');
 
 // ---------- periode ----------
-const canNext = computed(() => hasNext(period.value, new Date(), monthStartDay.value));
+// Tab Budget boleh maju satu periode ke depan (budget berlaku terus, datanya kosong);
+// tab lain berhenti di periode berjalan. Periode ke depan boleh dilihat selama
+// periode sebelumnya sudah dimulai.
+const canNext = computed(() =>
+  sub.value === 'budget'
+    ? hasNext(shiftPeriod(period.value, -1, monthStartDay.value), new Date(), monthStartDay.value)
+    : hasNext(period.value, new Date(), monthStartDay.value),
+);
 const shift = (delta: number) =>
   (period.value = shiftPeriod(period.value, delta, monthStartDay.value));
 const neighbor = (delta: number) => {
@@ -199,8 +206,7 @@ const noteRows = computed(() => {
           @click="periodOpen = true"
         >
           <span class="kind-box gap-px pl-[5px] pr-[3px]" aria-hidden="true"
-            >{{ currentKind.letter
-            }}<ChevronDown class="size-2.5! shrink-0" stroke-width="3.2"
+            >{{ currentKind.letter }}<ChevronDown class="size-2.5! shrink-0" stroke-width="3.2"
           /></span>
         </IconButton>
       </template>
