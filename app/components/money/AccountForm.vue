@@ -29,8 +29,9 @@ const toast = useToast();
 const form = reactive({
   name: props.account?.name ?? '',
   groupId: props.account?.group_id ?? '',
-  opening: Math.abs(props.account?.opening_balance ?? 0),
-  negative: (props.account?.opening_balance ?? 0) < 0,
+  // Saldo sekarang: kalau berubah, selisihnya dicatat sebagai koreksi saldo
+  balance: Math.abs(props.account?.balance ?? 0),
+  negative: (props.account?.balance ?? 0) < 0,
   includeInTotal: props.account?.include_in_total ?? true,
   totalId: props.account ? (props.account.total_id ?? '') : (null as string | null),
   note: props.account?.note ?? '',
@@ -91,7 +92,6 @@ function save() {
   const data = {
     name: form.name.trim(),
     group_id: form.groupId,
-    opening_balance: form.negative ? -form.opening : form.opening,
     // Ada total buatan sendiri: ikut total = masuk salah satunya
     ...(hasTotals.value
       ? { total_id: form.totalId || null, include_in_total: !!form.totalId }
@@ -100,15 +100,32 @@ function save() {
     statement_day: isCard.value && form.statementDay ? form.statementDay : null,
     due_day: isCard.value && form.dueDay ? form.dueDay : null,
   };
+  const actual = form.negative ? -form.balance : form.balance;
+  // Selisih dari saldo tercatat dicatat sebagai koreksi (akun baru mulai dari 0)
+  const adjust = (id: string, current: number) => {
+    if (actual !== current) mutations.adjust.mutate({ id, actual });
+  };
   if (props.account) {
+    const id = props.account.id;
+    const current = props.account.balance;
     mutations.update.mutate(
-      { id: props.account.id, patch: data },
-      { onSuccess: () => toast.show('Akun disimpan') },
+      { id, patch: data },
+      {
+        onSuccess: () => {
+          adjust(id, current);
+          toast.show('Akun disimpan');
+        },
+      },
     );
   } else {
     mutations.create.mutate(
       { ...data, book_id: bookId.value },
-      { onSuccess: () => toast.show(`Akun ${data.name} ditambahkan`) },
+      {
+        onSuccess: (created) => {
+          adjust(created.id, 0);
+          toast.show(`Akun ${data.name} ditambahkan`);
+        },
+      },
     );
   }
   emit('close');
@@ -204,19 +221,19 @@ const firstError = computed(() => errors.name || errors.groupId || '');
     <div :class="formGroup(page)">
       <GroupRow>
         <label class="flex items-center gap-3">
-          <b class="shrink-0 text-row font-medium">Saldo awal</b>
+          <b class="shrink-0 text-row font-medium">Saldo sekarang</b>
           <span class="flex min-w-0 flex-1 items-center justify-end gap-1">
-            <InlineAmount id="acc-opening" v-model="form.opening" label="Saldo awal" />
+            <InlineAmount id="acc-balance" v-model="form.balance" label="Saldo sekarang" />
           </span>
         </label>
       </GroupRow>
-      <GroupRow title="Saldo awal negatif" subtitle="Untuk utang atau tagihan kartu kredit">
-        <template #end><IosSwitch v-model="form.negative" label="Saldo awal negatif" /></template>
+      <GroupRow title="Saldo negatif" subtitle="Untuk utang atau tagihan kartu kredit">
+        <template #end><IosSwitch v-model="form.negative" label="Saldo negatif" /></template>
       </GroupRow>
     </div>
     <p :class="FORM_NOTE">
-      Saldo sebelum transaksi pertama yang dicatat. Untuk menyamakan saldo sekarang, pakai Sesuaikan
-      saldo di rincian akun.
+      Kalau berbeda dari saldo tercatat, selisihnya dicatat sebagai koreksi saldo dan tidak dihitung
+      di statistik.
     </p>
 
     <p :class="FORM_SH">Total</p>

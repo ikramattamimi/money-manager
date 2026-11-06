@@ -136,9 +136,10 @@ export const accountsApi = {
     return accounts.data.map((a) => ({ ...a, balance: balanceOf.get(a.id) ?? a.opening_balance }));
   },
 
-  async create(input: TablesInsert<'accounts'>): Promise<void> {
-    const { error } = await useSupabase().from('accounts').insert(input);
+  async create(input: TablesInsert<'accounts'>): Promise<Tables<'accounts'>> {
+    const { data, error } = await useSupabase().from('accounts').insert(input).select().single();
     if (error) throw new Error('Gagal menambah akun.', { cause: error });
+    return data;
   },
 
   async update(id: string, patch: TablesUpdate<'accounts'>): Promise<void> {

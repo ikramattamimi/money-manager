@@ -4,7 +4,8 @@ import { keepWithinBook, useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { transactionKeys } from '@/features/transactions/keys';
 import { statsApi } from './api';
-import { periodBounds, shiftPeriod, todayWib, type Period } from './period';
+import { periodOf, periodStartDate } from '@/lib/time';
+import { periodBounds, shiftPeriod, type Period } from './period';
 
 export const statsKeys = {
   // Di bawah kunci transaksi: setiap transaksi berubah, statistik ikut dimuat ulang
@@ -33,10 +34,29 @@ export function useNoteBreakdown(type: Ref<'income' | 'expense'>, enabled: Ref<b
   });
 }
 
-/** Periode statistik yang dipilih, bertahan saat pindah tab */
+/**
+ * Periode statistik yang dipilih, bertahan saat pindah tab. Jenis bulan memakai
+ * bulan terpilih bersama Transaksi dan Akun; minggu/tahun/rentang disimpan di sini
+ * dan kembali ke bulan bersama saat Bulanan dipilih.
+ */
 export function useStatsPeriod() {
   const { monthStartDay } = useActiveBook();
-  const period = useState<Period>('stats:period', () => ({ kind: 'month', anchor: todayWib() }));
+  const selected = useSelectedMonth();
+  const other = useState<Period | null>('stats:period', () => null);
+  const period = computed<Period>({
+    get: () =>
+      other.value ?? {
+        kind: 'month',
+        anchor: periodStartDate(selected.year.value, selected.month.value, monthStartDay.value),
+      },
+    set: (p) => {
+      if (p.kind === 'month') {
+        const { year, month } = periodOf(p.anchor, monthStartDay.value);
+        selected.set(year, month);
+        other.value = null;
+      } else other.value = p;
+    },
+  });
   const bounds = computed(() => periodBounds(period.value, monthStartDay.value));
   return { period, bounds, monthStartDay };
 }

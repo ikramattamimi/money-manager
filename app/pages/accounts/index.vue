@@ -24,6 +24,7 @@ import GroupRow from '@/components/ios/GroupRow.vue';
 import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
 import IosSheet from '@/components/ios/IosSheet.vue';
+import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import NavBar from '@/components/ios/NavBar.vue';
 import SectionHeader from '@/components/ios/SectionHeader.vue';
 import SummaryStrip from '@/components/ios/SummaryStrip.vue';
@@ -64,6 +65,9 @@ const monthly = useAccountMonths(year, month);
 /** Saldo akhir bulan; tanpa RPC (belum dipasang) = saldo sekarang */
 const balanceOf = (a: Account) => monthly.selected(a.id)?.end ?? a.balance;
 const monthName = computed(() => `${MONTHS_LONG[month.value - 1]} ${year.value}`);
+// Geser daftar = ganti bulan, sama dengan tab Transaksi
+const { md } = useBreakpoint();
+const swipeKey = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`);
 
 // Jumlah transaksi per akun di bulan itu (daftar bulan sudah termuat bersama tab Transaksi)
 const monthTx = useMonthTransactions(year, month);
@@ -326,19 +330,28 @@ function openTotal(total: AccountTotal | null) {
 
     <SummaryStrip :items="strip" />
 
-    <!-- Bulan lain dari tab Transaksi: saldo yang tampil adalah saldo akhir bulan itu -->
+    <!-- Bulan terpilih (sama dengan Transaksi dan Statistik): saldo yang tampil adalah saldo akhir bulan itu -->
     <div
-      v-if="!selectedMonth.isCurrent.value"
-      class="flex items-center gap-2 bg-primary-soft px-4 py-2 text-meta text-primary-accent"
+      :class="[
+        'flex items-center gap-2 px-4 py-2 text-meta',
+        selectedMonth.isCurrent.value
+          ? 'bg-card text-muted-foreground shadow-[inset_0_-0.5px_0_var(--sep)]'
+          : 'bg-primary-soft text-primary-accent',
+      ]"
     >
       <span class="flex-1">
         {{
           monthly.available.value
-            ? `Saldo per akhir ${monthName}`
+            ? `Saldo per akhir ${monthName} · geser untuk ganti bulan`
             : `Saldo sekarang (saldo ${monthName} belum tersedia)`
         }}
       </span>
-      <button type="button" class="font-semibold" @click="selectedMonth.goToday()">
+      <button
+        v-if="!selectedMonth.isCurrent.value"
+        type="button"
+        class="font-semibold"
+        @click="selectedMonth.goToday()"
+      >
         Bulan ini
       </button>
     </div>
@@ -380,7 +393,16 @@ function openTotal(total: AccountTotal | null) {
       </p>
     </template>
 
-    <template v-else>
+    <MonthSwipe
+      v-else
+      :month-key="swipeKey"
+      :prev-label="selectedMonth.neighborLabel(-1)"
+      :next-label="selectedMonth.neighborLabel(1)"
+      :can-next="selectedMonth.canNext.value"
+      :disabled="md || selecting"
+      class="min-h-[60dvh]"
+      @shift="selectedMonth.shift"
+    >
       <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
       <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
         <template #aside>
@@ -519,7 +541,7 @@ function openTotal(total: AccountTotal | null) {
       >
         Tahan akun untuk memilih banyak.
       </p>
-    </template>
+    </MonthSwipe>
 
     <!-- Bilah aksi pilih banyak (kaca, melayang di atas tab bar) -->
     <div
