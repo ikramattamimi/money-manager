@@ -66,7 +66,7 @@ describe('weeks', () => {
       num: 31,
       weekday: 'Sab',
       tone: 'sat',
-      monthYear: '10.2026',
+      monthYear: '10/2026',
     });
   });
 });

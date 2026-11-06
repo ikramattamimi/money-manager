@@ -60,6 +60,9 @@ const mutations = useAccountMutations();
 
 // ---------- saldo per akhir bulan terpilih ----------
 const selectedMonth = useSelectedMonth();
+// Ketuk ulang tab Akun (seperti Transaksi) = kembali ke bulan ini
+const retap = useState('nav:retap:accounts', () => 0);
+watch(retap, () => selectedMonth.goToday());
 const { year, month } = selectedMonth;
 const monthly = useAccountMonths(year, month);
 /** Saldo akhir bulan; tanpa RPC (belum dipasang) = saldo sekarang */

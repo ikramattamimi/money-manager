@@ -1,10 +1,16 @@
 <script setup lang="ts">
 // Ringkasan tiga kolom di bawah bar (mockup .strip): Pemasukan / Pengeluaran /
 // Total, Aset / Liabilitas / Total, dst. Angka langsung berganti saat bulan
-// berganti (tidak ikut bergeser bersama daftar).
-defineProps<{
-  items: readonly { label: string; value: string; tone?: 'inc' | 'exp' | 'ok' }[];
-}>();
+// berganti (tidak ikut bergeser bersama daftar). `dense` = angka seukuran
+// total per hari (DayGroup), untuk strip di atas daftar transaksi yang
+// memakai nominal penuh.
+withDefaults(
+  defineProps<{
+    items: readonly { label: string; value: string; tone?: 'inc' | 'exp' | 'ok' }[];
+    dense?: boolean;
+  }>(),
+  { dense: false },
+);
 const TONE = { inc: 'text-inc', exp: 'text-exp', ok: 'text-ok' } as const;
 </script>
 
@@ -14,7 +20,8 @@ const TONE = { inc: 'text-inc', exp: 'text-exp', ok: 'text-ok' } as const;
       <small class="text-xs font-medium text-muted-foreground">{{ i.label }}</small>
       <b
         :class="[
-          'max-w-full truncate text-body font-bold tracking-[-0.01em]',
+          'max-w-full truncate',
+          dense ? 'text-[13.5px] font-semibold' : 'text-body font-bold tracking-[-0.01em]',
           i.tone && TONE[i.tone],
         ]"
         >{{ i.value }}</b

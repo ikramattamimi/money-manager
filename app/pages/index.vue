@@ -327,6 +327,7 @@ watch([highlight, list], ([id]) => {
     </div>
 
     <SummaryStrip
+      dense
       :items="[
         { label: 'Pemasukan', value: formatRupiah(summary.income), tone: 'inc' },
         { label: 'Pengeluaran', value: formatRupiah(summary.expense), tone: 'exp' },

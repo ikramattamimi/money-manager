@@ -37,7 +37,12 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        // Sengaja tanpa black-translucent: iOS 26.1+ memburamkan konten di bawah
+        // status bar transparan pada web app home screen, dan tidak ada CSS yang
+        // bisa mematikannya. Dengan default, halaman mulai di bawah status bar
+        // yang opak (safe-area-inset-top jadi 0). iOS membaca nilai ini saat app
+        // ditambahkan, jadi app di home screen perlu dihapus lalu ditambah ulang.
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
         { name: 'apple-mobile-web-app-title', content: 'Money' },
         // Diperbarui useTheme sesuai tema aktif
         { name: 'theme-color', content: '#f2f2f7' },

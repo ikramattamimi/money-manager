@@ -6,7 +6,7 @@ import { todayWib } from '@/features/stats/period';
 // sisakan ruang kanan untuk tombol +; ikon di atas label, tab aktif berlatar
 // aksen lembut. Tab Transaksi memakai ikon kalender berisi tanggal hari ini.
 // iPad: di atas tengah, ikon dan label sebaris. Pindah tab tanpa animasi;
-// ketuk tab aktif = gulir ke atas (R2 menambah "kembali ke hari ini").
+// ketuk tab aktif = gulir ke atas dan kembali ke bulan ini (lihat AppShell).
 const props = withDefaults(defineProps<{ base: string; active: string; withAdd?: boolean }>(), {
   withAdd: true,
 });

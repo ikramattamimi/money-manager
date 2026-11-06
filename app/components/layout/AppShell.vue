@@ -53,10 +53,15 @@ const active = computed(() => {
 const txSelecting = useState('ui:selecting', () => false);
 const showAdd = computed(() => props.canAdd && !txSelecting.value);
 
-/** Ketuk ulang tab Transaksi = kembali ke hari ini (didengar halaman Transaksi) */
-const retapTx = useState('nav:retap:tx', () => 0);
+/**
+ * Ketuk ulang tab aktif = kembali ke bulan ini. Penghitung per tab
+ * (`nav:retap:<key>`) didengar halamannya: Transaksi, Statistik, Akun.
+ */
+const retapState = (key: string) => useState(`nav:retap:${key}`, () => 0);
+const retaps = Object.fromEntries(NAV_ITEMS.map((i) => [i.key, retapState(i.key)]));
 function onRetap(key: string) {
-  if (key === 'tx') retapTx.value++;
+  const counter = retaps[key];
+  if (counter) counter.value++;
 }
 
 /** Menu tahan tombol +: Ketik cepat membuka panel quick-add, sisanya halaman impor/bookmark */

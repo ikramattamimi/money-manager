@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { Pencil, Scale } from '@lucide/vue';
+import { Pencil } from '@lucide/vue';
 import Overlay from '@/components/base/Overlay.vue';
-import ToneIcon from '@/components/data/ToneIcon.vue';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
-import GroupRow from '@/components/ios/GroupRow.vue';
 import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
 import MonthNav from '@/components/ios/MonthNav.vue';
@@ -13,7 +11,6 @@ import NavBar from '@/components/ios/NavBar.vue';
 import SubTabs from '@/components/ios/SubTabs.vue';
 import SummaryStrip from '@/components/ios/SummaryStrip.vue';
 import AccountForm from '@/components/money/AccountForm.vue';
-import AdjustBalanceForm from '@/components/money/AdjustBalanceForm.vue';
 import CardBill from '@/components/money/CardBill.vue';
 import DayGroup from '@/components/money/DayGroup.vue';
 import TxRow from '@/components/money/TxRow.vue';
@@ -34,7 +31,7 @@ import { groupByDay } from '@/features/transactions/grouping';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 import { useMonthTransactions } from '@/features/transactions/useTransactions';
-import { formatRupiah, formatShort } from '@/lib/format';
+import { formatRupiah } from '@/lib/format';
 import { dayKey, jakartaParts, MONTHS_LONG, MONTHS_SHORT, periodRangeLabel } from '@/lib/time';
 
 // Rincian akun (mockup account-detail / card-detail): ‹ Akun, nama, pensil =
@@ -149,7 +146,7 @@ const bill = computed(() =>
 const payerId = computed(() => lastPayer(ledger.data.value ?? [], id.value));
 
 const strip = computed(() => {
-  const end = endBalance.value === null ? '—' : formatShort(endBalance.value);
+  const end = endBalance.value === null ? '—' : formatRupiah(endBalance.value);
   if (isCard.value) {
     const b = bill.value;
     return [
@@ -157,16 +154,16 @@ const strip = computed(() => {
         label: b
           ? `Tagihan ${Number(b.last.due.slice(8))} ${MONTHS_SHORT[Number(b.last.due.slice(5, 7)) - 1]}`
           : 'Tagihan',
-        value: b ? formatShort(b.remaining) : '—',
+        value: b ? formatRupiah(b.remaining) : '—',
         tone: 'exp' as const,
       },
-      { label: 'Belum ditagih', value: b ? formatShort(b.currentCharges) : '—' },
+      { label: 'Belum ditagih', value: b ? formatRupiah(b.currentCharges) : '—' },
       { label: 'Saldo', value: end },
     ];
   }
   return [
-    { label: 'Setoran', value: formatShort(flow.value.inflow), tone: 'inc' as const },
-    { label: 'Penarikan', value: formatShort(flow.value.outflow), tone: 'exp' as const },
+    { label: 'Setoran', value: formatRupiah(flow.value.inflow), tone: 'inc' as const },
+    { label: 'Penarikan', value: formatRupiah(flow.value.outflow), tone: 'exp' as const },
     { label: 'Saldo', value: end },
   ];
 });
@@ -204,15 +201,14 @@ const monthRows = computed(() =>
 );
 
 // ---------- form ----------
+// Sesuaikan saldo lewat form ubah akun (isian saldo), tidak ada baris terpisah
 const formOpen = ref(false);
-const adjustOpen = ref(false);
 const session = ref(0);
 const { openAsPage } = useFormPage();
-function open(which: 'form' | 'adjust') {
-  if (openAsPage(`/accounts/${id.value}/${which === 'form' ? 'edit' : 'adjust'}`)) return;
+function openForm() {
+  if (openAsPage(`/accounts/${id.value}/edit`)) return;
   session.value++;
-  if (which === 'form') formOpen.value = true;
-  else adjustOpen.value = true;
+  formOpen.value = true;
 }
 </script>
 
@@ -227,7 +223,7 @@ function open(which: 'form' | 'adjust') {
       class="sticky top-0 md:static"
     >
       <template #right>
-        <IconButton v-if="canEdit && account" label="Ubah akun" accent @click="open('form')">
+        <IconButton v-if="canEdit && account" label="Ubah akun" accent @click="openForm()">
           <Pencil class="!size-5" aria-hidden="true" />
         </IconButton>
       </template>
@@ -245,7 +241,7 @@ function open(which: 'form' | 'adjust') {
       <SubTabs v-model="tab" :options="TABS" label="Tampilan rincian akun" />
     </NavBar>
 
-    <SummaryStrip :items="strip" />
+    <SummaryStrip :items="strip" dense />
 
     <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />
     <EmptyCard
@@ -275,7 +271,7 @@ function open(which: 'form' | 'adjust') {
         :account="account"
         :bill="bill"
         :payer-id="payerId"
-        @settings="open('form')"
+        @settings="openForm()"
       />
 
       <!-- Harian -->
@@ -343,17 +339,6 @@ function open(which: 'form' | 'adjust') {
           pembaruan database.
         </p>
       </div>
-
-      <div v-if="canEdit" class="mx-4 mt-5 overflow-hidden rounded-group bg-card">
-        <GroupRow
-          title="Sesuaikan saldo"
-          subtitle="Samakan dengan saldo di aplikasi bank"
-          chevron
-          @click="open('adjust')"
-        >
-          <template #icon><ToneIcon :icon="Scale" tone="gray" size="sm" solid /></template>
-        </GroupRow>
-      </div>
     </MonthSwipe>
 
     <MonthPickerSheet
@@ -372,15 +357,6 @@ function open(which: 'form' | 'adjust') {
         :account="account"
         title-id="account-form-title"
         @close="formOpen = false"
-      />
-    </Overlay>
-    <Overlay v-model:open="adjustOpen" labelledby="adjust-title">
-      <AdjustBalanceForm
-        v-if="account"
-        :key="session"
-        :account="account"
-        title-id="adjust-title"
-        @close="adjustOpen = false"
       />
     </Overlay>
   </div>

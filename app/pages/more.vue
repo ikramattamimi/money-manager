@@ -180,10 +180,12 @@ async function logout() {
   <div
     class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
   >
-    <NavBar title="Lainnya" large class="sticky top-0 bg-background! md:static" />
+    <!-- Bar kartu biasa seperti tab lain (bukan judul besar di atas latar halaman),
+         supaya status bar opak yang diwarnai dari tepi atas menyatu dengan header -->
+    <NavBar title="Lainnya" line class="sticky top-0 md:static" />
 
     <div class="pb-6">
-      <GroupedList class="mt-1">
+      <GroupedList class="mt-6">
         <GroupRow to="/settings/books" chevron class="min-h-[72px]" :inset="80">
           <template #icon>
             <span
