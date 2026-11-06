@@ -181,7 +181,7 @@ const activeCell = computed(() => Math.min(code.value.length, OTP_LENGTH - 1));
                 spellcheck="false"
                 required
                 placeholder="nama@email.com"
-                class="h-[50px] min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-ter"
+                class="h-[50px] min-w-0 flex-1 bg-transparent text-amount outline-none placeholder:text-ter"
               />
             </label>
             <label v-if="mode === 'password'" class="flex min-h-[50px] items-center gap-3 px-4">
@@ -192,7 +192,7 @@ const activeCell = computed(() => Math.min(code.value.length, OTP_LENGTH - 1));
                 name="password"
                 autocomplete="current-password"
                 required
-                class="h-[50px] min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-ter"
+                class="h-[50px] min-w-0 flex-1 bg-transparent text-amount outline-none placeholder:text-ter"
               />
               <button
                 type="button"

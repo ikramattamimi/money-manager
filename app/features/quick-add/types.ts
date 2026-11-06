@@ -38,6 +38,10 @@ export interface Draft {
   toAccountId: string | null;
   categoryId: string | null;
   note: string;
+  /** Keterangan tambahan (hanya dari Salin) */
+  description?: string;
+  /** Biaya transfer (hanya dari Salin) */
+  fee?: number;
   /** ISO UTC; null = sekarang (saat disimpan) */
   occurredAt: string | null;
   /** Pemasukan baru yang langsung mengganti pengeluaran ("Tandai sudah diganti") */

@@ -3,7 +3,7 @@ import { ChevronLeft } from '@lucide/vue';
 
 // Bar navigasi iOS (mockup .nav/.navrow): latar kartu solid, kembali berlabel
 // di kiri, judul tengah, aksi kanan. Slot default = baris di bawahnya
-// (navigasi bulan, sub-tab). `large` = judul besar 34px seperti Lainnya.
+// (navigasi bulan, sub-tab). `large` = judul besar 34px.
 // Tinggi: safe area atas + 44px baris.
 const props = withDefaults(
   defineProps<{

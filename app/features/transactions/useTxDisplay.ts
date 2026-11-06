@@ -104,6 +104,7 @@ export function useTxDisplay() {
       cat,
       sub: parent ? (c?.name ?? '') : '',
       title: base.title,
+      desc: t.description,
       acct: [acct, base.meta.split(' · ').slice(1).join(' · ')].filter(Boolean).join(' · '),
       amount: base.amount.replace(/^[+−]/, ''),
       was: base.was,

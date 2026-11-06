@@ -93,7 +93,7 @@ function use(t: Template) {
             <b class="truncate text-row font-medium">{{ t.note || t.name }}</b>
             <span class="truncate text-meta text-muted-foreground">{{ caption(t) }}</span>
           </span>
-          <span :class="['shrink-0 text-row font-semibold', TONE[t.type]]">{{
+          <span :class="['shrink-0 text-amount font-semibold', TONE[t.type]]">{{
             t.amount ? formatRupiah(t.amount) : 'Isi nominal'
           }}</span>
         </button>

@@ -59,7 +59,7 @@ withDefaults(
     >
       <i class="imp-prog block h-full rounded-full bg-primary" />
     </div>
-    <p v-if="text" class="m-0 max-w-[320px] text-[14px] leading-[1.45] text-muted-foreground">
+    <p v-if="text" class="m-0 max-w-[320px] text-label leading-[1.45] text-muted-foreground">
       {{ text }}
     </p>
     <slot />

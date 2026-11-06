@@ -13,7 +13,7 @@ const props = withDefaults(
 );
 
 const SIZE = {
-  sm: 'size-7 text-[11px]',
+  sm: 'size-7 text-2xs',
   md: 'size-9 text-xs',
   lg: 'size-12 text-sm',
   xl: 'size-24 text-2xl',

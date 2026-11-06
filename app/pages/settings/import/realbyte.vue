@@ -180,7 +180,7 @@ const showErrors = ref(false);
       <IosButton block class="mt-1" :disabled="!canEdit" @click="input?.click()"
         >Pilih file .xlsx</IosButton
       >
-      <span class="text-[12px] text-muted-foreground">{{
+      <span class="text-note text-muted-foreground">{{
         canEdit
           ? 'File hanya dibaca untuk pratinjau, tidak disimpan.'
           : 'Peranmu di buku ini hanya melihat, jadi tidak bisa mengimpor.'
@@ -214,12 +214,12 @@ const showErrors = ref(false);
           :key="k.label"
           class="flex min-w-0 flex-col gap-px rounded-group bg-card px-2.5 py-[9px]"
         >
-          <small class="truncate text-[11.5px] text-muted-foreground">{{ k.label }}</small>
+          <small class="truncate text-2xs text-muted-foreground">{{ k.label }}</small>
           <b :class="['truncate text-bar font-bold tracking-[-0.02em]', k.tone]">{{ k.value }}</b>
         </div>
       </div>
 
-      <p class="mx-5 mb-0 mt-3 text-[14px] leading-[1.45]">
+      <p class="mx-5 mb-0 mt-3 text-label leading-[1.45]">
         <b>{{ n(preview.newCount) }}</b> transaksi baru akan disimpan.
         <span class="text-muted-foreground">
           Transfer Realbyte (2 baris Out/In) digabung jadi satu.<template v-if="preview.duplicates">
@@ -336,7 +336,7 @@ const showErrors = ref(false);
       </p>
 
       <GlassBar>
-        <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+        <span class="min-w-0 flex-1 text-label text-muted-foreground">
           <template v-if="preview.newCount"
             ><b class="text-bar text-foreground">{{ n(preview.newCount) }}</b> transaksi
             baru</template
@@ -379,7 +379,7 @@ const showErrors = ref(false);
     >
       <div
         v-if="result.inserted"
-        class="mb-1 mt-1.5 self-stretch rounded-group bg-warn-soft px-[13px] py-[11px] text-left text-[13.5px] leading-[1.45]"
+        class="mb-1 mt-1.5 self-stretch rounded-group bg-warn-soft px-[13px] py-[11px] text-left text-label leading-[1.45]"
       >
         <b>Satu langkah lagi.</b> Ekspor Realbyte tidak berisi saldo awal, jadi saldo hasil hitungan
         bisa beda dari aslinya. Isi saldo hari ini supaya cocok.

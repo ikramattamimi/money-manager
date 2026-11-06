@@ -127,7 +127,7 @@ function applyFilter() {
       </div>
       <div class="flex items-center gap-2 px-4 pb-2.5">
         <span
-          class="inline-flex h-[30px] items-center rounded-full bg-fill px-2.5 text-[13.5px] font-semibold"
+          class="inline-flex h-[30px] items-center rounded-full bg-fill px-2.5 text-label font-semibold"
           >{{ selected.longLabel.value }}</span
         >
         <Segmented v-model="kind" :options="KINDS" label="Jenis filter" class="ml-auto w-[210px]" />

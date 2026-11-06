@@ -37,7 +37,7 @@ import TotalCard from '@/components/money/TotalCard.vue';
 import { accountsApi, type Account, type AccountTotal } from '@/features/accounts/api';
 import { accountKeys } from '@/features/accounts/keys';
 import { groupStyle } from '@/features/accounts/style';
-import { useAccountMonths } from '@/features/accounts/useAccountMonth';
+import { useAccountMonths, useAccountYear } from '@/features/accounts/useAccountMonth';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useMonthTransactions } from '@/features/transactions/useTransactions';
@@ -46,7 +46,7 @@ import { MONTHS_LONG, MONTHS_SHORT } from '@/lib/time';
 
 // Tab Akun (mockup accounts): bar "Akun" dengan … (menu: Total akun, grup,
 // pilih banyak, urutkan, buku) dan +; strip Aset / Liabilitas / Total; kartu
-// total akun mendatar; tren aset bersih 6 bulan; grup akun yang bisa dilipat
+// total akun mendatar; tren aset bersih per tahun (digeser, bulan bisa diketuk); grup akun yang bisa dilipat
 // dengan total per grup. Saldo = saldo per akhir bulan terpilih (bulan sama
 // dengan tab Transaksi). Tahan baris = pilih banyak (pindah grup, arsipkan,
 // atur total, dengan Urungkan). iPad/desktop: grup 2 kolom, form di dialog.
@@ -60,6 +60,9 @@ const mutations = useAccountMutations();
 
 // ---------- saldo per akhir bulan terpilih ----------
 const selectedMonth = useSelectedMonth();
+// Ketuk ulang tab Akun (seperti Transaksi) = kembali ke bulan ini
+const retap = useState('nav:retap:accounts', () => 0);
+watch(retap, () => selectedMonth.goToday());
 const { year, month } = selectedMonth;
 const monthly = useAccountMonths(year, month);
 /** Saldo akhir bulan; tanpa RPC (belum dipasang) = saldo sekarang */
@@ -70,7 +73,11 @@ const { md } = useBreakpoint();
 const swipeKey = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`);
 
 // Jumlah transaksi per akun di bulan itu (daftar bulan sudah termuat bersama tab Transaksi)
-const monthTx = useMonthTransactions(year, month);
+const monthTx = useMonthTransactions(year, month, { keep: true });
+// Bulan baru dimuat: isi baru masuk setelah datanya tiba (MonthSwipe `loading`), seperti rincian budget
+const switching = computed(
+  () => monthly.query.isPlaceholderData.value || monthTx.isPlaceholderData.value,
+);
 const txCount = computed(() => {
   const out = new Map<string, number>();
   for (const t of monthTx.data.value ?? []) {
@@ -91,23 +98,39 @@ const strip = computed(() => {
     else debts -= b;
   }
   return [
-    { label: 'Aset', value: formatShort(assets), tone: 'inc' as const },
-    { label: 'Liabilitas', value: formatShort(debts), tone: 'exp' as const },
-    { label: 'Total', value: formatShort(assets - debts) },
+    { label: 'Aset', value: formatRupiah(assets), tone: 'inc' as const },
+    { label: 'Liabilitas', value: formatRupiah(debts), tone: 'exp' as const },
+    { label: 'Total', value: formatRupiah(assets - debts) },
   ];
 });
 
-const views = computed(() =>
-  grouped.value.map((g) => {
-    const items = g.accounts.map((a) => ({ account: a, balance: balanceOf(a) }));
-    return {
-      ...g,
-      style: groupStyle(g),
-      items,
-      total: items.reduce((s, i) => s + i.balance, 0),
-    };
-  }),
-);
+// Total terpilih (ketuk kartu): chart dan daftar hanya untuk akun di total itu
+// useState: bertahan saat membuka rincian akun lalu kembali
+const scopeId = useState<string | null>('acc:scope', () => null);
+const scope = computed(() => totalViews.value.find((t) => t.id === scopeId.value) ?? null);
+// Total dihapus/diganti dari halaman lain: kembali ke semua akun
+watch(scope, (s) => s || (scopeId.value = null));
+function toggleScope(t: AccountTotal) {
+  scopeId.value = scopeId.value === t.id ? null : t.id;
+}
+
+const views = computed(() => {
+  const inScope = scope.value ? new Set(scope.value.accounts.map((a) => a.id)) : null;
+  return grouped.value
+    .map((g) => {
+      const items = g.accounts
+        .filter((a) => !inScope || inScope.has(a.id))
+        .map((a) => ({ account: a, balance: balanceOf(a) }));
+      return {
+        ...g,
+        accounts: items.map((i) => i.account),
+        style: groupStyle(g),
+        items,
+        total: items.reduce((s, i) => s + i.balance, 0),
+      };
+    })
+    .filter((g) => g.items.length > 0);
+});
 const totalCards = computed(() =>
   totalViews.value.map((t) => ({
     ...t,
@@ -116,15 +139,34 @@ const totalCards = computed(() =>
 );
 
 // ---------- tren aset bersih ----------
+// Chart digeser per tahun: tahun berjalan hanya sampai bulan ini, tahun lain
+// penuh Jan–Des. Tahun yang tampil mengikuti bulan terpilih bila berpindah
+// tahun lewat panah/geser halaman.
+const { current } = selectedMonth;
+const MAX_YEARS_BACK = 11;
+const viewYear = ref(year.value);
+watch(year, (y) => (viewYear.value = y));
+const viewEnd = computed(() => (viewYear.value >= current.value.year ? current.value.month : 12));
+const yearData = useAccountYear(viewYear, viewEnd);
+const canPrevYear = computed(() => viewYear.value > current.value.year - MAX_YEARS_BACK);
+const canNextYear = computed(() => viewYear.value < current.value.year);
+function shiftYear(delta: 1 | -1) {
+  viewYear.value += delta;
+}
+function pickTrendMonth(key: string) {
+  const [y, m] = key.split('-').map(Number) as [number, number];
+  selectedMonth.set(y, m);
+}
 const trend = computed(() => {
-  const byAccount = monthly.byAccount.value;
+  const byAccount = yearData.byAccount.value;
   if (!byAccount) return [];
-  return monthly.months.value.map((m, k) => ({
+  return yearData.months.value.map((m, k) => ({
     key: `${m.year}-${m.month}`,
     label: MONTHS_SHORT[m.month - 1]!,
-    value: active.value
-      .filter((a) => a.include_in_total)
-      .reduce((s, a) => s + (byAccount.get(a.id)?.[k]?.end ?? 0), 0),
+    value: (scope.value
+      ? scope.value.accounts
+      : active.value.filter((a) => a.include_in_total)
+    ).reduce((s, a) => s + (byAccount.get(a.id)?.[k]?.end ?? 0), 0),
   }));
 });
 
@@ -159,7 +201,7 @@ const client = useQueryClient();
 const toast = useToast();
 const selecting = ref(false);
 const selected = ref<string[]>([]);
-const visible = computed(() => grouped.value.flatMap((g) => g.accounts));
+const visible = computed(() => views.value.flatMap((g) => g.accounts));
 const chosen = computed(() => visible.value.filter((a) => selected.value.includes(a.id)));
 function toggle(id: string) {
   selected.value = selected.value.includes(id)
@@ -302,7 +344,7 @@ function openTotal(total: AccountTotal | null) {
           v-else
           to="/settings/books"
           :aria-label="`Buku ${book?.name ?? ''}, ganti buku`"
-          class="flex h-11 max-w-[120px] items-center gap-1 px-3 text-body text-primary-accent active:opacity-50"
+          class="flex h-11 max-w-[120px] items-center gap-1 px-3 text-label text-primary-accent active:opacity-50"
         >
           <BookOpen class="size-4 shrink-0" aria-hidden="true" />
           <span class="truncate">{{ book?.name }}</span>
@@ -328,12 +370,12 @@ function openTotal(total: AccountTotal | null) {
       </template>
     </NavBar>
 
-    <SummaryStrip :items="strip" />
+    <SummaryStrip :items="strip" dense />
 
     <!-- Bulan terpilih (sama dengan Transaksi dan Statistik): saldo yang tampil adalah saldo akhir bulan itu -->
     <div
       :class="[
-        'flex items-center gap-2 px-4 py-2 text-meta',
+        'flex items-center gap-2 px-4 py-2 text-note',
         selectedMonth.isCurrent.value
           ? 'bg-card text-muted-foreground shadow-[inset_0_-0.5px_0_var(--sep)]'
           : 'bg-primary-soft text-primary-accent',
@@ -388,7 +430,7 @@ function openTotal(total: AccountTotal | null) {
           </div>
         </section>
       </div>
-      <p class="m-0 px-8 pt-2 text-meta text-muted-foreground">
+      <p class="m-0 px-8 pt-2 text-note text-muted-foreground">
         Seret pegangan di kanan untuk mengubah urutan.
       </p>
     </template>
@@ -399,53 +441,99 @@ function openTotal(total: AccountTotal | null) {
       :prev-label="selectedMonth.neighborLabel(-1)"
       :next-label="selectedMonth.neighborLabel(1)"
       :can-next="selectedMonth.canNext.value"
+      :loading="switching"
       :disabled="md || selecting"
       class="min-h-[60dvh]"
       @shift="selectedMonth.shift"
     >
-      <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
-      <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
-        <template #aside>
-          <NuxtLink to="/accounts/totals" class="normal-case text-primary-accent active:opacity-50">
-            Kelola ›
-          </NuxtLink>
-        </template>
-      </SectionHeader>
-      <div
-        v-if="totalCards.length || canEdit"
-        class="flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        <TotalCard
-          v-for="t in totalCards"
-          :key="t.id"
-          :name="t.name"
-          :value="formatShort(t.value)"
-          :caption="`${t.accounts.length} akun${t.on_transactions ? ' · di Transaksi' : ''}`"
-          :on="t.on_transactions"
-          @click="openTotal(t)"
-        />
-        <TotalCard
-          v-if="canEdit"
-          add
-          name="+ Total baru"
-          caption="Kelompokkan akun"
-          @click="openTotal(null)"
-        />
-      </div>
+      <!-- Kartu total dan chart diam saat pindah bulan (seperti rincian budget); hanya daftar akun yang bergeser -->
+      <template #fixed>
+        <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
+        <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
+          <template #aside>
+            <NuxtLink
+              to="/accounts/totals"
+              class="normal-case text-primary-accent active:opacity-50"
+            >
+              Kelola ›
+            </NuxtLink>
+          </template>
+        </SectionHeader>
+        <div
+          v-if="totalCards.length || canEdit"
+          class="flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <TotalCard
+            v-for="t in totalCards"
+            :key="t.id"
+            :name="t.name"
+            :value="formatShort(t.value)"
+            :caption="`${t.accounts.length} akun${t.on_transactions ? ' · di Transaksi' : ''}`"
+            :on="t.on_transactions"
+            :selected="t.id === scopeId"
+            @click="toggleScope(t)"
+          />
+          <TotalCard
+            v-if="canEdit"
+            add
+            name="+ Total baru"
+            caption="Kelompokkan akun"
+            @click="openTotal(null)"
+          />
+        </div>
 
-      <NetWorthSpark
-        :points="trend"
-        :current="`${year}-${month}`"
-        :note="
-          monthly.available.value
-            ? accounts.isPending.value || monthly.query.isPending.value
-              ? 'Memuat…'
-              : undefined
-            : 'Tren belum tersedia: database perlu diperbarui.'
-        "
-      />
+        <!-- Filter aktif: bisa diubah atau dilepas tanpa mencari kartunya lagi -->
+        <div
+          v-if="scope"
+          class="mx-4 mt-2.5 flex items-center gap-3 px-1 text-note text-muted-foreground"
+        >
+          <span class="min-w-0 flex-1 truncate">
+            Menampilkan <b class="text-foreground">{{ scope.accounts.length }} akun</b> di
+            {{ scope.name }}
+          </span>
+          <button
+            v-if="canEdit"
+            type="button"
+            class="shrink-0 font-semibold text-primary-accent active:opacity-50"
+            @click="openTotal(scope)"
+          >
+            Ubah
+          </button>
+          <button
+            type="button"
+            class="shrink-0 font-semibold text-primary-accent active:opacity-50"
+            @click="scopeId = null"
+          >
+            Semua akun
+          </button>
+        </div>
+
+        <NetWorthSpark
+          :title="scope ? `Tren ${scope.name}` : 'Tren aset bersih'"
+          :year="viewYear"
+          :can-prev="canPrevYear"
+          :can-next="canNextYear"
+          :points="trend"
+          :current="`${year}-${month}`"
+          :loading="yearData.query.isPlaceholderData.value"
+          :note="
+            monthly.available.value
+              ? accounts.isPending.value || yearData.query.isPending.value
+                ? 'Memuat…'
+                : undefined
+              : 'Tren belum tersedia: database perlu diperbarui.'
+          "
+          @pick="pickTrendMonth"
+          @year="shiftYear"
+        />
+      </template>
 
       <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />
+      <EmptyCard
+        v-else-if="!views.length && scope"
+        :title="`${scope.name} belum berisi akun`"
+        description="Atur lewat Ubah, atau tahan akun lalu pilih Atur total."
+      />
       <EmptyCard
         v-else-if="!views.length"
         title="Belum ada akun"
@@ -459,7 +547,7 @@ function openTotal(total: AccountTotal | null) {
         <section v-for="g in views" :key="g.id">
           <button
             type="button"
-            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pl-8 pr-8 pt-[18px] text-left text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pl-8 pr-8 pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
             :aria-expanded="!collapsed.includes(g.id)"
             @click="toggleGroup(g.id)"
           >
@@ -502,7 +590,7 @@ function openTotal(total: AccountTotal | null) {
       <template v-if="archived.length">
         <button
           type="button"
-          class="mt-2 flex w-full items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-left text-meta uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+          class="mt-2 flex w-full items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
           :aria-expanded="showArchived"
           @click="showArchived = !showArchived"
         >
@@ -537,7 +625,7 @@ function openTotal(total: AccountTotal | null) {
 
       <p
         v-if="canEdit && views.length && !selecting"
-        class="m-0 px-8 pt-3 text-center text-meta text-muted-foreground"
+        class="m-0 px-8 pt-3 text-center text-note text-muted-foreground"
       >
         Tahan akun untuk memilih banyak.
       </p>
@@ -550,7 +638,7 @@ function openTotal(total: AccountTotal | null) {
       role="toolbar"
       aria-label="Aksi untuk akun terpilih"
     >
-      <span class="px-1 text-meta text-muted-foreground">
+      <span class="px-1 text-note text-muted-foreground">
         <b class="text-foreground">{{ chosen.length }}</b> dari {{ visible.length }} akun dipilih
       </span>
       <div class="grid grid-cols-3 gap-2">

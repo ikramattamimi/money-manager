@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronLeft, ChevronRight } from '@lucide/vue';
+import { ChevronDown, ChevronRight } from '@lucide/vue';
 import Donut from '@/components/charts/Donut.vue';
 import TrendBars from '@/components/charts/TrendBars.vue';
 import { IOS_TONE } from '@/components/data/tone';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
 import GroupedList from '@/components/ios/GroupedList.vue';
+import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
 import IosSheet from '@/components/ios/IosSheet.vue';
+import MonthNav from '@/components/ios/MonthNav.vue';
+import MonthPickerSheet from '@/components/ios/MonthPickerSheet.vue';
 import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import NavBar from '@/components/ios/NavBar.vue';
 import Segmented from '@/components/ios/Segmented.vue';
@@ -21,7 +24,7 @@ import {
   useTrend,
 } from '@/features/stats/useStats';
 import { formatRupiah } from '@/lib/format';
-import { MONTHS_SHORT } from '@/lib/time';
+import { MONTHS_LONG, MONTHS_SHORT, periodOf, periodStartDate } from '@/lib/time';
 
 // Tab Statistik (mockup stats, stats-budget, stats-note): bar ‹ periode › +
 // pil jenis periode, sub-tab Statistik · Budget · Catatan. Statistik: tombol
@@ -31,6 +34,13 @@ definePageMeta({ layout: 'app' });
 useHead({ title: 'Statistik · Money Manager' });
 
 const { period, bounds, monthStartDay } = useStatsPeriod();
+
+// Ketuk ulang tab Statistik (seperti Transaksi) = kembali ke bulan ini, dari
+// jenis periode apa pun (minggu, tahun, rentang) atau bulan lain
+const retap = useState('nav:retap:stats', () => 0);
+watch(retap, () => {
+  period.value = { kind: 'month', anchor: todayWib() };
+});
 const { md } = useBreakpoint();
 const kind = useState<'expense' | 'income'>('stats:kind', () => 'expense');
 const SUBS = [
@@ -41,7 +51,14 @@ const SUBS = [
 const sub = useState<(typeof SUBS)[number]['value']>('stats:sub', () => 'stats');
 
 // ---------- periode ----------
-const canNext = computed(() => hasNext(period.value, new Date(), monthStartDay.value));
+// Tab Budget boleh maju satu periode ke depan (budget berlaku terus, datanya kosong);
+// tab lain berhenti di periode berjalan. Periode ke depan boleh dilihat selama
+// periode sebelumnya sudah dimulai.
+const canNext = computed(() =>
+  sub.value === 'budget'
+    ? hasNext(shiftPeriod(period.value, -1, monthStartDay.value), new Date(), monthStartDay.value)
+    : hasNext(period.value, new Date(), monthStartDay.value),
+);
 const shift = (delta: number) =>
   (period.value = shiftPeriod(period.value, delta, monthStartDay.value));
 const neighbor = (delta: number) => {
@@ -57,13 +74,20 @@ const neighbor = (delta: number) => {
 };
 const swipeKey = computed(() => `${period.value.kind}:${bounds.value.from}`);
 
-const KINDS: { value: PeriodKind; label: string; short: string }[] = [
-  { value: 'week', label: 'Mingguan', short: 'Minggu' },
-  { value: 'month', label: 'Bulanan', short: 'Bulan' },
-  { value: 'year', label: 'Tahunan', short: 'Tahun' },
-  { value: 'range', label: 'Periode', short: 'Periode' },
+const KINDS: { value: PeriodKind; label: string; letter: string }[] = [
+  { value: 'week', label: 'Mingguan', letter: 'M' },
+  { value: 'month', label: 'Bulanan', letter: 'B' },
+  { value: 'year', label: 'Tahunan', letter: 'T' },
+  { value: 'range', label: 'Periode', letter: 'P' },
 ];
-const kindLabel = computed(() => KINDS.find((k) => k.value === period.value.kind)!.short);
+const currentKind = computed(() => KINDS.find((k) => k.value === period.value.kind)!);
+/** Bulan disingkat seperti bar Transaksi ("Nov 2026"); jenis lain apa adanya */
+const headerLabel = computed(() => {
+  const label = bounds.value.label;
+  if (period.value.kind !== 'month') return label;
+  const i = MONTHS_LONG.findIndex((m) => label.startsWith(m));
+  return i < 0 ? label : label.replace(MONTHS_LONG[i]!, MONTHS_SHORT[i]!);
+});
 const periodOpen = ref(false);
 const rangeFrom = ref(period.value.from ?? `${todayWib().slice(0, 8)}01`);
 const rangeTo = ref(period.value.to ?? todayWib());
@@ -76,6 +100,42 @@ function pickKind(k: PeriodKind) {
   period.value = { kind: k, anchor: period.value.kind === 'range' ? today : period.value.anchor };
   periodOpen.value = false;
 }
+// Ketuk judul periode = pilih periode tertentu sesuai jenisnya: bulan (grid
+// bulan seperti Transaksi), minggu (tanggal mana saja di minggu itu), tahun
+// (daftar tahun). Rentang memakai lembar jenis periode yang punya Dari/Sampai.
+const monthPickOpen = ref(false);
+const weekPickOpen = ref(false);
+const yearPickOpen = ref(false);
+const currentMonth = computed(() => periodOf(todayWib(), monthStartDay.value));
+const shownMonth = computed(() => periodOf(period.value.anchor, monthStartDay.value));
+const weekDate = ref(todayWib());
+const YEARS_BACK = 11;
+const years = computed(() => {
+  const now = Number(todayWib().slice(0, 4));
+  return Array.from({ length: YEARS_BACK + 1 }, (_, i) => now - i);
+});
+function openPicker() {
+  const k = period.value.kind;
+  if (k === 'month') monthPickOpen.value = true;
+  else if (k === 'week') {
+    weekDate.value = period.value.anchor;
+    weekPickOpen.value = true;
+  } else if (k === 'year') yearPickOpen.value = true;
+  else periodOpen.value = true;
+}
+function pickMonth(y: number, m: number) {
+  period.value = { kind: 'month', anchor: periodStartDate(y, m, monthStartDay.value) };
+}
+function pickWeek(date: string) {
+  if (!date) return;
+  period.value = { kind: 'week', anchor: date };
+  weekPickOpen.value = false;
+}
+function pickYear(y: number) {
+  period.value = { kind: 'year', anchor: `${y}-01-01` };
+  yearPickOpen.value = false;
+}
+
 watch([rangeFrom, rangeTo], ([from, to]) => {
   if (period.value.kind === 'range' && from && to)
     period.value = { kind: 'range', anchor: to, from, to: to >= from ? to : from };
@@ -124,46 +184,31 @@ const noteRows = computed(() => {
   <div
     class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
   >
+    <!-- Sama dengan bar Transaksi: ‹ periode › di tengah, tombol ikon 44px di
+         kanan. Jenis periode = huruf dalam kotak (gaya ikon tab Transaksi). -->
     <NavBar title="Statistik" class="sticky top-0 md:static">
       <template #center>
-        <div class="flex flex-1 items-center justify-center gap-0.5">
-          <button
-            type="button"
-            aria-label="Periode sebelumnya"
-            class="stats-ib grid size-11 place-items-center rounded-xl active:scale-90 active:bg-fill-press"
-            @click="shift(-1)"
-          >
-            <ChevronLeft class="size-5" stroke-width="2.2" aria-hidden="true" />
-          </button>
-          <span class="flex min-w-[104px] flex-col items-center px-1" aria-live="polite">
-            <span class="max-w-[170px] truncate text-bar font-semibold tracking-[-0.02em]">{{
-              bounds.label
-            }}</span>
-            <small v-if="bounds.range" class="-mt-0.5 text-2xs text-muted-foreground">{{
-              bounds.range
-            }}</small>
-          </span>
-          <button
-            type="button"
-            aria-label="Periode berikutnya"
-            :disabled="!canNext"
-            class="stats-ib grid size-11 place-items-center rounded-xl active:scale-90 active:bg-fill-press disabled:opacity-30"
-            @click="shift(1)"
-          >
-            <ChevronRight class="size-5" stroke-width="2.2" aria-hidden="true" />
-          </button>
-        </div>
+        <MonthNav
+          :label="headerLabel"
+          :long-label="bounds.label"
+          :hint="bounds.range"
+          :can-next="canNext"
+          unit="Periode"
+          @prev="shift(-1)"
+          @next="shift(1)"
+          @pick="openPicker"
+        />
       </template>
       <template #right>
-        <button
-          type="button"
+        <IconButton
+          :label="`Jenis periode: ${currentKind.label}`"
           aria-haspopup="dialog"
-          :aria-label="`Jenis periode: ${kindLabel}`"
-          class="mr-1.5 inline-flex h-[30px] items-center gap-1 rounded-full bg-fill px-2.5 text-[13.5px] font-semibold"
           @click="periodOpen = true"
         >
-          {{ kindLabel }}<ChevronDown class="size-3.5" stroke-width="2.6" aria-hidden="true" />
-        </button>
+          <span class="kind-box gap-px pl-[5px] pr-[3px]" aria-hidden="true"
+            >{{ currentKind.letter }}<ChevronDown class="size-2.5! shrink-0" stroke-width="3.2"
+          /></span>
+        </IconButton>
       </template>
       <SubTabs v-model="sub" :options="SUBS" label="Jenis statistik" />
     </NavBar>
@@ -197,11 +242,11 @@ const noteRows = computed(() => {
             :key="k.value"
             type="button"
             :aria-pressed="kind === k.value"
-            class="relative flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-meta font-semibold text-muted-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-1/4 aria-pressed:after:bottom-0 aria-pressed:after:h-[2.5px] aria-pressed:after:rounded-sm aria-pressed:after:bg-foreground"
+            class="relative flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-note font-semibold text-muted-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-1/4 aria-pressed:after:bottom-0 aria-pressed:after:h-[2.5px] aria-pressed:after:rounded-sm aria-pressed:after:bg-foreground"
             @click="kind = k.value"
           >
             {{ k.label }}
-            <b :class="['text-body', k.cls]">{{ formatRupiah(k.total) }}</b>
+            <b :class="['text-amount', k.cls]">{{ formatRupiah(k.total) }}</b>
           </button>
         </div>
 
@@ -236,8 +281,8 @@ const noteRows = computed(() => {
                 :style="{ background: `var(--tone-${IOS_TONE[s.tone]})` }"
                 >{{ percent(s.value) }}%</span
               >
-              <b class="min-w-0 flex-1 truncate text-row font-medium">{{ s.label }}</b>
-              <span class="shrink-0 text-row font-semibold">{{ formatRupiah(s.value) }}</span>
+              <b class="min-w-0 flex-1 truncate text-label font-medium">{{ s.label }}</b>
+              <span class="shrink-0 text-amount font-semibold">{{ formatRupiah(s.value) }}</span>
               <ChevronRight
                 class="size-[18px] shrink-0 text-chevron"
                 stroke-width="2.6"
@@ -280,7 +325,7 @@ const noteRows = computed(() => {
           />
         </div>
         <div class="flex items-center gap-2 bg-card px-4 pb-3">
-          <span class="text-meta text-muted-foreground">Urutkan</span>
+          <span class="text-note text-muted-foreground">Urutkan</span>
           <Segmented v-model="noteSort" :options="SORTS" label="Urutkan" class="flex-1" />
         </div>
         <EmptyCard
@@ -304,12 +349,12 @@ const noteRows = computed(() => {
             class="note-row flex min-h-12 items-center gap-3 py-2 pl-4 pr-3.5"
           >
             <span class="flex min-w-0 flex-1 flex-col">
-              <b class="truncate text-row font-medium">{{ n.note }}</b>
-              <span class="text-meta text-muted-foreground">{{ n.tx_count }} transaksi</span>
+              <b class="truncate text-label font-medium">{{ n.note }}</b>
+              <span class="text-note text-muted-foreground">{{ n.tx_count }} transaksi</span>
             </span>
             <span
               :class="[
-                'shrink-0 text-row font-semibold',
+                'shrink-0 text-amount font-semibold',
                 kind === 'expense' ? 'text-exp' : 'text-inc',
               ]"
               >{{ formatRupiah(n.total) }}</span
@@ -325,18 +370,23 @@ const noteRows = computed(() => {
         v-for="k in KINDS"
         :key="k.value"
         type="button"
-        class="flex h-[50px] w-full items-center gap-2.5 px-1 text-left text-row shadow-[inset_0_-0.5px_0_var(--sep)] last:shadow-none"
+        class="flex h-[50px] w-full items-center gap-2.5 px-1 text-left text-label shadow-[inset_0_-0.5px_0_var(--sep)] last:shadow-none"
         @click="pickKind(k.value)"
       >
+        <span
+          :class="['kind-box', period.kind === k.value ? 'text-primary-accent' : 'text-ter']"
+          aria-hidden="true"
+          >{{ k.letter }}</span
+        >
         <span class="flex-1">{{ k.label }}</span>
         <b v-if="period.kind === k.value" class="text-primary-accent">✓</b>
       </button>
       <div v-if="period.kind === 'range'" class="grid grid-cols-2 gap-3 pb-1 pt-3">
-        <label class="flex flex-col gap-1 text-meta text-muted-foreground">
+        <label class="flex flex-col gap-1 text-note text-muted-foreground">
           Dari
           <input v-model="rangeFrom" type="date" class="field-input" :max="rangeTo" />
         </label>
-        <label class="flex flex-col gap-1 text-meta text-muted-foreground">
+        <label class="flex flex-col gap-1 text-note text-muted-foreground">
           Sampai
           <input v-model="rangeTo" type="date" class="field-input" :min="rangeFrom" />
         </label>
@@ -345,12 +395,71 @@ const noteRows = computed(() => {
         <IosButton block @click="periodOpen = false">Selesai</IosButton>
       </template>
     </IosSheet>
+
+    <!-- Pilih periode tertentu (ketuk judul di bar) -->
+    <MonthPickerSheet
+      v-model:open="monthPickOpen"
+      :year="shownMonth.year"
+      :month="shownMonth.month"
+      :current="currentMonth"
+      :max-index="currentMonth.year * 12 + currentMonth.month - 1"
+      @pick="pickMonth"
+    />
+    <IosSheet v-model:open="weekPickOpen" title="Pilih minggu">
+      <label class="flex flex-col gap-1 text-note text-muted-foreground">
+        Tanggal mana saja di minggu itu
+        <input
+          :value="weekDate"
+          type="date"
+          class="field-input"
+          :max="todayWib()"
+          @change="pickWeek(($event.target as HTMLInputElement).value)"
+        />
+      </label>
+      <template #footer>
+        <IosButton block variant="gray" @click="pickWeek(todayWib())"
+          >Kembali ke minggu ini</IosButton
+        >
+      </template>
+    </IosSheet>
+    <IosSheet v-model:open="yearPickOpen" title="Pilih tahun">
+      <div class="grid grid-cols-4 gap-2">
+        <button
+          v-for="y in years"
+          :key="y"
+          type="button"
+          :aria-pressed="bounds.label === String(y)"
+          :class="[
+            'year-cell h-12 rounded-xl text-label font-semibold active:scale-95',
+            bounds.label === String(y) ? 'bg-primary text-primary-foreground' : 'bg-fill',
+          ]"
+          @click="pickYear(y)"
+        >
+          {{ y }}
+        </button>
+      </div>
+    </IosSheet>
   </div>
 </template>
 
 <style scoped>
-.stats-ib {
-  transition: transform 120ms var(--ease-out);
+/* Huruf jenis periode dalam kotak, ukuran dan garis sama dengan ikon tab
+   Transaksi (kotak tanggal) supaya terbaca sebagai ikon, bukan teks */
+.year-cell {
+  transition: transform 140ms var(--ease-out);
+}
+.kind-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  border: 1.8px solid currentColor;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 .slice-row,
 .note-row {

@@ -62,13 +62,13 @@ export function weekdayOf(key: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-/** Bagian kepala hari: "30", "Kam", "10.2026", nada hari (Sabtu biru, Minggu merah) */
+/** Bagian kepala hari: "30", "Kam", "10/2026", nada hari (Sabtu biru, Minggu merah) */
 export function dayParts(key: string) {
   const wd = weekdayOf(key);
   return {
     num: Number(key.slice(8)),
     weekday: DAYS_SHORT[wd]!,
-    monthYear: `${key.slice(5, 7)}.${key.slice(0, 4)}`,
+    monthYear: `${key.slice(5, 7)}/${key.slice(0, 4)}`,
     tone: wd === 6 ? ('sat' as const) : wd === 0 ? ('sun' as const) : null,
   };
 }

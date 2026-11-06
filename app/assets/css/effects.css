@@ -14,7 +14,7 @@
     border: 1px solid var(--border-strong);
     background: var(--card);
     color: var(--foreground);
-    font-size: 16px;
+    font-size: 13.5px;
     outline: none;
   }
   .field-input:focus {

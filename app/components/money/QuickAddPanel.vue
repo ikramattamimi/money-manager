@@ -230,7 +230,7 @@ defineExpose({ focus });
           autocapitalize="off"
           spellcheck="false"
           placeholder="Ketik saja: kopi 25rb gopay"
-          class="h-12 w-full rounded-[12px] bg-fill px-3.5 text-row outline-none placeholder:text-ter focus:shadow-[0_0_0_2px_var(--primary-accent)]"
+          class="h-12 w-full rounded-[12px] bg-fill px-3.5 text-amount outline-none placeholder:text-ter focus:shadow-[0_0_0_2px_var(--primary-accent)]"
           @input="qa.setText(($event.target as HTMLInputElement).value)"
           @focus="picker = null"
           @keydown.enter.prevent="save()"

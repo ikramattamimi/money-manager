@@ -35,8 +35,8 @@ import {
 } from '@/lib/time';
 
 // Rincian budget (mockup budget-detail): strip Budget / Terpakai / Sisa,
-// grafik garis budget + batang terpakai 7 bulan (kolom diketuk = pindah
-// bulan), lalu transaksinya. Geser isi = bulan sebelumnya/berikutnya.
+// grafik garis budget + batang terpakai setahun (digeser per tahun seperti
+// rincian kategori, kolom diketuk = pindah bulan), lalu transaksinya. Geser isi = bulan sebelumnya/berikutnya.
 // Pensil = ubah nominal. /stats/budget/total, /<id kategori>, atau /other
 // (pengeluaran di luar kategori yang punya budget). ?month=2026-10
 definePageMeta({ layout: 'app' });
@@ -46,8 +46,14 @@ const { bookId, canEdit, monthStartDay } = useActiveBook();
 const { ym, year, month, shift, key: monthKey } = useBudgetMonth();
 const fromQuery = String(route.query.month ?? '').match(/^(\d{4})-(\d{2})$/);
 if (fromQuery) ym.value = { year: Number(fromQuery[1]), month: Number(fromQuery[2]) };
-// Bulan ikut di URL supaya kembali/muat ulang tetap di bulan yang sama
-watch(monthKey, (k) => navigateTo({ query: { ...route.query, month: k } }, { replace: true }));
+// Bulan ikut di URL supaya kembali/muat ulang tetap di bulan yang sama. Lewat
+// history.replaceState, bukan navigateTo: navigasi router tiap ganti bulan
+// membuat halaman (termasuk bar navigasi) dirender ulang dan berkedip.
+watch(monthKey, (k) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('month', k);
+  window.history.replaceState(window.history.state, '', url);
+});
 
 const categories = useCategories();
 const { views } = useBudgetStatus(year, month);
@@ -136,17 +142,39 @@ const strip = computed(() => {
 
 // ---------- grafik 7 bulan ----------
 const today = computed(() => periodOf(dayKey(new Date()), monthStartDay.value));
+// Grafik setahun penuh seperti rincian kategori: digeser per tahun, tahun
+// berjalan hanya sampai bulan ini. Tahun yang tampil mengikuti bulan terpilih
+// bila berpindah tahun lewat panah/geser halaman.
+const MAX_YEARS_BACK = 11;
+const viewYear = ref(year.value);
+watch(year, (y) => (viewYear.value = y));
+const viewEnd = computed(() => ({
+  year: viewYear.value,
+  month: viewYear.value >= today.value.year ? today.value.month : 12,
+}));
+const canPrevYear = computed(() => viewYear.value > today.value.year - MAX_YEARS_BACK);
+const canNextYear = computed(() => viewYear.value < today.value.year);
+function shiftYear(delta: 1 | -1) {
+  viewYear.value += delta;
+}
 const trend = useQuery({
   queryKey: computed(() => [
     ...statsKeys.all,
     'trend',
     bookId.value,
-    year.value,
-    month.value,
-    7,
+    viewEnd.value.year,
+    viewEnd.value.month,
+    viewEnd.value.month,
     categoryId.value,
   ]),
-  queryFn: () => statsApi.trend(bookId.value!, year.value, month.value, 7, categoryId.value),
+  queryFn: () =>
+    statsApi.trend(
+      bookId.value!,
+      viewEnd.value.year,
+      viewEnd.value.month,
+      viewEnd.value.month,
+      categoryId.value,
+    ),
   enabled: computed(() => !!bookId.value && !isOther.value),
   placeholderData: (prev) => prev,
 });
@@ -229,19 +257,30 @@ const editor = useTxEditor();
 
     <MonthSwipe
       :month-key="monthKey"
+      :loading="isOther ? monthTx.isPending.value : search.isPlaceholderData.value"
       :prev-label="neighbor(-1)"
       :next-label="neighbor(1)"
       class="min-h-[60dvh]"
       @shift="shift"
     >
-      <div v-if="!isOther" class="bg-card px-2 pb-2.5 pt-2.5 shadow-[inset_0_-0.5px_0_var(--sep)]">
-        <BudgetChart
-          :points="chart"
-          :label="`Budget dan pengeluaran ${title} 7 bulan sampai ${MONTHS_SHORT[month - 1]} ${year}`"
-          @pick="pickMonth"
-        />
-      </div>
-      <p v-else class="mx-8 mb-0 mt-3 text-meta text-muted-foreground">
+      <template #fixed>
+        <div
+          v-if="!isOther"
+          class="bg-card px-2 pb-2.5 pt-2.5 shadow-[inset_0_-0.5px_0_var(--sep)]"
+        >
+          <BudgetChart
+            :year="viewYear"
+            :can-prev="canPrevYear"
+            :can-next="canNextYear"
+            :points="chart"
+            :loading="trend.isPlaceholderData.value"
+            :label="`Budget dan pengeluaran ${title} per bulan, ${viewYear}`"
+            @pick="pickMonth"
+            @year="shiftYear"
+          />
+        </div>
+      </template>
+      <p v-if="isOther" class="mx-8 mb-0 mt-3 text-note text-muted-foreground">
         Pengeluaran di kategori yang belum punya budget bulan ini.
       </p>
 

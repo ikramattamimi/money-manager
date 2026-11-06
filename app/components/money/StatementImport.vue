@@ -560,7 +560,7 @@ function finish() {
             @click="withAccount(() => input?.click())"
           >
             <Plus class="size-7" stroke-width="2" aria-hidden="true" />
-            <span class="text-[12px] font-semibold">Foto</span>
+            <span class="text-note font-semibold">Foto</span>
           </button>
         </div>
         <p
@@ -651,7 +651,7 @@ function finish() {
             · {{ periodLabel }}</template
           ></span
         >
-        <span class="text-[14px]">
+        <span class="text-label">
           Masuk <b class="text-inc">{{ rp(preview.totals.in) }}</b> · Keluar
           <b class="text-exp">{{ rp(preview.totals.out) }}</b>
           <span v-if="totalsMatch" class="text-ok"> · cocok dengan file</span>
@@ -741,7 +741,7 @@ function finish() {
 
       <GlassBar :embedded="embedded" :class="['flex-wrap', embedded && 'mx-0']">
         <template v-if="selecting">
-          <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+          <span class="min-w-0 flex-1 text-label text-muted-foreground">
             <b class="text-bar text-foreground">{{ selected.size }}</b> dipilih
           </span>
           <button
@@ -769,7 +769,7 @@ function finish() {
           </div>
         </template>
         <template v-else>
-          <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+          <span class="min-w-0 flex-1 text-label text-muted-foreground">
             <template v-if="missingAccount">
               <span class="text-warn">{{ missingAccount }} transfer belum ada akun lawannya</span>
             </template>

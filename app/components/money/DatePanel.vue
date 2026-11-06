@@ -83,7 +83,7 @@ const label = (t: string) => t.replace(':', '.');
       <span
         v-for="h in ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']"
         :key="h"
-        class="pb-1 pt-0.5 text-center text-[11px] font-semibold text-muted-foreground"
+        class="pb-1 pt-0.5 text-center text-2xs font-semibold text-muted-foreground"
         >{{ h }}</span
       >
       <span v-for="n in blanks" :key="`b${n}`" />
@@ -107,7 +107,7 @@ const label = (t: string) => t.replace(':', '.');
       </button>
     </div>
     <div class="mt-2 flex items-center gap-2 border-t-[0.5px] border-sep px-0.5 pt-2.5">
-      <b class="text-[14px] font-semibold text-muted-foreground">Jam</b>
+      <b class="text-label font-semibold text-muted-foreground">Jam</b>
       <div
         class="ml-auto flex items-center gap-0.5 rounded-[10px] bg-[var(--kb-key)] p-0.5 shadow-[0_1px_0_var(--kb-shadow)]"
       >

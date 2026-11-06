@@ -127,7 +127,7 @@ function exportMonth() {
           i > 0 && 'shadow-[inset_0_0.5px_0_var(--sep)]',
         ]"
       >
-        <div class="flex items-baseline justify-between gap-3 text-[14.5px] font-semibold">
+        <div class="flex items-baseline justify-between gap-3 text-amount font-semibold">
           <span class="truncate">{{ b.label }}</span>
           <span
             :class="[
@@ -158,7 +158,7 @@ function exportMonth() {
             aria-hidden="true"
           />
         </div>
-        <div class="flex justify-between text-[12.5px] text-muted-foreground">
+        <div class="flex justify-between text-note text-muted-foreground">
           <span>{{ b.spent }}</span
           ><span>{{ b.of }}</span>
         </div>

@@ -310,7 +310,7 @@ async function deleteBook() {
           class="mx-4 mt-3.5 flex flex-col gap-2.5 rounded-group bg-card p-4"
           aria-live="polite"
         >
-          <span class="text-[14px]">
+          <span class="text-label">
             {{
               lastInvite.emailed
                 ? `Email undangan terkirim ke ${lastInvite.invite.email}.`

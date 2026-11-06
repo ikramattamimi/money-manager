@@ -166,7 +166,7 @@ async function restore() {
             type="text"
             maxlength="60"
             autocomplete="off"
-            class="h-12 w-full bg-transparent text-row outline-none"
+            class="h-12 w-full bg-transparent text-amount outline-none"
           />
         </label>
       </GroupedList>

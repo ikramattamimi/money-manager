@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
-import MonthBars from '@/components/charts/MonthBars.vue';
+import LineTrend from '@/components/charts/LineTrend.vue';
 import { IOS_TONE } from '@/components/data/tone';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
 import GroupedList from '@/components/ios/GroupedList.vue';
+import MonthSwipe from '@/components/ios/MonthSwipe.vue';
 import NavBar from '@/components/ios/NavBar.vue';
 import DayGroup from '@/components/money/DayGroup.vue';
 import TxRow from '@/components/money/TxRow.vue';
@@ -11,15 +12,16 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useSearch } from '@/features/search/useSearch';
 import { statsApi } from '@/features/stats/api';
+import { hasNext, shiftPeriod, todayWib } from '@/features/stats/period';
 import { statsKeys, useBreakdown, useStatsPeriod, useTrend } from '@/features/stats/useStats';
 import { groupByDay } from '@/features/transactions/grouping';
 import { useTxDisplay } from '@/features/transactions/useTxDisplay';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
-import { formatRupiah, formatShort } from '@/lib/format';
-import { addMonths, MONTHS_SHORT, periodOf, periodRange, periodStartDate } from '@/lib/time';
+import { formatRupiah } from '@/lib/format';
+import { MONTHS_SHORT, periodOf, periodRange, periodStartDate } from '@/lib/time';
 
-// Rincian satu kategori (mockup stats-category): batang 6 bulan dengan garis
-// rata-rata (kolom diketuk = pindah bulan), sub-kategori dengan persen, lalu
+// Rincian satu kategori (mockup stats-category): grafik garis per bulan setahun
+// dengan nominal di tiap titik (digeser per tahun, kolom diketuk = pindah bulan), sub-kategori dengan persen, lalu
 // transaksinya per hari di periode yang sama dengan Statistik.
 // /stats/category/none = transaksi tanpa kategori.
 definePageMeta({ layout: 'app' });
@@ -47,18 +49,50 @@ const color = computed(
 );
 const pct = (v: number) => (slice.value?.value ? Math.round((v / slice.value.value) * 100) : 0);
 
-const trend = useTrend(
-  6,
-  computed(() => (isNone.value ? null : id.value)),
+// Chart digeser per tahun: tahun berjalan hanya sampai bulan ini, tahun lain
+// penuh Jan–Des. Tahun yang tampil mengikuti bulan terpilih bila berpindah
+// tahun lewat panah/geser halaman.
+const MAX_YEARS_BACK = 11;
+const today = computed(() => periodOf(todayWib(), monthStartDay.value));
+const viewYear = ref(bounds.value.endYear);
+watch(
+  () => bounds.value.endYear,
+  (y) => (viewYear.value = y),
 );
-// Tanpa kategori: 6 bulan transaksi dibaca sekali, dijumlah per periode bulan di sini
-const noneRange = computed(() => {
-  const first = addMonths(bounds.value.endYear, bounds.value.endMonth, -5);
-  return {
-    from: periodRange(first.year, first.month, monthStartDay.value).from,
-    to: periodRange(bounds.value.endYear, bounds.value.endMonth, monthStartDay.value).to,
-  };
-});
+const viewEnd = computed(() => ({
+  year: viewYear.value,
+  month: viewYear.value >= today.value.year ? today.value.month : 12,
+}));
+const canPrevYear = computed(() => viewYear.value > today.value.year - MAX_YEARS_BACK);
+const canNextYear = computed(() => viewYear.value < today.value.year);
+function shiftYear(delta: 1 | -1) {
+  viewYear.value += delta;
+}
+
+// Geser isi = periode berikutnya/sebelumnya, sama dengan Statistik dan rincian budget:
+// grafik diam di tempat, hanya daftar di bawahnya yang bergeser
+const { md } = useBreakpoint();
+const canNext = computed(() => hasNext(period.value, new Date(), monthStartDay.value));
+const shift = (delta: number) =>
+  (period.value = shiftPeriod(period.value, delta, monthStartDay.value));
+const neighbor = (delta: number) => {
+  const p = shiftPeriod(period.value, delta, monthStartDay.value);
+  if (p.kind === 'month') return MONTHS_SHORT[Number(p.anchor.slice(5, 7)) - 1] ?? '';
+  if (p.kind === 'year') return p.anchor.slice(0, 4);
+  return delta < 0 ? 'Sebelumnya' : 'Berikutnya';
+};
+const swipeKey = computed(() => `${period.value.kind}:${bounds.value.from}`);
+
+const trend = useTrend(
+  () => viewEnd.value.month,
+  computed(() => (isNone.value ? null : id.value)),
+  viewEnd,
+);
+// Tanpa kategori: transaksi setahun dibaca sekali, dijumlah per periode bulan di sini
+const noneRange = computed(() => ({
+  from: periodRange(viewEnd.value.year, 1, monthStartDay.value).from,
+  to: periodRange(viewEnd.value.year, viewEnd.value.month, monthStartDay.value).to,
+}));
 const noneTx = useQuery({
   queryKey: computed(() => [
     ...statsKeys.all,
@@ -83,13 +117,15 @@ const points = computed(() => {
       const key = `${p.year}-${p.month}`;
       sums.set(key, (sums.get(key) ?? 0) + t.amount);
     }
-    return Array.from({ length: 6 }, (_, i) => {
-      const { year: y, month: m } = addMonths(bounds.value.endYear, bounds.value.endMonth, i - 5);
+    return Array.from({ length: viewEnd.value.month }, (_, i) => {
+      const y = viewEnd.value.year;
+      const m = i + 1;
       return {
         key: `${y}-${m}`,
         label: MONTHS_SHORT[m - 1]!,
         value: sums.get(`${y}-${m}`) ?? 0,
         current: isCurrent(y, m),
+        now: y === today.value.year && m === today.value.month,
       };
     });
   }
@@ -98,11 +134,9 @@ const points = computed(() => {
     label: MONTHS_SHORT[r.month - 1]!,
     value: kind.value === 'income' ? r.income : r.expense,
     current: isCurrent(r.year, r.month),
+    now: r.year === today.value.year && r.month === today.value.month,
   }));
 });
-const average = computed(() =>
-  points.value.length ? points.value.reduce((s, p) => s + p.value, 0) / points.value.length : 0,
-);
 /** Ketuk kolom: Statistik pindah ke bulan itu (periode jadi bulanan) */
 function pickMonth(key: string) {
   const [y, m] = key.split('-').map(Number) as [number, number];
@@ -153,68 +187,81 @@ const days = computed(() => groupByDay(rows.value));
   >
     <NavBar :title="name" back="Statistik" back-to="/stats" line class="sticky top-0 md:static" />
 
-    <div class="bg-card px-4 pb-1.5 pt-3.5">
-      <div class="flex items-baseline justify-between gap-3">
-        <b class="text-body">{{ bounds.label }}</b>
-        <span class="text-meta text-muted-foreground"
-          >rata-rata {{ formatShort(Math.round(average)) }}</span
-        >
-      </div>
-      <MonthBars
-        class="mt-2"
-        :points="points"
-        :color="color"
-        :label="`${name} 6 bulan terakhir`"
-        @pick="pickMonth"
-      />
-    </div>
-
-    <GroupedList
-      v-if="!isNone"
-      :label="`Sub-kategori · ${bounds.label}`"
-      :aside="formatRupiah(slice?.value ?? 0)"
+    <MonthSwipe
+      :month-key="swipeKey"
+      :loading="isNone ? noneTx.isFetching.value : results.isPlaceholderData.value"
+      :prev-label="neighbor(-1)"
+      :next-label="neighbor(1)"
+      :can-next="canNext"
+      :disabled="md"
+      class="min-h-[60dvh]"
+      @shift="shift"
     >
-      <p v-if="!slice?.children.length" class="m-0 px-4 py-3.5 text-meta text-muted-foreground">
-        Tidak ada transaksi di periode ini.
-      </p>
-      <div
-        v-for="c in slice?.children ?? []"
-        :key="c.id"
-        class="sub-row flex min-h-12 items-center gap-3 py-2 pl-4 pr-3.5"
-      >
-        <span
-          class="grid h-6 min-w-11 place-items-center rounded-[7px] text-xs font-bold text-white"
-          :style="{ background: color }"
-          >{{ pct(c.value) }}%</span
-        >
-        <b class="min-w-0 flex-1 truncate text-row font-medium">{{ c.label }}</b>
-        <span class="shrink-0 text-row font-semibold">{{ formatRupiah(c.value) }}</span>
-      </div>
-    </GroupedList>
+      <template #fixed>
+        <div class="bg-card px-4 pb-1.5 pt-3.5">
+          <b class="text-body">{{ bounds.label }}</b>
+          <LineTrend
+            class="mt-2"
+            :year="viewYear"
+            :can-prev="canPrevYear"
+            :can-next="canNextYear"
+            :points="points"
+            :color="color"
+            :loading="isNone ? noneTx.isFetching.value : trend.isPlaceholderData.value"
+            :label="`${name} per bulan, ${viewYear}`"
+            @pick="pickMonth"
+            @year="shiftYear"
+          />
+        </div>
+      </template>
 
-    <EmptyCard
-      v-if="!pending && !rows.length"
-      title="Belum ada transaksi"
-      :description="`Tidak ada transaksi ${name} di ${bounds.label}.`"
-    />
-    <div v-else class="pb-4">
-      <DayGroup
-        v-for="d in days"
-        :key="d.key"
-        :day-key="d.key"
-        :income="d.income"
-        :expense="d.expense"
+      <GroupedList
+        v-if="!isNone"
+        :label="`Sub-kategori · ${bounds.label}`"
+        :aside="formatRupiah(slice?.value ?? 0)"
       >
-        <TxRow
-          v-for="t in d.items"
-          :id="t.id"
-          :key="t.id"
-          v-bind="rowView(t)"
-          :selectable="false"
-          @open="editor.edit(t)"
-        />
-      </DayGroup>
-    </div>
+        <p v-if="!slice?.children.length" class="m-0 px-4 py-3.5 text-note text-muted-foreground">
+          Tidak ada transaksi di periode ini.
+        </p>
+        <div
+          v-for="c in slice?.children ?? []"
+          :key="c.id"
+          class="sub-row flex min-h-11 items-center gap-3 py-1.5 pl-4 pr-3.5"
+        >
+          <span
+            class="grid h-5 min-w-10 place-items-center rounded-[6px] text-2xs font-bold text-white"
+            :style="{ background: color }"
+            >{{ pct(c.value) }}%</span
+          >
+          <b class="min-w-0 flex-1 truncate text-label font-medium">{{ c.label }}</b>
+          <span class="shrink-0 text-amount font-semibold">{{ formatRupiah(c.value) }}</span>
+        </div>
+      </GroupedList>
+
+      <EmptyCard
+        v-if="!pending && !rows.length"
+        title="Belum ada transaksi"
+        :description="`Tidak ada transaksi ${name} di ${bounds.label}.`"
+      />
+      <div v-else class="pb-4">
+        <DayGroup
+          v-for="d in days"
+          :key="d.key"
+          :day-key="d.key"
+          :income="d.income"
+          :expense="d.expense"
+        >
+          <TxRow
+            v-for="t in d.items"
+            :id="t.id"
+            :key="t.id"
+            v-bind="rowView(t)"
+            :selectable="false"
+            @open="editor.edit(t)"
+          />
+        </DayGroup>
+      </div>
+    </MonthSwipe>
   </div>
 </template>
 

@@ -51,15 +51,15 @@ const insetPx = computed(() => props.inset ?? (slots.icon ? 58 : 16));
     <slot name="icon" />
     <span class="flex min-w-0 flex-1 flex-col">
       <slot>
-        <b class="truncate text-row font-medium tracking-[-0.01em]">{{ title }}</b>
-        <span v-if="subtitle" class="truncate text-meta text-muted-foreground">{{ subtitle }}</span>
+        <b class="truncate text-label font-medium tracking-[-0.01em]">{{ title }}</b>
+        <span v-if="subtitle" class="truncate text-note text-muted-foreground">{{ subtitle }}</span>
       </slot>
     </span>
     <slot name="value">
       <span
         v-if="value"
         :class="[
-          'shrink-0 whitespace-nowrap text-row',
+          'shrink-0 whitespace-nowrap text-label',
           strong || valueTone ? 'font-semibold' : 'text-muted-foreground',
           valueTone === 'inc' && 'text-inc',
           valueTone === 'exp' && 'text-exp',

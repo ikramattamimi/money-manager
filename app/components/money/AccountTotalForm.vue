@@ -72,6 +72,24 @@ const caption = (a: (typeof list.value)[number]) => {
   return other ? `${a.group} · sekarang di ${other.name}` : a.group;
 };
 
+// Dua bagian mengikuti keanggotaan yang tersimpan (`initial`), bukan centang yang
+// sedang diubah: baris tidak melompat saat dicentang, pindah bagian setelah disimpan.
+const sections = computed(() => {
+  const saved = new Set(initial.value);
+  const members = list.value.filter((a) => saved.has(a.id));
+  const others = list.value.filter((a) => !saved.has(a.id));
+  const live = `Akun di total ini · ${chosen.value.length}`;
+  return [
+    { key: 'members', rows: members, label: live, aside: formatRupiah(sum.value) },
+    {
+      key: 'others',
+      rows: others,
+      label: members.length ? 'Akun lain' : live,
+      aside: members.length ? undefined : formatRupiah(sum.value),
+    },
+  ];
+});
+
 /** Simpan keanggotaan: yang dicentang masuk, yang dilepas tidak ikut total */
 async function saveMembers(totalId: string) {
   if (picked.value === null) return;
@@ -181,39 +199,39 @@ async function remove() {
     <p v-if="error" class="m-0 px-4 pt-1.5 text-meta text-exp" role="alert">{{ error }}</p>
 
     <template v-if="!noAccounts && list.length">
-      <SectionHeader
-        :label="`Akun di total ini · ${chosen.length}`"
-        :aside="formatRupiah(sum)"
-        class="!px-4"
-      />
-      <div :class="formGroup(page)">
-        <GroupRow
-          v-for="a in list"
-          :key="a.id"
-          :title="a.name"
-          :subtitle="caption(a)"
-          :value="formatRupiah(a.balance)"
-          :inset="92"
-          :aria-pressed="chosen.includes(a.id)"
-          @click="toggle(a.id)"
-        >
-          <template #icon>
-            <span
-              :class="[
-                'grid size-6 shrink-0 place-items-center rounded-full border-[1.6px]',
-                chosen.includes(a.id)
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-chevron text-transparent',
-              ]"
-              aria-hidden="true"
-            >
-              <Check class="size-[13px]" stroke-width="3.4" />
-            </span>
-            <ToneIcon v-bind="a.style" size="sm" solid />
-          </template>
-        </GroupRow>
-      </div>
-      <p :class="FORM_NOTE">Tiap akun hanya masuk satu total.</p>
+      <template v-for="(sec, i) in sections" :key="sec.key">
+        <SectionHeader v-if="sec.rows.length" :label="sec.label" :aside="sec.aside" class="!px-4" />
+        <div v-if="sec.rows.length" :class="formGroup(page)">
+          <GroupRow
+            v-for="a in sec.rows"
+            :key="a.id"
+            :title="a.name"
+            :subtitle="caption(a)"
+            :value="formatRupiah(a.balance)"
+            :inset="92"
+            :aria-pressed="chosen.includes(a.id)"
+            @click="toggle(a.id)"
+          >
+            <template #icon>
+              <span
+                :class="[
+                  'grid size-6 shrink-0 place-items-center rounded-full border-[1.6px]',
+                  chosen.includes(a.id)
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-chevron text-transparent',
+                ]"
+                aria-hidden="true"
+              >
+                <Check class="size-[13px]" stroke-width="3.4" />
+              </span>
+              <ToneIcon v-bind="a.style" size="sm" solid />
+            </template>
+          </GroupRow>
+        </div>
+        <p v-if="i === sections.length - 1" :class="FORM_NOTE">
+          Tiap akun hanya masuk satu total. Akun pindah bagian setelah disimpan.
+        </p>
+      </template>
     </template>
 
     <template v-if="total">

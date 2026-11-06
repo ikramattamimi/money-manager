@@ -322,6 +322,9 @@
   --text-2xs--line-height: 1rem;
   --text-note: 0.78125rem;
   --text-note--line-height: 1.125rem;
+  /* Nominal uang (patokan: total per hari dan baris transaksi), 13,5px */
+  --text-amount: 0.84375rem;
+  --text-amount--line-height: 1.3;
   --text-meta: 0.8125rem;
   --text-meta--line-height: 1.125rem;
   --text-label: 0.84375rem;

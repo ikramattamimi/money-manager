@@ -87,10 +87,10 @@ const NuxtLink = resolveComponent('NuxtLink');
       >
         <ToneIcon :icon="PiggyBank" tone="primary" size="sm" />
         <span class="flex min-w-0 flex-1 flex-col">
-          <b class="text-row font-semibold">Semua pengeluaran</b>
-          <span class="text-meta text-muted-foreground">Budget total bulanan</span>
+          <b class="text-label font-semibold">Semua pengeluaran</b>
+          <span class="text-note text-muted-foreground">Budget total bulanan</span>
         </span>
-        <span :class="['shrink-0 text-row', total ? 'font-semibold' : 'text-muted-foreground']">{{
+        <span :class="['shrink-0 text-amount', total ? 'font-semibold' : 'text-muted-foreground']">{{
           amount(total)
         }}</span>
       </component>
@@ -106,14 +106,14 @@ const NuxtLink = resolveComponent('NuxtLink');
           >
             <ToneIcon :icon="r.icon" :tone="r.tone" size="sm" />
             <span class="flex min-w-0 flex-1 flex-col">
-              <b class="truncate text-row font-medium">{{ r.label }}</b>
-              <span v-if="r.subs.length" class="truncate text-meta text-muted-foreground">{{
+              <b class="truncate text-label font-medium">{{ r.label }}</b>
+              <span v-if="r.subs.length" class="truncate text-note text-muted-foreground">{{
                 r.subs.map((s) => s.label).join(', ')
               }}</span>
             </span>
             <span
               :class="[
-                'shrink-0 pr-2 text-row',
+                'shrink-0 pr-2 text-amount',
                 r.budget ? 'font-semibold' : 'text-muted-foreground',
               ]"
               >{{ amount(r.budget) }}</span
@@ -144,16 +144,16 @@ const NuxtLink = resolveComponent('NuxtLink');
             :to="canEdit ? href(s.id) : undefined"
             class="set-row flex min-h-12 items-center gap-3 bg-surface-2 py-2 pl-14 pr-6 active:bg-fill-press"
           >
-            <b class="min-w-0 flex-1 truncate text-body font-medium">{{ s.label }}</b>
+            <b class="min-w-0 flex-1 truncate text-label font-medium">{{ s.label }}</b>
             <span
-              :class="['shrink-0 text-row', s.budget ? 'font-semibold' : 'text-muted-foreground']"
+              :class="['shrink-0 text-amount', s.budget ? 'font-semibold' : 'text-muted-foreground']"
               >{{ amount(s.budget) }}</span
             >
           </component>
         </template>
       </template>
     </div>
-    <p class="mx-8 mb-6 mt-2.5 text-meta text-muted-foreground">
+    <p class="mx-8 mb-6 mt-2.5 text-note text-muted-foreground">
       Ketuk kategori untuk mengatur budget. Nominal baru berlaku mulai {{ range }}; bulan sebelumnya
       tidak berubah.
     </p>

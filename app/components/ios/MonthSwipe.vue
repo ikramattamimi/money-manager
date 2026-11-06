@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { createVelocityTracker, project, rubber } from '@/lib/gesture';
 
-// Daftar yang bisa digeser untuk pindah bulan (mockup .vp/.track/.slide,
+// Daftar yang bisa digeser untuk pindah bulan. Slot `fixed` (mis. grafik bulanan)
+// ikut menerima geseran tapi tidak ikut bergeser: ia tetap diam dan hanya
+// sorotannya yang berpindah, jadi target ketukan tidak lari dari bawah jari.
+// Daftar bulan lama (mockup .vp/.track/.slide,
 // App.dc.html pDown/pMove/pUp + enter). Isi mengikuti jari 1:1 dan memudar
 // sampai 0,55; petunjuk "‹ Sep" / "Nov ›" muncul sesuai jarak. Lepas: jadi
 // kalau proyeksi momentum > 40% lebar, lanjut dengan kecepatan jari; batal
 // kembali 320ms kurva drawer. Batas maju memakai rubber-band. Bulan baru
-// masuk dari ±44px (300ms) setelah `monthKey` berubah. Hanya isi slot yang
+// masuk dari ±32px (240ms) setelah `monthKey` berubah. Hanya isi slot yang
 // bergeser; ringkasan di atasnya langsung berganti.
 const props = withDefaults(
   defineProps<{
@@ -16,8 +19,10 @@ const props = withDefaults(
     nextLabel: string;
     canNext?: boolean;
     disabled?: boolean;
+    /** Data bulan baru belum tiba (placeholder/pending): isi masuk setelah data datang, bukan sebelumnya */
+    loading?: boolean;
   }>(),
-  { canNext: true, disabled: false },
+  { canNext: true, disabled: false, loading: false },
 );
 const emit = defineEmits<{ shift: [dir: 1 | -1] }>();
 
@@ -36,6 +41,7 @@ let drag: {
 } | null = null;
 let justDragged = false;
 let pendingDir: 1 | -1 | 0 = 0;
+let fallback: ReturnType<typeof setTimeout> | undefined;
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Reduce Motion: lepas gestur langsung pindah, tanpa meluncur */
@@ -128,6 +134,15 @@ function up(e: PointerEvent) {
     () => {
       pendingDir = dir;
       emit('shift', dir);
+      // Bulan tidak berganti (mis. ditolak induk): kembalikan isi, jangan tertinggal kosong
+      clearTimeout(fallback);
+      fallback = setTimeout(() => {
+        if (!pendingDir) return;
+        pendingDir = 0;
+        el.style.transition = glide('transform 240ms var(--ease-out), opacity 200ms ease-out');
+        el.style.transform = 'translateX(0)';
+        el.style.opacity = '1';
+      }, 800);
     },
     reduceMotion() ? 0 : dur,
   );
@@ -139,34 +154,74 @@ function swallow(e: Event) {
   e.preventDefault();
 }
 
-/** Bulan baru: masuk dari sisi arah geser (panah/pemilih bulan juga memakai ini) */
+let enterToken = 0;
+let enterTimer: ReturnType<typeof setTimeout> | undefined;
+let waiting: 1 | -1 | null = null;
+
+function enter(dir: 1 | -1) {
+  const el = slide.value;
+  waiting = null;
+  clearTimeout(enterTimer);
+  if (!el) return;
+  for (const anim of el.getAnimations()) anim.cancel();
+  el.animate(
+    [
+      { transform: `translateX(${dir > 0 ? 32 : -32}px)`, opacity: 0 },
+      { transform: 'translateX(0)', opacity: 1 },
+    ],
+    { duration: 240, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
+  );
+  // Animasi mengambil alih mulai frame pertama, jadi gaya tahan boleh dilepas
+  el.style.transition = 'none';
+  el.style.transform = '';
+  el.style.opacity = '';
+}
+
+/**
+ * Bulan baru: isi ditahan transparan di posisi masuk sampai datanya tiba
+ * (maksimal 500ms), baru meluncur masuk dari sisi arah geser. Tanpa ini data
+ * bulan lama sempat terlihat meluncur masuk lalu berganti di tengah jalan
+ * (kedip). Panah/pemilih bulan juga memakai ini.
+ */
 watch(
   () => props.monthKey,
-  (key, old) => {
+  async (key, old) => {
     const el = slide.value;
     if (!el || !old) return;
-    const dir = pendingDir || (key > old ? 1 : -1);
+    const dir: 1 | -1 = pendingDir || (key > old ? 1 : -1);
     pendingDir = 0;
+    clearTimeout(fallback);
+    clearTimeout(enterTimer);
+    waiting = null;
+    const token = ++enterToken;
     // Mulai dari atas daftar seperti mockup, tanpa animasi gulir
     const top = root.value ? root.value.getBoundingClientRect().top + window.scrollY - 120 : 0;
     if (window.scrollY > top) window.scrollTo({ top: Math.max(0, top) });
+    for (const anim of el.getAnimations()) anim.cancel();
     if (reduceMotion()) {
       el.style.transition = 'none';
       el.style.transform = '';
-      el.style.opacity = '1';
+      el.style.opacity = '';
       return;
     }
     el.style.transition = 'none';
-    el.style.transform = `translateX(${dir > 0 ? 44 : -44}px)`;
+    el.style.transform = `translateX(${dir > 0 ? 32 : -32}px)`;
     el.style.opacity = '0';
-    void el.offsetWidth;
-    requestAnimationFrame(() => {
-      el.style.transition = 'transform 300ms var(--ease-drawer), opacity 200ms ease-out';
-      el.style.transform = 'translateX(0)';
-      el.style.opacity = '1';
-    });
+    // Beri satu frame supaya status loading dari query bulan baru sempat terbit
+    await nextTick();
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    if (token !== enterToken) return;
+    if (!props.loading) return enter(dir);
+    waiting = dir;
+    enterTimer = setTimeout(() => enter(dir), 500);
   },
   { flush: 'post' },
+);
+watch(
+  () => props.loading,
+  (l) => {
+    if (!l && waiting) enter(waiting);
+  },
 );
 </script>
 
@@ -194,6 +249,7 @@ watch(
     >
       {{ nextLabel }} ›
     </div>
+    <slot name="fixed" />
     <div ref="slide">
       <slot />
     </div>

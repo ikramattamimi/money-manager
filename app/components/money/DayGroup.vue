@@ -32,19 +32,19 @@ const WD = { sat: 'bg-primary-accent', sun: 'bg-exp' } as const;
       ]"
       @click="addable && emit('add')"
     >
-      <span class="min-w-7 text-[22px] font-bold tracking-[-0.03em]">{{ parts.num }}</span>
+      <span class="min-w-6 text-[18px] font-bold tracking-[-0.03em]">{{ parts.num }}</span>
       <span
         :class="[
-          'rounded-[5px] px-[5px] py-0.5 text-[11px] font-bold text-white',
+          'rounded-[5px] px-[5px] py-0.5 text-[10px] font-bold text-white',
           parts.tone ? WD[parts.tone] : 'bg-[var(--tone-gray)]',
         ]"
         >{{ parts.weekday }}</span
       >
-      <span class="flex-1 text-[12.5px] text-muted-foreground">{{ parts.monthYear }}</span>
-      <span class="min-w-[84px] text-right text-[13.5px] font-semibold text-inc">{{
+      <span class="flex-1 text-2xs text-muted-foreground">{{ parts.monthYear }}</span>
+      <span class="min-w-[84px] text-right text-amount font-semibold text-inc">{{
         income ? formatRupiah(income) : ''
       }}</span>
-      <span class="min-w-[84px] text-right text-[13.5px] font-semibold text-exp">{{
+      <span class="min-w-[84px] text-right text-amount font-semibold text-exp">{{
         expense ? formatRupiah(expense) : ''
       }}</span>
     </component>
