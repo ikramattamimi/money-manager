@@ -79,7 +79,7 @@ const summary = computed(() =>
         />
       </div>
       <div
-        class="grid text-center text-[11.5px] text-muted-foreground"
+        class="grid text-center text-2xs text-muted-foreground"
         :style="{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }"
         aria-hidden="true"
       >

@@ -409,13 +409,13 @@ watch([highlight, list], ([id]) => {
           >
             <span class="text-body font-semibold">
               {{ weekLabel(w) }}
-              <small class="mt-px block text-[12.5px] font-medium text-muted-foreground">{{
+              <small class="mt-px block text-note font-medium text-muted-foreground">{{
                 w.current
                   ? 'Minggu ini'
                   : `${Math.round((Date.parse(w.to) - Date.parse(w.from)) / 864e5) + 1} hari`
               }}</small>
             </span>
-            <span class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+            <span class="flex flex-col items-end gap-px text-amount font-semibold">
               <span class="text-inc">{{ formatRupiah(w.income) }}</span>
               <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
               <span>{{ formatRupiah(w.income - w.expense) }}</span>
@@ -443,11 +443,11 @@ watch([highlight, list], ([id]) => {
               >
                 <span class="text-body font-semibold">
                   {{ MONTHS_LONG[m.month - 1] }}
-                  <small class="mt-px block text-[12.5px] font-medium text-muted-foreground">{{
+                  <small class="mt-px block text-note font-medium text-muted-foreground">{{
                     periodRangeLabel(year, m.month, monthStartDay) || `${m.tx_count} transaksi`
                   }}</small>
                 </span>
-                <span class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+                <span class="flex flex-col items-end gap-px text-amount font-semibold">
                   <span class="text-inc">{{ formatRupiah(m.income) }}</span>
                   <span class="text-exp">{{ formatRupiah(m.expense) }}</span>
                   <span>{{ formatRupiah(m.net) }}</span>
@@ -459,8 +459,8 @@ watch([highlight, list], ([id]) => {
                   :key="w.from"
                   class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 bg-surface-2 py-[11px] pl-8 pr-4 shadow-[inset_0_-0.5px_0_var(--sep)]"
                 >
-                  <span class="text-[14px] font-medium">{{ weekLabel(w) }}</span>
-                  <span class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+                  <span class="text-label font-medium">{{ weekLabel(w) }}</span>
+                  <span class="flex flex-col items-end gap-px text-amount font-semibold">
                     <span class="text-inc">{{ formatRupiah(w.income) }}</span>
                     <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
                   </span>

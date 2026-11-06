@@ -110,7 +110,7 @@ function click(event: MouseEvent) {
   <div class="imp-row relative overflow-hidden">
     <span
       ref="bg"
-      class="absolute inset-0 flex items-center justify-end bg-[var(--tone-gray)] pr-5 text-[14px] font-semibold text-white opacity-0"
+      class="absolute inset-0 flex items-center justify-end bg-[var(--tone-gray)] pr-5 text-label font-semibold text-white opacity-0"
       aria-hidden="true"
       >{{ included ? 'Lewati' : 'Pakai' }}</span
     >

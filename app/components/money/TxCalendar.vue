@@ -47,7 +47,7 @@ const cells = computed(() =>
         v-for="h in HEADS"
         :key="h.l"
         :class="[
-          'pb-1.5 pt-[7px] text-center text-[11.5px] font-semibold shadow-[inset_0_-0.5px_0_var(--sep)]',
+          'pb-1.5 pt-[7px] text-center text-2xs font-semibold shadow-[inset_0_-0.5px_0_var(--sep)]',
           h.cls ?? 'text-muted-foreground',
         ]"
         >{{ h.l }}</span

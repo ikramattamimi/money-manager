@@ -68,7 +68,7 @@ async function switchAccount() {
       <template v-else-if="!invite">
         <ToneIcon :icon="CircleAlert" tone="amber" size="lg" solid class="mb-1" />
         <b class="text-sheet font-bold tracking-[-0.02em]">Undangan tidak ditemukan</b>
-        <p class="m-0 max-w-[320px] text-[14px] leading-[1.45] text-muted-foreground">
+        <p class="m-0 max-w-[320px] text-label leading-[1.45] text-muted-foreground">
           Link-nya mungkin salah atau undangannya sudah dibatalkan. Minta pemilik buku mengirim
           ulang.
         </p>
@@ -88,7 +88,7 @@ async function switchAccount() {
         <b class="text-[24px] font-bold leading-[1.15] tracking-[-0.025em]">{{
           invite.book_name
         }}</b>
-        <span class="text-[14px] leading-[1.45]">
+        <span class="text-label leading-[1.45]">
           sebagai <b>{{ ROLE_LABEL[invite.role] }}</b
           >: {{ ROLE_HINT[invite.role].toLowerCase() }}.
         </span>

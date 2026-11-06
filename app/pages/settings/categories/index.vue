@@ -301,7 +301,7 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
       </template>
 
       <GlassBar v-if="selecting" class="flex-wrap">
-        <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+        <span class="min-w-0 flex-1 text-label text-muted-foreground">
           <b class="text-bar text-foreground">{{ chosen.length }}</b> dipilih
         </span>
         <button

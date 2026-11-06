@@ -20,7 +20,7 @@ withDefaults(
   >
     <small
       :class="[
-        'truncate text-[12.5px] font-semibold',
+        'truncate text-note font-semibold',
         on || add ? 'text-primary-accent' : 'text-muted-foreground',
       ]"
       >{{ name }}</small

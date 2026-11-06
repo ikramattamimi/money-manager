@@ -9,7 +9,7 @@ defineProps<{ title: string; description?: string }>();
     class="mx-4 my-6 flex flex-col items-center gap-2 rounded-card bg-card px-[18px] py-7 text-center"
   >
     <b class="text-row font-semibold">{{ title }}</b>
-    <p v-if="description" class="m-0 text-[14px] text-muted-foreground">{{ description }}</p>
+    <p v-if="description" class="m-0 text-label text-muted-foreground">{{ description }}</p>
     <slot />
   </div>
 </template>

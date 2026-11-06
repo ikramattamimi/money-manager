@@ -21,13 +21,13 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       <div
         v-if="toast.current.value"
         :key="toast.current.value.id"
-        class="toast pointer-events-auto flex min-h-[52px] w-full max-w-[420px] items-center gap-2.5 rounded-2xl py-2.5 pl-4 pr-2.5 text-[14px] font-semibold"
+        class="toast pointer-events-auto flex min-h-[52px] w-full max-w-[420px] items-center gap-2.5 rounded-2xl py-2.5 pl-4 pr-2.5 text-label font-semibold"
       >
         <span class="flex-1">{{ toast.current.value.text }}</span>
         <button
           v-if="toast.current.value.undo"
           type="button"
-          class="relative h-8 shrink-0 rounded-[9px] bg-[color-mix(in_srgb,var(--toast-fg)_16%,transparent)] px-3 text-[14px] font-semibold text-[var(--toast-fg)] active:scale-95"
+          class="relative h-8 shrink-0 rounded-[9px] bg-[color-mix(in_srgb,var(--toast-fg)_16%,transparent)] px-3 text-label font-semibold text-[var(--toast-fg)] active:scale-95"
           @click="toast.runUndo()"
         >
           Urungkan

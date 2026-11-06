@@ -12,7 +12,7 @@ const model = defineModel<T>({ required: true });
       :key="o.value"
       type="button"
       :aria-pressed="model === o.value"
-      class="h-[30px] min-w-0 flex-1 truncate rounded-[7px] px-1 text-center text-[13.5px] font-semibold aria-pressed:bg-[var(--seg-on)] aria-pressed:shadow-[var(--shadow-seg)]"
+      class="h-[30px] min-w-0 flex-1 truncate rounded-[7px] px-1 text-center text-label font-semibold aria-pressed:bg-[var(--seg-on)] aria-pressed:shadow-[var(--shadow-seg)]"
       @click="model = o.value"
     >
       {{ o.label }}

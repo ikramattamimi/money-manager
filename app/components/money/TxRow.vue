@@ -109,7 +109,7 @@ defineExpose({ flash });
     </span>
     <span class="flex min-w-0 flex-col">
       <b class="truncate text-body font-semibold tracking-[-0.01em]">{{ title }}</b>
-      <span class="truncate text-[12.5px] text-muted-foreground">{{ acct }}</span>
+      <span class="truncate text-note text-muted-foreground">{{ acct }}</span>
     </span>
     <span class="flex flex-col items-end whitespace-nowrap">
       <!-- Ukuran sama dengan total per hari di DayGroup -->

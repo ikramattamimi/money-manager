@@ -133,7 +133,7 @@ async function save() {
             <span
               class="flex h-[38px] w-[136px] items-center gap-1 rounded-[10px] bg-fill px-2.5 focus-within:shadow-[0_0_0_2px_var(--primary-accent)]"
             >
-              <small class="text-[14px] text-muted-foreground">Rp</small>
+              <small class="text-label text-muted-foreground">Rp</small>
               <input
                 :id="`bal-${a.id}`"
                 :value="entry(a.id).text"
@@ -152,7 +152,7 @@ async function save() {
     </GroupedList>
 
     <GlassBar>
-      <span class="min-w-0 flex-1 text-[14px] text-muted-foreground">
+      <span class="min-w-0 flex-1 text-label text-muted-foreground">
         <b class="text-bar text-foreground">{{ changes.length }}</b> koreksi saldo
       </span>
       <IosButton class="w-[140px]" :disabled="!changes.length || saving || !canEdit" @click="save">

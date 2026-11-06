@@ -53,7 +53,7 @@ const SOURCES = [
         <h2 class="m-0 text-[24px] font-bold leading-[1.15] tracking-[-0.025em]">
           Masukkan transaksi tanpa mengetik
         </h2>
-        <p class="m-0 mt-1.5 text-[14px] leading-[1.45] text-muted-foreground">
+        <p class="m-0 mt-1.5 text-label leading-[1.45] text-muted-foreground">
           Pindahkan riwayat dari Realbyte, cocokkan mutasi bank, atau biarkan AI membaca struk.
           Semua dicek dulu sebelum disimpan.
         </p>

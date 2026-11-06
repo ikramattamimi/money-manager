@@ -39,7 +39,7 @@ function onTap(key: string) {
     >
       <span
         v-if="item.key === 'tx'"
-        class="grid h-[22px] w-6 place-items-center rounded-[5px] border-[1.8px] border-current text-[11px] font-extrabold tracking-[-0.03em] md:h-[18px] md:w-5 md:text-[10px]"
+        class="grid h-[22px] w-6 place-items-center rounded-[5px] border-[1.8px] border-current text-2xs font-extrabold tracking-[-0.03em] md:h-[18px] md:w-5 md:text-[10px]"
         aria-hidden="true"
         >{{ today }}</span
       >

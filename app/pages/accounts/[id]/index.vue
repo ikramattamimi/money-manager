@@ -321,7 +321,7 @@ function openForm() {
         >
           <span class="text-body font-semibold">
             {{ MONTHS_LONG[m.month - 1] }} {{ m.year }}
-            <small class="mt-px block text-[12.5px] font-medium text-muted-foreground">
+            <small class="mt-px block text-note font-medium text-muted-foreground">
               {{
                 m.data
                   ? `Saldo akhir ${formatRupiah(m.data.end)}`
@@ -329,7 +329,7 @@ function openForm() {
               }}
             </small>
           </span>
-          <span v-if="m.data" class="flex flex-col items-end gap-px text-[13.5px] font-semibold">
+          <span v-if="m.data" class="flex flex-col items-end gap-px text-amount font-semibold">
             <span class="text-inc">{{ formatRupiah(m.data.inflow) }}</span>
             <span class="text-exp">{{ formatRupiah(m.data.outflow) }}</span>
           </span>

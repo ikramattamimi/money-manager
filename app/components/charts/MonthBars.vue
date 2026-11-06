@@ -71,7 +71,7 @@ const avgY = computed(() => 22 + H - (avg.value / max.value) * H);
         @click="emit('pick', b.key)"
       >
         <span
-          class="absolute inset-x-0 text-center text-[11px] font-semibold"
+          class="absolute inset-x-0 text-center text-2xs font-semibold"
           :style="{ top: `${(Math.max(0, b.y - 18) / 160) * 100}%` }"
           aria-hidden="true"
           >{{ b.value ? formatShort(b.value, true) : '' }}</span

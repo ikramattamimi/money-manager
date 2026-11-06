@@ -21,7 +21,7 @@ const TONE = { inc: 'text-inc', exp: 'text-exp', ok: 'text-ok' } as const;
       <b
         :class="[
           'max-w-full truncate',
-          dense ? 'text-[13.5px] font-semibold' : 'text-body font-bold tracking-[-0.01em]',
+          dense ? 'text-amount font-semibold' : 'text-body font-bold tracking-[-0.01em]',
           i.tone && TONE[i.tone],
         ]"
         >{{ i.value }}</b

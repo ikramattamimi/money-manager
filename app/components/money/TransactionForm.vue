@@ -695,7 +695,7 @@ const panelTitle = computed(() =>
               :aria-checked="form.type === t.value"
               :aria-label="t.label"
               :class="[
-                'tx-pill-btn relative flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] text-[13.5px] font-semibold active:scale-95',
+                'tx-pill-btn relative flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] text-label font-semibold active:scale-95',
                 form.type === t.value ? t.tone : 'text-ter',
               ]"
               @click="form.type = t.value"
@@ -932,7 +932,7 @@ const panelTitle = computed(() =>
         </div>
         <div class="tx-row">
           <span class="tx-label">Biaya</span>
-          <span class="flex-1 text-[14px] text-muted-foreground">{{
+          <span class="flex-1 text-label text-muted-foreground">{{
             feeOn
               ? `${formatRupiah(fee)} dari ${accountName(form.accountId) || 'akun asal'}`
               : 'Tanpa biaya admin'
@@ -1124,7 +1124,7 @@ const panelTitle = computed(() =>
         @click="pickInstallment(r.months)"
       >
         <span class="flex-1">{{ r.months }} bulan</span>
-        <small class="text-[14px] text-muted-foreground">{{
+        <small class="text-label text-muted-foreground">{{
           r.plan ? `${formatRupiah(r.plan.amount)}/bulan` : 'Isi nominal dulu'
         }}</small>
         <b v-if="installment === r.months" class="text-primary-accent">✓</b>
@@ -1149,7 +1149,7 @@ const panelTitle = computed(() =>
         @click="copy(true)"
       >
         <span class="flex-1">Salin dengan tanggal asli</span>
-        <small class="text-[14px] text-muted-foreground">{{ dateLabel }}</small>
+        <small class="text-label text-muted-foreground">{{ dateLabel }}</small>
       </button>
       <template #footer>
         <IosButton block variant="gray" @click="copyOpen = false">Batal</IosButton>

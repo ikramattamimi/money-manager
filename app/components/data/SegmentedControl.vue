@@ -33,7 +33,7 @@ const model = defineModel<T>({ required: true });
       :key="option.value"
       type="button"
       :aria-pressed="model === option.value"
-      class="inline-flex h-[30px] items-center justify-center gap-1.5 rounded-[7px] px-2 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-[var(--seg-on)] aria-pressed:shadow-[var(--shadow-seg)] [&_svg]:size-3.5"
+      class="inline-flex h-[30px] items-center justify-center gap-1.5 rounded-[7px] px-2 text-label font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-[var(--seg-on)] aria-pressed:shadow-[var(--shadow-seg)] [&_svg]:size-3.5"
       @click="model = option.value"
     >
       <component :is="option.icon" v-if="option.icon" aria-hidden="true" />

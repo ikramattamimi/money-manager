@@ -28,7 +28,7 @@ const emit = defineEmits<{ close: [] }>();
       class="flex h-11 items-center gap-1.5 bg-[var(--kb-head)] pl-4 pr-1 shadow-[inset_0_-0.5px_0_var(--kb-head-line)]"
     >
       <b class="text-body font-semibold">{{ title }}</b>
-      <span class="min-w-0 flex-1 truncate text-[12.5px] font-medium text-muted-foreground">{{
+      <span class="min-w-0 flex-1 truncate text-note font-medium text-muted-foreground">{{
         hint
       }}</span>
       <span v-if="steps" class="flex items-center gap-1" aria-hidden="true">

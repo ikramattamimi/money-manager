@@ -60,7 +60,7 @@ const isSelected = (item: GridItem) =>
   item.id === props.modelValue || !!item.children?.some((c) => c.id === props.modelValue);
 
 const CELL =
-  'press flex min-h-11 min-w-0 flex-col items-center justify-center gap-px px-1.5 py-1.5 text-center text-[13px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-35';
+  'press flex min-h-11 min-w-0 flex-col items-center justify-center gap-px px-1.5 py-1.5 text-center text-meta leading-tight outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-35';
 </script>
 
 <template>
