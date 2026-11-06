@@ -24,6 +24,7 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { parseQuick } from '@/features/quick-add/parser';
 import type { Draft, DraftLink } from '@/features/quick-add/types';
+import { useNoteHistory } from '@/features/quick-add/useNoteHistory';
 import { useQuickLists } from '@/features/quick-add/useQuickLists';
 import { useSuggest } from '@/features/quick-add/useSuggest';
 import { installmentPlan } from '@/features/recurring/installment';
@@ -33,7 +34,11 @@ import {
   repeatRule,
   type RepeatOption,
 } from '@/features/recurring/repeat';
-import { useRecurringMutations } from '@/features/recurring/useRecurring';
+import {
+  FREQUENCY_LABEL,
+  useRecurringMutations,
+  useRecurringRules,
+} from '@/features/recurring/useRecurring';
 import { useTemplateMutations } from '@/features/templates/useTemplates';
 import type { Transaction, TxInput, TxType } from '@/features/transactions/api';
 import {
@@ -118,6 +123,8 @@ function setOccurred(value: string | Date) {
   form.time = local.slice(11, 16);
 }
 
+const touched = reactive({ account: false, category: false });
+
 type Panel = 'keypad' | 'fee' | 'category' | 'account' | 'to' | 'date';
 const panel = ref<Panel | null>(null);
 const repeat = ref<RepeatOption>('none');
@@ -161,13 +168,20 @@ function load() {
       accountId: d?.accountId ?? remembered.accountId ?? accounts.value[0]?.id ?? '',
       toAccountId: d?.toAccountId ?? remembered.toAccountId ?? '',
       categoryId: d?.categoryId ?? (d ? '' : (remembered.categoryId ?? '')),
-      note: d?.note ? d.note[0]!.toUpperCase() + d.note.slice(1) : '',
-      description: '',
+      // Salinan (ada keterangan/biaya) dipakai apa adanya; draft lain dikapitalkan
+      note: d?.note
+        ? d.description !== undefined
+          ? d.note
+          : d.note[0]!.toUpperCase() + d.note.slice(1)
+        : '',
+      description: d?.description ?? '',
     });
     setOccurred(occurred);
     tokens.value = fromAmount(d?.amount ?? 0);
-    feeTokens.value = [];
-    feeOn.value = false;
+    feeTokens.value = fromAmount(d?.fee ?? 0);
+    feeOn.value = (d?.fee ?? 0) > 0;
+    // Salinan: isian sudah final, saran riwayat tidak boleh menimpa
+    touched.category = touched.account = d?.description !== undefined;
     original = { input: localInput(), iso: occurred.toISOString() };
     links.value = d?.links ? d.links.map((l) => ({ ...l })) : [];
     initialLinks = '[]';
@@ -240,7 +254,6 @@ const accountItems = (exclude?: string) =>
   pickerItems.accountItems(exclude, archivedAccounts.value);
 
 const noteInput = ref<HTMLInputElement>();
-const touched = reactive({ account: false, category: false });
 
 /** Urutan langkah seperti Realbyte */
 const steps = computed<Panel[]>(() =>
@@ -353,6 +366,30 @@ watch(suggestion, (s) => {
   if (category && category.kind === form.type && !touched.category) form.categoryId = category.id;
   if (s.account_id && !touched.account) form.accountId = s.account_id;
 });
+// Catatan yang pernah dipakai, ditampilkan sambil mengetik
+const noteFocused = ref(false);
+const noteHistory = useNoteHistory(
+  computed(() => form.note),
+  noteFocused,
+);
+/** Disembunyikan setelah memilih saran; muncul lagi hanya saat mengetik */
+const noteDismissed = ref(false);
+function pickNote(value: string) {
+  form.note = value;
+  noteDismissed.value = true;
+  noteInput.value?.focus();
+}
+/** Pecah saran jadi potongan; potongan yang cocok dengan ketikan ditebalkan */
+function noteParts(value: string) {
+  const typed = form.note.trim();
+  const at = typed ? value.toLowerCase().indexOf(typed.toLowerCase()) : -1;
+  if (at < 0) return [{ text: value, match: false }];
+  return [
+    { text: value.slice(0, at), match: false },
+    { text: value.slice(at, at + typed.length), match: true },
+    { text: value.slice(at + typed.length), match: false },
+  ].filter((p) => p.text);
+}
 const suggestedAmount = computed(() =>
   !editing.value && !amount.value && suggestion.value?.amount ? suggestion.value.amount : 0,
 );
@@ -381,6 +418,19 @@ const canSave = computed(
 
 // ---------- ulangi & cicilan ----------
 const repeatOpen = ref(false);
+// Transaksi yang dicatat otomatis dari aturan rutin: tombol Ulangi ditandai
+const rules = useRecurringRules();
+const sourceRule = computed(() => {
+  const id = props.transaction?.recurring_rule_id;
+  return id ? (rules.data.value?.find((r) => r.id === id) ?? null) : null;
+});
+const fromRule = computed(() => !!props.transaction?.recurring_rule_id);
+const sourceRuleLabel = computed(() => {
+  const r = sourceRule.value;
+  if (!r) return 'Transaksi rutin';
+  const f = FREQUENCY_LABEL[r.frequency];
+  return r.interval > 1 ? `Setiap ${r.interval} ${f.unit}` : f.one;
+});
 const installmentOpen = ref(false);
 const repeatShort = computed(() =>
   installment.value
@@ -508,6 +558,7 @@ function save(again = false) {
     (linksFirst ? relink().then(update) : update().then(relink)).catch(() => {
       // Pesan galat sudah ditampilkan lewat toast
     });
+    if (repeat.value !== 'none') saveRepeat(data);
     toast.show('Perubahan disimpan');
     emit('close');
     return;
@@ -591,6 +642,8 @@ function copy(sameDate: boolean) {
     toAccountId: data.to_account_id ?? null,
     categoryId: data.category_id ?? null,
     note: data.note ?? '',
+    description: data.description ?? '',
+    fee: data.fee ?? 0,
     occurredAt: sameDate ? (data.occurred_at ?? null) : null,
   });
 }
@@ -742,8 +795,8 @@ const panelTitle = computed(() =>
     <div
       v-else
       :class="[
-        'overflow-hidden bg-card',
-        layout === 'dialog' ? 'rounded-group' : 'mt-0',
+        'bg-card',
+        layout === 'dialog' ? 'overflow-hidden rounded-group' : 'mt-0',
         layout === 'page' && panel && 'pb-[360px]',
       ]"
     >
@@ -764,26 +817,46 @@ const panelTitle = computed(() =>
             >· {{ form.time.replace(':', '.') }}</span
           >
         </button>
-        <div v-if="!editing" class="relative">
+        <div class="relative shrink-0">
           <button
             type="button"
-            :aria-label="`Ulangi: ${repeatLabel}`"
+            :aria-label="fromRule ? `Transaksi rutin: ${sourceRuleLabel}` : `Ulangi: ${repeatLabel}`"
             aria-haspopup="menu"
             :aria-expanded="repeatOpen"
             :class="[
-              'tx-press relative grid size-11 place-items-center rounded-xl active:scale-90',
-              repeatShort ? 'bg-primary-soft text-primary-accent' : 'text-ter',
+              'tx-press flex h-9 items-center gap-1 rounded-full px-2.5 text-label font-semibold active:scale-95',
+              repeatShort || fromRule
+                ? 'bg-primary-soft text-primary-accent'
+                : 'bg-fill text-muted-foreground',
             ]"
             @click="repeatOpen = !repeatOpen"
           >
-            <Repeat class="size-5" stroke-width="2.1" aria-hidden="true" />
-            <span
-              v-if="repeatShort"
-              class="absolute right-px top-[3px] grid h-4 min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[9.5px] font-bold text-primary-foreground"
-              >{{ repeatShort }}</span
-            >
+            <Repeat class="size-4" stroke-width="2.2" aria-hidden="true" />
+            {{ fromRule ? 'Rutin' : repeatShort || 'Ulangi' }}
           </button>
-          <template v-if="repeatOpen">
+          <template v-if="repeatOpen && fromRule">
+            <div class="fixed inset-0 z-[19]" aria-hidden="true" @click="repeatOpen = false" />
+            <div
+              role="menu"
+              aria-label="Transaksi rutin"
+              class="tx-menu absolute right-0 top-12 z-20 min-w-[230px] overflow-hidden rounded-[13px]"
+            >
+              <p class="m-0 px-3.5 py-2.5 text-label text-muted-foreground">
+                Dicatat otomatis dari aturan rutin<br /><b class="text-row font-semibold text-foreground">{{
+                  sourceRuleLabel
+                }}</b>
+              </p>
+              <button
+                type="button"
+                role="menuitem"
+                class="flex h-[42px] w-full items-center px-3.5 text-left text-row text-primary-accent active:bg-[var(--glass-press)]"
+                @click="navigateTo(`/settings/recurring/${props.transaction!.recurring_rule_id}`)"
+              >
+                Kelola aturan rutin
+              </button>
+            </div>
+          </template>
+          <template v-else-if="repeatOpen">
             <div class="fixed inset-0 z-[19]" aria-hidden="true" @click="repeatOpen = false" />
             <div
               role="menu"
@@ -804,7 +877,7 @@ const panelTitle = computed(() =>
                 }}</span
                 >{{ o.label }}
               </button>
-              <template v-if="form.type === 'expense'">
+              <template v-if="form.type === 'expense' && !editing">
                 <div class="h-1.5 bg-[var(--glass-press)]" />
                 <button
                   type="button"
@@ -970,9 +1043,36 @@ const panelTitle = computed(() =>
           enterkeyhint="done"
           placeholder="Indomaret, Budi, Tokopedia"
           class="h-[50px] min-w-0 flex-1 bg-transparent text-amount outline-none placeholder:text-ter"
-          @focus="panel = null"
+          @focus="(panel = null), (noteFocused = true)"
+          @input="noteDismissed = false"
+          @blur="noteFocused = false"
         />
       </label>
+      <!-- Dropdown melayang di bawah Catatan, tidak menggeser baris di bawahnya -->
+      <div class="relative z-10 h-0">
+        <ul
+          v-if="noteFocused && !noteDismissed && noteHistory.length"
+          role="listbox"
+          aria-label="Catatan sebelumnya"
+          class="tx-menu absolute left-[96px] right-3 top-0.5 m-0 max-h-[184px] list-none overflow-y-auto rounded-[13px] p-0 [transform-origin:left_top]"
+        >
+          <li v-for="n in noteHistory" :key="n" role="option" aria-selected="false">
+            <button
+              type="button"
+              class="flex h-[42px] w-full items-center px-3.5 text-left text-row active:bg-[var(--glass-press)]"
+              @mousedown.prevent
+              @click="pickNote(n)"
+            >
+              <span class="truncate text-muted-foreground"
+                ><template v-for="(p, i) in noteParts(n)" :key="i"
+                  ><b v-if="p.match" class="font-bold text-foreground">{{ p.text }}</b
+                  ><template v-else>{{ p.text }}</template></template
+                ></span
+              >
+            </button>
+          </li>
+        </ul>
+      </div>
       <label class="tx-row">
         <span class="tx-label">Keterangan</span>
         <input
