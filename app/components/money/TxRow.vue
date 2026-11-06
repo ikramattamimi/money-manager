@@ -113,7 +113,7 @@ defineExpose({ flash });
     </span>
     <span class="flex flex-col items-end whitespace-nowrap">
       <!-- Ukuran sama dengan total per hari di DayGroup -->
-      <span :class="['text-[13.5px] font-semibold', TONE[tone]]">{{ amount }}</span>
+      <span :class="['text-amount font-semibold', TONE[tone]]">{{ amount }}</span>
       <s v-if="was" class="text-xs text-faint">{{ was }}</s>
       <small v-if="balance" class="text-xs font-medium text-muted-foreground">{{ balance }}</small>
     </span>

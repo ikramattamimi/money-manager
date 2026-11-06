@@ -86,7 +86,7 @@ onBeforeUnmount(() => clearTimeout(timer));
     </span>
     <span
       :class="[
-        'shrink-0 whitespace-nowrap text-row font-semibold',
+        'shrink-0 whitespace-nowrap text-amount font-semibold',
         negative ? 'text-exp' : 'text-foreground',
       ]"
       >{{ balance }}</span

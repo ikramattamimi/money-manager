@@ -969,7 +969,7 @@ const panelTitle = computed(() =>
           autocomplete="off"
           enterkeyhint="done"
           placeholder="Indomaret, Budi, Tokopedia"
-          class="h-[50px] min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-ter"
+          class="h-[50px] min-w-0 flex-1 bg-transparent text-amount outline-none placeholder:text-ter"
           @focus="panel = null"
         />
       </label>
@@ -981,7 +981,7 @@ const panelTitle = computed(() =>
           maxlength="240"
           autocomplete="off"
           placeholder="Detail tambahan"
-          class="h-[50px] min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-ter"
+          class="h-[50px] min-w-0 flex-1 bg-transparent text-amount outline-none placeholder:text-ter"
           @focus="panel = null"
         />
       </label>

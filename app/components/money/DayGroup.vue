@@ -41,10 +41,10 @@ const WD = { sat: 'bg-primary-accent', sun: 'bg-exp' } as const;
         >{{ parts.weekday }}</span
       >
       <span class="flex-1 text-[12.5px] text-muted-foreground">{{ parts.monthYear }}</span>
-      <span class="min-w-[84px] text-right text-[13.5px] font-semibold text-inc">{{
+      <span class="min-w-[84px] text-right text-amount font-semibold text-inc">{{
         income ? formatRupiah(income) : ''
       }}</span>
-      <span class="min-w-[84px] text-right text-[13.5px] font-semibold text-exp">{{
+      <span class="min-w-[84px] text-right text-amount font-semibold text-exp">{{
         expense ? formatRupiah(expense) : ''
       }}</span>
     </component>

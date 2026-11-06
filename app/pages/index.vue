@@ -492,7 +492,7 @@ watch([highlight, list], ([id]) => {
                     >Masuk {{ formatShort(y.income) }} · Keluar {{ formatShort(y.expense) }}</span
                   >
                 </span>
-                <span :class="['text-row font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']">{{
+                <span :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']">{{
                   formatShort(y.net)
                 }}</span>
                 <ChevronRight

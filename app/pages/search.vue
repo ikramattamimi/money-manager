@@ -149,7 +149,7 @@ const pages = computed(() => Math.ceil((results.data.value?.count ?? 0) / PAGE_S
           autocomplete="off"
           placeholder="Catatan atau keterangan"
           aria-label="Cari catatan atau keterangan"
-          class="min-w-0 flex-1 bg-transparent text-bar text-foreground outline-none placeholder:text-ter"
+          class="min-w-0 flex-1 bg-transparent text-amount text-foreground outline-none placeholder:text-ter"
         />
       </label>
       <div class="flex gap-1.5 overflow-x-auto px-4 pb-2.5 [scrollbar-width:none]">

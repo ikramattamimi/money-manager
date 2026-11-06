@@ -272,7 +272,7 @@ const firstError = computed(() => errors.name || errors.groupId || '');
           autocomplete="off"
           aria-label="Catatan"
           placeholder="Opsional"
-          class="h-[34px] w-full bg-transparent text-row outline-none placeholder:text-ter"
+          class="h-[34px] w-full bg-transparent text-amount outline-none placeholder:text-ter"
         />
       </GroupRow>
     </div>

@@ -177,7 +177,7 @@ function click(event: MouseEvent) {
         </span>
         <b
           :class="[
-            'shrink-0 whitespace-nowrap text-body font-semibold',
+            'shrink-0 whitespace-nowrap text-amount font-semibold',
             direction === 'in' ? 'text-inc' : 'text-exp',
             !included && !selecting && 'line-through opacity-45',
           ]"

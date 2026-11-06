@@ -33,8 +33,13 @@ export default defineNuxtConfig({
       title: 'Money Manager',
       meta: [
         // viewport-fit=cover supaya konten bisa memakai seluruh layar iPhone;
-        // jaraknya diatur dengan env(safe-area-inset-*).
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+        // jaraknya diatur dengan env(safe-area-inset-*). maximum-scale=1 mematikan
+        // auto-zoom iOS saat fokus ke isian berfont < 16px (cubit-zoom manual
+        // tetap jalan di iOS 10+).
+        {
+          name: 'viewport',
+          content: 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover',
+        },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'mobile-web-app-capable', content: 'yes' },
         // Sengaja tanpa black-translucent: iOS 26.1+ memburamkan konten di bawah

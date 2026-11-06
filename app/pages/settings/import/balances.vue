@@ -142,7 +142,7 @@ async function save() {
                 autocomplete="off"
                 :placeholder="Math.abs(a.balance).toLocaleString('id-ID')"
                 :aria-label="`Saldo sebenarnya ${a.name}`"
-                class="min-w-0 flex-1 bg-transparent text-right text-row font-semibold outline-none placeholder:font-medium placeholder:text-ter"
+                class="min-w-0 flex-1 bg-transparent text-right text-amount font-semibold outline-none placeholder:font-medium placeholder:text-ter"
                 @input="onInput(a.id, $event)"
               />
             </span>

@@ -29,10 +29,10 @@ const title = computed(() => {
 <template>
   <IosSheet v-model:open="open" :title="title">
     <template #header>
-      <span v-if="sums.income" class="text-[14px] font-semibold text-inc">{{
+      <span v-if="sums.income" class="text-amount font-semibold text-inc">{{
         formatRupiah(sums.income)
       }}</span>
-      <span v-if="sums.expense" class="text-[14px] font-semibold text-exp">{{
+      <span v-if="sums.expense" class="text-amount font-semibold text-exp">{{
         formatRupiah(sums.expense)
       }}</span>
     </template>
