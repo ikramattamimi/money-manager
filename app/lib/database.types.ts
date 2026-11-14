@@ -919,7 +919,7 @@ export type Database = {
         }[]
       }
       adjust_balance: {
-        Args: { p_account_id: string; p_actual: number }
+        Args: { p_account_id: string; p_actual: number; p_as_transaction?: boolean }
         Returns: {
           account_id: string
           amount: number

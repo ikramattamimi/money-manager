@@ -193,10 +193,16 @@ export const accountsApi = {
   },
 
   /** Buat transaksi koreksi sebesar selisih; null kalau saldo sudah sama */
-  async adjust(accountId: string, actual: number): Promise<Tables<'transactions'> | null> {
+  async adjust(
+    accountId: string,
+    actual: number,
+    asTransaction = false,
+  ): Promise<Tables<'transactions'> | null> {
+    // asTransaction: selisih dicatat sebagai pemasukan/pengeluaran biasa (masuk statistik)
     const { data, error } = await useSupabase().rpc('adjust_balance', {
       p_account_id: accountId,
       p_actual: actual,
+      p_as_transaction: asTransaction,
     });
     if (error) throw new Error('Gagal menyesuaikan saldo.', { cause: error });
     return data && (data as Tables<'transactions'>).id ? (data as Tables<'transactions'>) : null;

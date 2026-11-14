@@ -9,6 +9,7 @@ import type { Account } from '@/features/accounts/api';
 import { groupStyle } from '@/features/accounts/style';
 import { useAccountMutations, useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
+import AdjustChoiceAlert from './AdjustChoiceAlert.vue';
 import FormDialogHeader from './FormDialogHeader.vue';
 import { FORM_INPUT, FORM_NOTE, FORM_SELECT, FORM_SH, formGroup } from './formStyles';
 import InlineAmount from '@/components/data/InlineAmount.vue';
@@ -88,7 +89,18 @@ function save() {
   if (isCard.value && !form.statementDay !== !form.dueDay)
     errors.dueDay = 'Isi tanggal cetak dan jatuh tempo, atau kosongkan keduanya.';
   if (Object.keys(errors).length || !bookId.value) return;
+  // Saldo berubah: tanya dulu dicatat sebagai transaksi atau koreksi saja
+  if (balanceDiff.value !== 0) choosing.value = true;
+  else commit(false);
+}
 
+// Akun baru mulai dari 0, jadi seluruh saldo awal adalah selisihnya
+const actualBalance = computed(() => (form.negative ? -form.balance : form.balance));
+const balanceDiff = computed(() => actualBalance.value - (props.account?.balance ?? 0));
+const choosing = ref(false);
+
+function commit(asTransaction: boolean) {
+  if (!bookId.value) return;
   const data = {
     name: form.name.trim(),
     group_id: form.groupId,
@@ -100,33 +112,26 @@ function save() {
     statement_day: isCard.value && form.statementDay ? form.statementDay : null,
     due_day: isCard.value && form.dueDay ? form.dueDay : null,
   };
-  const actual = form.negative ? -form.balance : form.balance;
-  // Selisih dari saldo tercatat dicatat sebagai koreksi (akun baru mulai dari 0)
-  const adjust = (id: string, current: number) => {
-    if (actual !== current) mutations.adjust.mutate({ id, actual });
+  const actual = actualBalance.value;
+  // Pakai mutateAsync: form langsung ditutup, dan callback per-panggilan
+  // mutate() tidak jalan lagi setelah komponen unmount (koreksi tak terkirim)
+  const adjust = async (id: string, current: number) => {
+    if (actual !== current) await mutations.adjust.mutateAsync({ id, actual, asTransaction });
   };
+  const done = (message: string) => () => toast.show(message);
+  const ignore = () => {}; // error sudah ditampilkan lewat onError mutasi
   if (props.account) {
     const id = props.account.id;
     const current = props.account.balance;
-    mutations.update.mutate(
-      { id, patch: data },
-      {
-        onSuccess: () => {
-          adjust(id, current);
-          toast.show('Akun disimpan');
-        },
-      },
-    );
+    mutations.update
+      .mutateAsync({ id, patch: data })
+      .then(() => adjust(id, current))
+      .then(done('Akun disimpan'), ignore);
   } else {
-    mutations.create.mutate(
-      { ...data, book_id: bookId.value },
-      {
-        onSuccess: (created) => {
-          adjust(created.id, 0);
-          toast.show(`Akun ${data.name} ditambahkan`);
-        },
-      },
-    );
+    mutations.create
+      .mutateAsync({ ...data, book_id: bookId.value })
+      .then((created) => adjust(created.id, 0))
+      .then(done(`Akun ${data.name} ditambahkan`), ignore);
   }
   emit('close');
 }
@@ -232,9 +237,10 @@ const firstError = computed(() => errors.name || errors.groupId || '');
       </GroupRow>
     </div>
     <p :class="FORM_NOTE">
-      Kalau berbeda dari saldo tercatat, selisihnya dicatat sebagai koreksi saldo dan tidak dihitung
-      di statistik.
+      Kalau berbeda dari saldo tercatat, saat menyimpan kamu bisa memilih mencatat selisihnya sebagai
+      pemasukan/pengeluaran atau hanya sebagai koreksi saldo.
     </p>
+    <AdjustChoiceAlert v-model:open="choosing" :diff="balanceDiff" @choose="commit" />
 
     <p :class="FORM_SH">Total</p>
     <div :class="formGroup(page)">

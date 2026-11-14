@@ -217,8 +217,8 @@ export function useAccountMutations() {
       onError,
     }),
     adjust: useMutation({
-      mutationFn: ({ id, actual }: { id: string; actual: number }) =>
-        accountsApi.adjust(id, actual),
+      mutationFn: ({ id, actual, asTransaction }: { id: string; actual: number; asTransaction?: boolean }) =>
+        accountsApi.adjust(id, actual, asTransaction),
       onSuccess: () => {
         invalidate();
         client.invalidateQueries({ queryKey: transactionKeys.all });

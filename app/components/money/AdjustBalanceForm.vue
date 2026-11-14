@@ -4,6 +4,7 @@ import IosSwitch from '@/components/ios/IosSwitch.vue';
 import type { Account } from '@/features/accounts/api';
 import { useAccountMutations } from '@/features/accounts/useAccounts';
 import { formatRupiah } from '@/lib/format';
+import AdjustChoiceAlert from './AdjustChoiceAlert.vue';
 import FormDialogHeader from './FormDialogHeader.vue';
 import { FORM_NOTE, FORM_SH, formGroup } from './formStyles';
 import InlineAmount from '@/components/data/InlineAmount.vue';
@@ -20,6 +21,8 @@ const toast = useToast();
 
 const amount = ref(Math.abs(props.account.balance));
 const negative = ref(props.account.balance < 0);
+// Alert pilihan: selisih dicatat sebagai transaksi atau koreksi saja
+const choosing = ref(false);
 const actual = computed(() => (negative.value ? -amount.value : amount.value));
 const diff = computed(() => actual.value - props.account.balance);
 const diffLabel = computed(() => (diff.value > 0 ? '+' : '−') + formatRupiah(Math.abs(diff.value)));
@@ -27,16 +30,17 @@ const diffLabel = computed(() => (diff.value > 0 ? '+' : '−') + formatRupiah(M
 function save() {
   // Saldo sudah sama: tidak ada koreksi, tetap di form
   if (diff.value === 0) return;
-  mutations.adjust.mutate(
-    { id: props.account.id, actual: actual.value },
-    {
-      onSuccess: (tx) =>
-        toast.show(
-          tx
-            ? `Saldo ${props.account.name} disesuaikan ke ${formatRupiah(actual.value)}`
-            : 'Saldo sudah sama',
-        ),
-    },
+  choosing.value = true;
+}
+
+function commit(asTransaction: boolean) {
+  const name = props.account.name;
+  const target = actual.value;
+  // mutateAsync: toast tetap muncul walau form sudah ditutup (unmount)
+  mutations.adjust.mutateAsync({ id: props.account.id, actual: target, asTransaction }).then(
+    (tx) =>
+      toast.show(tx ? `Saldo ${name} disesuaikan ke ${formatRupiah(target)}` : 'Saldo sudah sama'),
+    () => {}, // error sudah ditampilkan lewat onError mutasi
   );
   emit('close');
 }
@@ -86,13 +90,15 @@ function save() {
       <GroupRow
         v-else
         title="Selisih"
-        subtitle="Dicatat sebagai koreksi saldo"
+        subtitle="Dicatat saat menyimpan"
         :value="diffLabel"
         :value-tone="diff > 0 ? 'inc' : 'exp'"
       />
     </div>
     <p :class="FORM_NOTE">
-      Koreksi tidak dihitung sebagai pemasukan atau pengeluaran di statistik.
+      Saat menyimpan, pilih apakah selisihnya dihitung sebagai pemasukan/pengeluaran di statistik
+      atau hanya koreksi saldo.
     </p>
+    <AdjustChoiceAlert v-model:open="choosing" :diff="diff" @choose="commit" />
   </form>
 </template>
