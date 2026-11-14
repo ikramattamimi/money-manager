@@ -18,7 +18,6 @@ import DayGroup from '@/components/money/DayGroup.vue';
 import DaySheet from '@/components/money/DaySheet.vue';
 import MonthSummary from '@/components/money/MonthSummary.vue';
 import PendingRecurring from '@/components/money/PendingRecurring.vue';
-import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
 import TxCard from '@/components/money/TxCard.vue';
 import TxCalendar from '@/components/money/TxCalendar.vue';
 import TxRow from '@/components/money/TxRow.vue';
@@ -56,7 +55,7 @@ definePageMeta({ layout: 'app' });
 useHead({ title: 'Transaksi · Money Manager' });
 
 const { canEdit, monthStartDay } = useActiveBook();
-const { md, lg, xl } = useBreakpoint();
+const { md, lg } = useBreakpoint();
 const ui = useQuickAddUi();
 const editor = useTxEditor();
 const highlight = useTxHighlight();
@@ -251,12 +250,9 @@ const topCats = computed(() => {
       ...categories.style(id),
     }));
 });
-const inlinePanel = ref<InstanceType<typeof QuickAddPanel>>();
-watch(ui.focusTick, () => nextTick(() => inlinePanel.value?.focus()));
 
 function addFirst() {
   if (lg.value) ui.focusTick.value++;
-  else if (md.value) ui.open.value = true;
   else addOn(todayKey);
 }
 
@@ -548,15 +544,12 @@ watch([highlight, list], ([id]) => {
         class="sticky top-0 hidden max-h-dvh flex-col gap-3.5 overflow-y-auto overscroll-contain pb-3.5 pt-3.5 lg:flex"
         aria-label="Catat cepat dan ringkasan"
       >
-        <!-- Desktop: form catat baru di kartu; iPad landscape: Ketik cepat -->
+        <!-- iPad landscape dan desktop: form catat baru di kartu -->
         <Card
-          v-if="canEdit && xl"
+          v-if="canEdit"
           class="flex h-[clamp(600px,calc(100dvh-232px),800px)] shrink-0 flex-col overflow-hidden p-0"
         >
           <TxCard />
-        </Card>
-        <Card v-else-if="canEdit" class="px-3.5 pb-3.5 pt-3">
-          <QuickAddPanel ref="inlinePanel" inline with-import title-id="qa-inline-title" />
         </Card>
         <Card class="p-1">
           <CardHead title="Pengeluaran teratas" class="px-2.5 pt-2.5">

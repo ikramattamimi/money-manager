@@ -8,6 +8,7 @@ import CenterDialog from '@/components/base/CenterDialog.vue';
 import Toaster from '@/components/base/Toaster.vue';
 import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
+import { useTxEditor } from '@/features/transactions/useTxEditor';
 import { NAV_ITEMS, navHref } from '@/lib/navigation';
 
 // Kerangka aplikasi untuk tiga ukuran (lihat .ai/plans/mvp/fase-3-design.md):
@@ -36,6 +37,7 @@ const emit = defineEmits<{ logout: [] }>();
 const route = useRoute();
 const { md, lg } = useBreakpoint();
 const ui = useQuickAddUi();
+const editor = useTxEditor();
 const panel = ref<InstanceType<typeof QuickAddPanel>>();
 
 const txPath = navHref(props.base, NAV_ITEMS[0]!);
@@ -86,8 +88,9 @@ async function startQuickAdd() {
     props.phoneAdd();
     return;
   }
+  // iPad tanpa kolom kanan: form catat baru (sheet portrait)
   if (!lg.value) {
-    ui.open.value = true;
+    editor.create();
     return;
   }
   // Layar lebar: panel inline di halaman Transaksi, cukup fokus ke inputnya
