@@ -8,6 +8,7 @@ import {
   Plus,
   Repeat,
   Star,
+  X,
 } from '@lucide/vue';
 import { TONE_CLASS } from '@/components/data/tone';
 import Dock from '@/components/ios/Dock.vue';
@@ -70,13 +71,26 @@ const props = withDefaults(
     transaction: Transaction | null;
     draft: Draft | null;
     titleId: string;
-    layout?: 'dialog' | 'page';
+    /**
+     * `page` HP · `portrait` iPad portrait (sheet, panel menempel di bawah) ·
+     * `split` iPad landscape (dua kolom, panel di kanan) · `card` kartu
+     * Catat di kolom kanan desktop · `dialog` gaya lama.
+     */
+    layout?: 'dialog' | 'page' | 'portrait' | 'split' | 'card';
     /** Kepala dialog (judul + tutup) dipasang pembungkusnya (TransactionComposer) */
     bare?: boolean;
   }>(),
   { layout: 'dialog' },
 );
 const emit = defineEmits<{ close: [] }>();
+/** Tampilan baru (bar atas + baris penuh): halaman HP dan dialog iPad */
+const isNew = computed(() => props.layout !== 'dialog');
+/** Panel memakai Dock (menempel di bawah) */
+const docked = computed(() => props.layout === 'page' || props.layout === 'portrait');
+/** Panel selalu terlihat sebagai area tetap (kolom kanan iPad, kartu desktop) */
+const pane = computed(() => props.layout === 'split' || props.layout === 'card');
+/** Dialog iPad: Simpan juga di bar atas */
+const sheetBar = computed(() => props.layout === 'split' || props.layout === 'portrait');
 
 const { bookId, canEdit } = useActiveBook();
 const { active: accounts, byId: accountById } = useAccounts();
@@ -604,6 +618,9 @@ function save(again = false) {
   }
 }
 
+/** Kartu desktop: Enter di Ketik cepat langsung menyimpan */
+defineExpose({ save, canSave });
+
 // ---------- aksi lain ----------
 /** Pengeluaran ini diganti: buka form pemasukan baru yang sudah terkait */
 function recordReimbursement(remaining: number) {
@@ -705,28 +722,52 @@ const panelTitle = computed(() =>
 
 <template>
   <form
-    class="tx-form flex flex-col"
+    :class="[
+      'tx-form',
+      layout === 'split'
+        ? 'grid h-full grid-cols-[minmax(0,1fr)_340px] grid-rows-[auto_minmax(0,1fr)] bg-background'
+        : layout === 'portrait' || layout === 'card'
+          ? 'flex h-full min-h-0 flex-col'
+          : 'flex flex-col',
+      layout === 'portrait' && 'bg-background',
+    ]"
     novalidate
     :aria-labelledby="titleId"
     @submit.prevent="save()"
   >
-    <!-- Bar atas halaman HP: Batal · jenis · bintang -->
+    <!-- Bar atas: Batal · jenis · bintang (+ Simpan di iPad; judul di kartu desktop) -->
     <header
-      v-if="layout === 'page'"
-      class="sticky top-0 z-30 bg-card pt-[env(safe-area-inset-top,0px)] shadow-[0_0.5px_0_var(--sep)]"
+      v-if="isNew"
+      :class="[
+        'sticky top-0 z-30 bg-card',
+        layout === 'card' ? 'pt-1.5' : 'shadow-[0_0.5px_0_var(--sep)]',
+        layout === 'page' && 'pt-[env(safe-area-inset-top,0px)]',
+        layout === 'split' && 'col-span-2',
+      ]"
     >
       <h1 :id="titleId" class="sr-only">
         {{ isAdjustment ? 'Koreksi saldo' : editing ? 'Ubah transaksi' : 'Transaksi baru' }}
       </h1>
-      <div class="flex h-11 items-center gap-1 px-1">
+      <div
+        :class="[
+          'flex items-center gap-1 px-1',
+          'h-11',
+        ]"
+      >
         <button
+          v-if="layout !== 'card'"
           type="button"
           class="h-11 px-3 text-bar text-primary-accent active:opacity-50"
           @click="emit('close')"
         >
           Batal
         </button>
-        <div class="flex min-w-0 flex-1 justify-center">
+        <div
+          :class="[
+            'flex min-w-0 justify-center',
+            layout === 'card' ? 'flex-1 !justify-start pl-2' : 'flex-1',
+          ]"
+        >
           <div
             v-if="!isAdjustment"
             ref="pill"
@@ -770,9 +811,53 @@ const panelTitle = computed(() =>
         >
           <Star class="size-[21px]" :fill="starred ? 'currentColor' : 'none'" aria-hidden="true" />
         </button>
-        <span v-else class="w-11" />
+        <span v-else-if="layout !== 'card'" class="w-11" />
+        <!-- iPad: Simpan di bar atas (papan angka bisa menutupi tombol bawah) -->
+        <button
+          v-if="sheetBar && canEdit"
+          type="submit"
+          :disabled="!canSave"
+          class="h-11 px-3 text-bar font-semibold text-primary-accent active:opacity-50 disabled:opacity-30"
+        >
+          Simpan
+        </button>
+        <!-- Kartu desktop: impor (baru) atau kembali ke Catat (ubah) -->
+        <template v-if="layout === 'card'">
+          <button
+            v-if="editing"
+            type="button"
+            aria-label="Batal mengubah"
+            class="grid size-11 place-items-center rounded-xl text-muted-foreground active:bg-fill-press"
+            @click="emit('close')"
+          >
+            <X class="size-5" aria-hidden="true" />
+          </button>
+          <template v-else>
+            <button
+              type="button"
+              aria-label="Dari foto struk"
+              title="Dari foto struk"
+              class="grid size-10 place-items-center rounded-xl text-primary-accent active:bg-fill-press"
+              @click="importFrom('photo')"
+            >
+              <Camera class="size-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Dari mutasi bank"
+              title="Dari mutasi bank"
+              class="grid size-10 place-items-center rounded-xl text-primary-accent active:bg-fill-press"
+              @click="importFrom('bank')"
+            >
+              <FileText class="size-5" aria-hidden="true" />
+            </button>
+          </template>
+        </template>
       </div>
     </header>
+
+    <!-- Kartu desktop: Ketik cepat di atas baris -->
+    <slot name="quick" />
 
     <!-- Dialog: jenis di dalam form -->
     <div v-if="layout === 'dialog' && !isAdjustment" class="pb-3.5">
@@ -784,6 +869,14 @@ const panelTitle = computed(() =>
       />
     </div>
 
+    <!-- Isi: baris + kaitan + tombol. iPad = kolom yang bisa digulir -->
+    <div
+      :class="
+        layout === 'split' || layout === 'portrait'
+          ? 'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [scrollbar-width:none]'
+          : 'contents'
+      "
+    >
     <p
       v-if="isAdjustment"
       class="mx-4 mt-3.5 rounded-xl bg-card px-4 py-3 text-meta text-muted-foreground"
@@ -796,7 +889,7 @@ const panelTitle = computed(() =>
       v-else
       :class="[
         'bg-card',
-        layout === 'dialog' ? 'overflow-hidden rounded-group' : 'mt-0',
+        layout === 'dialog' ? 'overflow-hidden rounded-group' : 'mt-0 shrink-0',
         layout === 'page' && panel && 'pb-[360px]',
       ]"
     >
@@ -1073,7 +1166,8 @@ const panelTitle = computed(() =>
           </li>
         </ul>
       </div>
-      <label class="tx-row">
+      <!-- Kartu desktop: Keterangan hanya saat mengubah atau sudah terisi (hemat tinggi) -->
+      <label v-if="layout !== 'card' || editing || form.description" class="tx-row">
         <span class="tx-label">Keterangan</span>
         <input
           v-model="form.description"
@@ -1088,7 +1182,7 @@ const panelTitle = computed(() =>
 
       <!-- Pintasan impor (transaksi baru di HP) -->
       <div
-        v-if="!editing && layout === 'page'"
+        v-if="!editing && isNew && layout !== 'card'"
         class="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]"
       >
         <button
@@ -1108,7 +1202,13 @@ const panelTitle = computed(() =>
       </div>
     </div>
 
-    <div v-if="!isAdjustment" :class="layout === 'page' ? 'px-4' : ''">
+    <div
+      v-if="!isAdjustment"
+      :class="[
+        isNew ? 'px-4' : '',
+        layout === 'card' && 'min-h-0 shrink overflow-y-auto pb-3 [scrollbar-width:none]',
+      ]"
+    >
       <LinkSection
         v-if="form.type === 'income'"
         v-model:links="links"
@@ -1132,8 +1232,14 @@ const panelTitle = computed(() =>
 
     <!-- Tombol -->
     <div
-      v-if="canEdit && !panel"
-      :class="['flex flex-col gap-2.5 pt-[18px]', layout === 'page' ? 'px-4 pb-10' : '']"
+      v-if="canEdit && (!panel || layout === 'split' || layout === 'card')"
+      :class="[
+        'flex flex-col gap-2.5',
+        layout === 'card'
+          ? 'order-last shrink-0 p-3 shadow-[0_-0.5px_0_var(--sep)]'
+          : 'pt-[18px]',
+        layout === 'page' ? 'px-4 pb-10' : layout === 'split' || layout === 'portrait' ? 'px-4 pb-4' : '',
+      ]"
     >
       <div v-if="!isAdjustment" class="flex gap-2.5">
         <IosButton type="submit" class="flex-1" :disabled="!canSave">{{
@@ -1155,26 +1261,48 @@ const panelTitle = computed(() =>
         <IosButton variant="gray" class="flex-1 !text-exp" @click="remove">Hapus</IosButton>
       </div>
     </div>
+    </div>
 
-    <!-- Panel: menempel di bawah (HP) atau di dalam form (dialog) -->
+    <!--
+      Panel: menempel di bawah (HP, iPad portrait), kolom kanan (iPad landscape),
+      di dalam kartu (desktop), atau di dalam form (dialog lama).
+      Kolom kanan dan kartu selalu ada supaya ukurannya tidak melompat.
+    -->
     <component
-      :is="layout === 'page' ? Dock : 'div'"
-      v-if="panel"
+      :is="docked ? Dock : 'div'"
+      v-if="panel || pane"
       v-bind="
-        layout === 'page'
+        docked
           ? {
               title: panelTitle,
               hint: panel === 'keypad' || panel === 'fee' ? '+ − × ÷ bisa dipakai' : '',
               steps: stepIndex >= 0 ? { count: steps.length, active: stepIndex } : undefined,
               auto: panel === 'date',
+              contained: layout === 'portrait',
             }
-          : { class: 'mt-3.5 overflow-hidden rounded-group bg-[var(--kb-bg)]' }
+          : {
+              class: pane
+                ? [
+                    'flex min-h-0 flex-col bg-[var(--kb-bg)]',
+                    layout === 'split'
+                      ? 'shadow-[-0.5px_0_0_var(--kb-head-line)]'
+                      : 'flex-1 shadow-[0_-0.5px_0_var(--kb-head-line)]',
+                  ]
+                : 'mt-3.5 overflow-hidden rounded-group bg-[var(--kb-bg)]',
+            }
       "
       @close="panel = null"
     >
       <div
-        v-if="layout === 'dialog'"
-        class="flex h-11 items-center bg-[var(--kb-head)] px-4 shadow-[inset_0_-0.5px_0_var(--kb-head-line)]"
+        v-if="pane && !panel"
+        class="flex flex-1 flex-col items-center justify-center gap-1.5 bg-background p-6 text-center text-meta text-muted-foreground"
+      >
+        <span>Pilih baris untuk mengisi</span>
+        <span v-if="layout === 'card'">Enter lanjut · ⌘ Enter simpan</span>
+      </div>
+      <div
+        v-if="!docked && panel && layout !== 'card'"
+        class="flex h-11 shrink-0 items-center bg-[var(--kb-head)] px-4 shadow-[inset_0_-0.5px_0_var(--kb-head-line)]"
       >
         <b class="flex-1 text-body font-semibold">{{ panelTitle }}</b>
         <button
@@ -1185,8 +1313,17 @@ const panelTitle = computed(() =>
           Selesai
         </button>
       </div>
+      <div
+        v-if="panel"
+        :class="
+          pane
+            ? 'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [scrollbar-width:none]'
+            : 'contents'
+        "
+      >
       <Keypad
         v-if="panel === 'keypad' || panel === 'fee'"
+        :fill="pane"
         :has-operator="hasOperator(panel === 'fee' ? feeTokens : tokens)"
         @press="onKey"
       />
@@ -1207,6 +1344,7 @@ const panelTitle = computed(() =>
         @select="choose"
       />
       <DatePanel v-else-if="panel === 'date'" v-model:date="form.date" v-model:time="form.time" />
+      </div>
     </component>
 
     <!-- Cicilan -->

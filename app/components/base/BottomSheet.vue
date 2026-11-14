@@ -5,7 +5,11 @@ import { shouldCommit, sqrtFriction } from '@/lib/gesture';
 // ke atas, tutup kalau turun > 30% tinggi atau di-flick. Masuk 280ms, keluar
 // 200ms (keluar lebih cepat dari masuk). Esc dan scrim menutup.
 const open = defineModel<boolean>('open', { required: true });
-const props = defineProps<{ labelledby: string }>();
+const props = defineProps<{
+  labelledby: string;
+  /** Form sheet iPad portrait: 640px di tengah, tinggi tetap, tanpa padding dan pegangan */
+  form?: boolean;
+}>();
 const emit = defineEmits<{ opened: [] }>();
 
 const sheet = ref<HTMLElement>();
@@ -17,6 +21,8 @@ const { dragging } = useSwipe(sheet, {
   threshold: 6,
   // Jangan mulai drag dari kontrol, atau dari isi yang sedang digulir
   canStart: (event) => {
+    // Form sheet iPad: isi menggulir sendiri, tutup lewat Batal / scrim
+    if (props.form) return false;
     const target = event.target as HTMLElement;
     if (target.closest('input, button, [data-no-drag]')) return false;
     const body = sheet.value?.querySelector('[data-sheet-body]');
@@ -69,17 +75,28 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     :aria-hidden="!open"
     :inert="!open"
     :class="[
-      'sheet fixed inset-x-0 bottom-0 z-[55] flex max-h-[calc(100%-48px)] touch-none flex-col rounded-t-[20px] border-t bg-card px-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+14px)] pt-1.5 shadow-float',
+      'sheet fixed bottom-0 z-[55] flex flex-col rounded-t-[20px] border-t bg-card shadow-float',
+      props.form
+        ? 'left-[max(24px,calc(50%-320px))] right-[max(24px,calc(50%-320px))] h-[calc(100%-72px)] overflow-hidden'
+        : 'inset-x-0 max-h-[calc(100%-48px)] touch-none px-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+14px)] pt-1.5',
       open && 'is-open',
       dragging && 'is-dragging',
     ]"
     :style="{ transform: offset ? `translateY(${offset}px)` : undefined }"
   >
     <div
+      v-if="!props.form"
       class="mx-auto mb-2 h-1.25 w-9 shrink-0 rounded-full bg-border-strong"
       aria-hidden="true"
     />
-    <div data-sheet-body class="touch-pan-y overflow-y-auto [scrollbar-width:none]">
+    <div
+      data-sheet-body
+      :class="
+        props.form
+          ? 'flex min-h-0 flex-1 flex-col'
+          : 'touch-pan-y overflow-y-auto [scrollbar-width:none]'
+      "
+    >
       <slot />
     </div>
   </div>

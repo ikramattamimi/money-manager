@@ -18,9 +18,12 @@ export function useTxEditor() {
   const draft = useState<Draft | null>('editor:draft', () => null);
   /** Bertambah setiap form dibuka: form dibuat ulang dengan isian segar */
   const session = useState('editor:session', () => 0);
+  /** Kartu Catat desktop sedang tampil: tambah/ubah diisi di kartu, bukan dialog */
+  const docked = useState('editor:docked', () => false);
 
   function show() {
     session.value++;
+    if (docked.value) return;
     if (!openAsPage(TX_PAGE)) open.value = true;
   }
 
@@ -38,8 +41,14 @@ export function useTxEditor() {
 
   function close() {
     open.value = false;
+    if (docked.value) {
+      // Kartu kembali ke Catat baru
+      transaction.value = null;
+      draft.value = null;
+      session.value++;
+    }
     if (router.currentRoute.value.path === TX_PAGE) closePage('/');
   }
 
-  return { open, transaction, draft, session, edit, create, close };
+  return { open, transaction, draft, session, docked, edit, create, close };
 }

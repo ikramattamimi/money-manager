@@ -5,7 +5,11 @@ import type { CalcKey } from '@/features/transactions/calculator';
 // Papan angka gaya keyboard iOS (mockup .keys/.key): 4 kolom, + − × ÷ di
 // kanan, "=" setinggi dua baris yang berganti jadi "Lanjut" kalau tidak ada
 // operasi. Tekan: latar gelap + skala 0,96, 80ms. Tanpa animasi lain.
-const props = defineProps<{ hasOperator: boolean }>();
+const props = defineProps<{
+  hasOperator: boolean;
+  /** Mengisi tinggi wadah (kolom kanan iPad, kartu desktop), bukan 48px per baris */
+  fill?: boolean;
+}>();
 const emit = defineEmits<{ press: [key: CalcKey] }>();
 
 const KEYS: {
@@ -44,7 +48,14 @@ const CLS = {
 </script>
 
 <template>
-  <div class="grid grid-cols-4 grid-rows-[repeat(5,48px)] gap-1.5 px-[5px] pb-[30px] pt-[7px]">
+  <div
+    :class="[
+      'grid grid-cols-4 gap-1.5',
+      props.fill
+        ? 'min-h-[196px] flex-1 grid-rows-[repeat(5,minmax(34px,1fr))] p-1.5'
+        : 'grid-rows-[repeat(5,48px)] px-[5px] pb-[30px] pt-[7px]',
+    ]"
+  >
     <button
       v-for="key in KEYS"
       :key="key.k"

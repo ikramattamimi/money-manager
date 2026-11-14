@@ -2,7 +2,11 @@
 // Dialog di tengah layar (form sheet iPad). Masuk 240ms dari scale(0.98) +
 // opacity, keluar 150ms. Modal tetap transform-origin tengah. Esc dan scrim menutup.
 const open = defineModel<boolean>('open', { required: true });
-const props = defineProps<{ labelledby: string }>();
+const props = defineProps<{
+  labelledby: string;
+  /** Form sheet lebar tanpa padding (form catat iPad landscape) */
+  wide?: boolean;
+}>();
 const emit = defineEmits<{ opened: [] }>();
 
 let lastFocus: HTMLElement | null = null;
@@ -35,7 +39,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     :aria-hidden="!open"
     :inert="!open"
     :class="[
-      'dialog fixed left-1/2 top-1/2 z-[55] max-h-[min(720px,calc(100%-96px))] w-[480px] overflow-y-auto rounded-[20px] border bg-card px-3.5 pb-4 pt-3 shadow-float',
+      'dialog fixed left-1/2 top-1/2 z-[55] rounded-[20px] border bg-card shadow-float',
+      props.wide
+        ? 'h-[min(640px,calc(100%-64px))] w-[min(780px,calc(100%-48px))] overflow-hidden'
+        : 'max-h-[min(720px,calc(100%-96px))] w-[480px] overflow-y-auto px-3.5 pb-4 pt-3',
       open && 'is-open',
     ]"
   >

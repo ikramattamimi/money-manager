@@ -12,15 +12,20 @@ withDefaults(
     steps?: { count: number; active: number };
     /** Tinggi mengikuti isi, bukan setinggi papan angka (301px) */
     auto?: boolean;
+    /** Di dalam sheet iPad: ikut alur isi, bukan menempel di layar */
+    contained?: boolean;
   }>(),
-  { hint: '', steps: undefined, auto: false },
+  { hint: '', steps: undefined, auto: false, contained: false },
 );
 const emit = defineEmits<{ close: [] }>();
 </script>
 
 <template>
   <div
-    class="ios-dock fixed inset-x-0 bottom-0 z-[45] bg-[var(--kb-bg)] pb-[env(safe-area-inset-bottom,0px)]"
+    :class="[
+      'ios-dock bg-[var(--kb-bg)] pb-[env(safe-area-inset-bottom,0px)]',
+      contained ? 'relative shrink-0' : 'fixed inset-x-0 bottom-0 z-[45]',
+    ]"
     role="group"
     :aria-label="title"
   >
