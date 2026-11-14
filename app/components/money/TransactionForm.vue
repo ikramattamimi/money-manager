@@ -9,13 +9,13 @@ import {
   Repeat,
   Star,
   X,
+  Zap,
 } from '@lucide/vue';
 import { TONE_CLASS } from '@/components/data/tone';
 import Dock from '@/components/ios/Dock.vue';
 import IosButton from '@/components/ios/IosButton.vue';
 import IosSheet from '@/components/ios/IosSheet.vue';
 import IosSwitch from '@/components/ios/IosSwitch.vue';
-import Segmented from '@/components/ios/Segmented.vue';
 import ChoiceGrid from '@/components/money/ChoiceGrid.vue';
 import DatePanel from '@/components/money/DatePanel.vue';
 import Keypad from '@/components/money/Keypad.vue';
@@ -63,9 +63,8 @@ import { uuid } from '@/lib/uuid';
 // Form catat/ubah transaksi gaya Realbyte (mockup form-*): baris label kiri,
 // nilai kanan; panel bawah seperti keyboard berisi papan angka berkalkulator,
 // grid kategori/akun, atau kalender. Alur otomatis Nominal → Kategori → Akun →
-// Catatan. `layout="page"` (HP): bar atas Batal · jenis · bintang, panel
-// menempel di bawah layar. `dialog` (iPad/desktop): panel di dalam form,
-// papan angka juga bisa diketik dari keyboard.
+// Catatan. Bar atas: Batal · jenis · bintang · ⚡ Ketik cepat. Papan angka juga
+// bisa diketik dari keyboard fisik.
 const props = withDefaults(
   defineProps<{
     transaction: Transaction | null;
@@ -74,17 +73,13 @@ const props = withDefaults(
     /**
      * `page` HP · `portrait` iPad portrait (sheet, panel menempel di bawah) ·
      * `split` iPad landscape (dua kolom, panel di kanan) · `card` kartu
-     * Catat di kolom kanan desktop · `dialog` gaya lama.
+     * Catat di kolom kanan desktop.
      */
-    layout?: 'dialog' | 'page' | 'portrait' | 'split' | 'card';
-    /** Kepala dialog (judul + tutup) dipasang pembungkusnya (TransactionComposer) */
-    bare?: boolean;
+    layout?: 'page' | 'portrait' | 'split' | 'card';
   }>(),
-  { layout: 'dialog' },
+  { layout: 'page' },
 );
 const emit = defineEmits<{ close: [] }>();
-/** Tampilan baru (bar atas + baris penuh): halaman HP dan dialog iPad */
-const isNew = computed(() => props.layout !== 'dialog');
 /** Panel memakai Dock (menempel di bawah) */
 const docked = computed(() => props.layout === 'page' || props.layout === 'portrait');
 /** Panel selalu terlihat sebagai area tetap (kolom kanan iPad, kartu desktop) */
@@ -344,11 +339,53 @@ const expr = computed(() =>
   expressionLabel(panel.value === 'fee' ? feeTokens.value : tokens.value),
 );
 
-// ---------- ketik cepat dari Shortcut iOS (/add?text=…) ----------
+// ---------- ketik cepat ----------
+// Kolom "kopi 25rb gopay" di bawah bar atas: teks diurai langsung ke baris,
+// Enter menyimpan. Disembunyikan secara bawaan; ⚡ di bar atas atau pintasan
+// (menu tahan +, N, Shortcut iOS /add?text=…) memunculkannya. Pilihan
+// tampil/sembunyi diingat per perangkat.
 const quickLists = useQuickLists();
 const quickText = ref('');
 const prefill = useState('tx:prefill', () => '');
-function applyQuick(value: string) {
+/** Permintaan sekali pakai: form berikutnya dibuka dengan Ketik cepat terfokus */
+const quickRequest = useState('tx:quick', () => false);
+const QUICK_KEY = 'mm:quick';
+const quickOpen = ref(false);
+const quickInput = ref<HTMLInputElement>();
+try {
+  if (import.meta.client) quickOpen.value = localStorage.getItem(QUICK_KEY) === '1';
+} catch {
+  /* penyimpanan tidak tersedia: tetap tersembunyi */
+}
+watch(quickOpen, (open) => {
+  try {
+    localStorage.setItem(QUICK_KEY, open ? '1' : '0');
+  } catch {
+    /* abaikan */
+  }
+});
+function openQuick(text = '') {
+  if (editing.value) return;
+  quickOpen.value = true;
+  // Keyboard sistem yang dipakai: tutup panel supaya tidak bertumpuk
+  panel.value = null;
+  if (text.trim()) applyQuick(text.trim(), true);
+  nextTick(() => quickInput.value?.focus());
+}
+function toggleQuick() {
+  if (quickOpen.value) {
+    quickOpen.value = false;
+    quickText.value = '';
+  } else openQuick();
+}
+function onQuickInput(value: string) {
+  quickText.value = value;
+  if (value.trim()) applyQuick(value, true);
+}
+function submitQuick() {
+  if (canSave.value) save();
+}
+function applyQuick(value: string, typing = false) {
   quickText.value = value;
   const p = parseQuick(value, {
     accounts: quickLists.accounts.value,
@@ -367,12 +404,14 @@ function applyQuick(value: string) {
     setOccurred(p.occurredAt);
     original = { input: localInput(), iso: p.occurredAt };
   }
-  panel.value = p.amount ? null : 'keypad';
+  // Saat mengetik, panel tertutup supaya keyboard dan baris terlihat
+  panel.value = typing || p.amount ? null : 'keypad';
 }
-if (!props.transaction && prefill.value) {
+if (!props.transaction && (prefill.value || quickRequest.value)) {
   const text = prefill.value;
   prefill.value = '';
-  applyQuick(text);
+  quickRequest.value = false;
+  onMounted(() => openQuick(text));
 }
 watch([quickLists.accounts, quickLists.categories], () => {
   if (quickText.value && !touched.account && !touched.category) applyQuick(quickText.value);
@@ -627,7 +666,7 @@ function save(again = false) {
 }
 
 /** Kartu desktop: Enter di Ketik cepat langsung menyimpan */
-defineExpose({ save, canSave });
+defineExpose({ save, canSave, openQuick });
 
 // ---------- aksi lain ----------
 /** Pengeluaran ini diganti: buka form pemasukan baru yang sudah terkait */
@@ -733,7 +772,12 @@ const panelTitle = computed(() =>
     :class="[
       'tx-form',
       layout === 'split'
-        ? 'grid h-full grid-cols-[minmax(0,1fr)_340px] grid-rows-[auto_minmax(0,1fr)] bg-background'
+        ? [
+            'grid h-full grid-cols-[minmax(0,1fr)_340px] bg-background',
+            quickOpen && !editing && !isAdjustment
+              ? 'grid-rows-[auto_auto_minmax(0,1fr)]'
+              : 'grid-rows-[auto_minmax(0,1fr)]',
+          ]
         : layout === 'portrait' || layout === 'card'
           ? 'flex h-full min-h-0 flex-col'
           : 'flex flex-col',
@@ -743,9 +787,8 @@ const panelTitle = computed(() =>
     :aria-labelledby="titleId"
     @submit.prevent="save()"
   >
-    <!-- Bar atas: Batal · jenis · bintang (+ Simpan di iPad; judul di kartu desktop) -->
+    <!-- Bar atas: Batal · jenis · bintang · ⚡ (+ Simpan di iPad; tanpa Batal di kartu desktop) -->
     <header
-      v-if="isNew"
       :class="[
         'sticky top-0 z-30 bg-card',
         layout === 'card' ? 'pt-1.5' : 'shadow-[0_0.5px_0_var(--sep)]',
@@ -820,6 +863,20 @@ const panelTitle = computed(() =>
           <Star class="size-[21px]" :fill="starred ? 'currentColor' : 'none'" aria-hidden="true" />
         </button>
         <span v-else-if="layout !== 'card'" class="w-11" />
+        <button
+          v-if="!isAdjustment && canEdit && !editing"
+          type="button"
+          :aria-label="quickOpen ? 'Sembunyikan Ketik cepat' : 'Tampilkan Ketik cepat'"
+          :aria-pressed="quickOpen"
+          :title="quickOpen ? 'Sembunyikan Ketik cepat' : 'Ketik cepat, struk, mutasi'"
+          :class="[
+            'grid size-11 shrink-0 place-items-center rounded-xl text-primary-accent active:scale-90 active:bg-fill-press',
+            quickOpen && 'bg-primary-soft',
+          ]"
+          @click="toggleQuick"
+        >
+          <Zap class="size-5" :fill="quickOpen ? 'currentColor' : 'none'" aria-hidden="true" />
+        </button>
         <!-- iPad: Simpan di bar atas (papan angka bisa menutupi tombol bawah) -->
         <button
           v-if="sheetBar && canEdit"
@@ -829,33 +886,62 @@ const panelTitle = computed(() =>
         >
           Simpan
         </button>
-        <!-- Kartu desktop: tombol Ketik cepat (baru) atau kembali ke Catat (ubah) -->
-        <template v-if="layout === 'card'">
-          <button
-            v-if="editing"
-            type="button"
-            aria-label="Batal mengubah"
-            class="grid size-11 place-items-center rounded-xl text-muted-foreground active:bg-fill-press"
-            @click="emit('close')"
-          >
-            <X class="size-5" aria-hidden="true" />
-          </button>
-          <slot v-else name="actions" />
-        </template>
+        <!-- Kartu desktop saat mengubah: kembali ke Catat baru -->
+        <button
+          v-if="layout === 'card' && editing"
+          type="button"
+          aria-label="Batal mengubah"
+          class="grid size-11 place-items-center rounded-xl text-muted-foreground active:bg-fill-press"
+          @click="emit('close')"
+        >
+          <X class="size-5" aria-hidden="true" />
+        </button>
       </div>
     </header>
 
-    <!-- Kartu desktop: Ketik cepat di atas baris -->
-    <slot name="quick" />
-
-    <!-- Dialog: jenis di dalam form -->
-    <div v-if="layout === 'dialog' && !isAdjustment" class="pb-3.5">
-      <Segmented
-        :model-value="form.type"
-        :options="TYPES.map((t) => ({ value: t.value, label: t.label }))"
-        label="Jenis transaksi"
-        @update:model-value="(v) => (form.type = v as TxType)"
-      />
+    <!-- Ketik cepat + cara catat lain (struk, mutasi) -->
+    <div
+      v-if="quickOpen && !editing && !isAdjustment"
+      :class="[
+        'flex shrink-0 flex-col gap-2 bg-card px-3 pb-2.5 pt-1',
+        layout === 'split' && 'col-span-2',
+        layout !== 'card' && 'shadow-[0_0.5px_0_var(--sep)]',
+      ]"
+    >
+      <label class="flex h-[42px] items-center gap-2 rounded-[11px] bg-fill px-3">
+        <Zap class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span class="sr-only">Ketik cepat</span>
+        <input
+          ref="quickInput"
+          :value="quickText"
+          type="text"
+          autocomplete="off"
+          enterkeyhint="done"
+          maxlength="200"
+          placeholder="Ketik cepat: kopi 25rb gopay"
+          class="h-full min-w-0 flex-1 bg-transparent text-amount outline-none placeholder:text-ter"
+          @input="onQuickInput(($event.target as HTMLInputElement).value)"
+          @focus="panel = null"
+          @keydown.enter.prevent="submitQuick"
+          @keydown.esc.prevent="toggleQuick"
+        />
+      </label>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded-full bg-fill px-3 text-meta font-semibold active:scale-95"
+          @click="importFrom('photo')"
+        >
+          <Camera class="size-4" aria-hidden="true" />Struk
+        </button>
+        <button
+          type="button"
+          class="inline-flex h-8 items-center gap-1.5 rounded-full bg-fill px-3 text-meta font-semibold active:scale-95"
+          @click="importFrom('bank')"
+        >
+          <FileText class="size-4" aria-hidden="true" />Mutasi bank
+        </button>
+      </div>
     </div>
 
     <!-- Isi: baris + kaitan + tombol. iPad = kolom yang bisa digulir -->
@@ -883,11 +969,9 @@ const panelTitle = computed(() =>
       ref="rowsEl"
       :class="[
         'bg-card',
-        layout === 'dialog'
-          ? 'overflow-hidden rounded-group'
-          : layout === 'card'
-            ? 'tx-scroll-shade min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none]'
-            : 'mt-0 shrink-0',
+        layout === 'card'
+          ? 'tx-scroll-shade min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none]'
+          : 'mt-0 shrink-0',
         layout === 'page' && panel && 'pb-[360px]',
       ]"
     >
@@ -1177,33 +1261,12 @@ const panelTitle = computed(() =>
           @focus="panel = null"
         />
       </label>
-
-      <!-- Pintasan impor (transaksi baru di HP) -->
-      <div
-        v-if="!editing && isNew && layout !== 'card'"
-        class="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none]"
-      >
-        <button
-          type="button"
-          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-fill px-3 text-meta font-semibold active:scale-95"
-          @click="importFrom('photo')"
-        >
-          <Camera class="size-4" aria-hidden="true" />Dari foto struk
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-fill px-3 text-meta font-semibold active:scale-95"
-          @click="importFrom('bank')"
-        >
-          <FileText class="size-4" aria-hidden="true" />Dari mutasi bank
-        </button>
-      </div>
     </div>
 
     <div
       v-if="!isAdjustment"
       :class="[
-        isNew ? 'px-4' : '',
+        'px-4',
         layout === 'card' && 'min-h-0 shrink overflow-y-auto pb-3 [scrollbar-width:none]',
       ]"
     >
@@ -1263,7 +1326,7 @@ const panelTitle = computed(() =>
 
     <!--
       Panel: menempel di bawah (HP, iPad portrait), kolom kanan (iPad landscape),
-      di dalam kartu (desktop), atau di dalam form (dialog lama).
+      atau di dalam kartu (desktop).
       Kolom kanan dan kartu selalu ada supaya ukurannya tidak melompat.
     -->
     <component

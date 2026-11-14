@@ -3,19 +3,16 @@ import AddButton, { type QuickAction } from './AddButton.vue';
 import IosAlert from '@/components/ios/IosAlert.vue';
 import AppSidebar, { type SidebarExtra } from './AppSidebar.vue';
 import TabBar from './TabBar.vue';
-import BottomSheet from '@/components/base/BottomSheet.vue';
-import CenterDialog from '@/components/base/CenterDialog.vue';
 import Toaster from '@/components/base/Toaster.vue';
-import QuickAddPanel from '@/components/money/QuickAddPanel.vue';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 import { NAV_ITEMS, navHref } from '@/lib/navigation';
 
 // Kerangka aplikasi untuk tiga ukuran (lihat .ai/plans/mvp/fase-3-design.md):
-// HP: tab bar bawah + tombol +, sheet catat transaksi.
-// iPad: tab bar atas tengah + tombol +, dialog catat transaksi;
-//       landscape (>= 1024px) panel catat inline di halaman Transaksi.
-// Desktop (>= 1180px): sidebar, panel catat inline, pintasan N.
+// HP: tab bar bawah + tombol +, halaman form catat.
+// iPad: tab bar bawah tengah + tombol +, sheet form catat;
+//       landscape (>= 1024px) kartu Catat di halaman Transaksi.
+// Desktop (>= 1180px): sidebar, kartu Catat, pintasan N.
 // Halaman digulir oleh window supaya bar ringkas dan safe area sederhana.
 const props = withDefaults(
   defineProps<{
@@ -38,7 +35,6 @@ const route = useRoute();
 const { md, lg } = useBreakpoint();
 const ui = useQuickAddUi();
 const editor = useTxEditor();
-const panel = ref<InstanceType<typeof QuickAddPanel>>();
 
 const txPath = navHref(props.base, NAV_ITEMS[0]!);
 const active = computed(() => {
@@ -66,7 +62,7 @@ function onRetap(key: string) {
   if (counter) counter.value++;
 }
 
-/** Menu tahan tombol +: Ketik cepat membuka panel quick-add, sisanya halaman impor/bookmark */
+/** Menu tahan tombol +: Ketik cepat membuka form dengan Ketik cepat terfokus, sisanya halaman impor/bookmark */
 const QUICK_PATH: Record<Exclude<QuickAction, 'quick'>, string> = {
   bookmark: '/bookmarks',
   bank: '/settings/import/bank',
@@ -74,16 +70,17 @@ const QUICK_PATH: Record<Exclude<QuickAction, 'quick'>, string> = {
 };
 function onQuick(action: QuickAction) {
   if (action === 'quick') {
-    if (lg.value) startQuickAdd();
-    else ui.open.value = true;
+    startQuickAdd(true);
     return;
   }
   navigateTo(props.base + QUICK_PATH[action]);
 }
 
-/** Tombol +, tombol sidebar, dan pintasan N */
-async function startQuickAdd() {
+/** Tombol +, tombol sidebar, dan pintasan N. `quick` = langsung ke Ketik cepat */
+const quickRequest = useState('tx:quick', () => false);
+async function startQuickAdd(quick = false) {
   if (!props.canAdd) return;
+  if (!lg.value) quickRequest.value = quick;
   if (!md.value && props.phoneAdd) {
     props.phoneAdd();
     return;
@@ -93,7 +90,7 @@ async function startQuickAdd() {
     editor.create();
     return;
   }
-  // Layar lebar: panel inline di halaman Transaksi, cukup fokus ke inputnya
+  // Layar lebar: kartu Catat di halaman Transaksi, buka Ketik cepat di sana
   if (route.path !== txPath) await navigateTo(txPath);
   ui.focusTick.value++;
 }
@@ -103,18 +100,11 @@ function onKey(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
   if (target?.closest?.('input, textarea, select, [contenteditable]')) return;
   event.preventDefault();
-  startQuickAdd();
+  startQuickAdd(true);
 }
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
-// Masuk ke layar lebar saat sheet terbuka: panel pindah ke kolom kanan
-watch(lg, (wide) => {
-  if (wide && ui.open.value) {
-    ui.open.value = false;
-    startQuickAdd();
-  }
-});
 </script>
 
 <template>
@@ -127,7 +117,7 @@ watch(lg, (wide) => {
     :user-role="userRole"
     :extras="extras"
     :can-add="canAdd"
-    @add="startQuickAdd"
+    @add="startQuickAdd()"
     @logout="emit('logout')"
   />
 
@@ -141,37 +131,7 @@ watch(lg, (wide) => {
   </main>
 
   <TabBar :base="base" :active="active" :with-add="showAdd" @retap="onRetap" />
-  <AddButton v-if="showAdd" @press="startQuickAdd" @quick="onQuick" />
+  <AddButton v-if="showAdd" @press="startQuickAdd()" @quick="onQuick" />
   <Toaster />
   <IosAlert />
-
-  <template v-if="!lg && canAdd">
-    <CenterDialog
-      v-if="md"
-      v-model:open="ui.open.value"
-      labelledby="qa-title"
-      @opened="nextTick(() => panel?.focus())"
-    >
-      <QuickAddPanel
-        ref="panel"
-        title-id="qa-title"
-        with-import
-        @close="ui.open.value = false"
-        @saved="ui.open.value = false"
-      />
-    </CenterDialog>
-    <BottomSheet
-      v-else
-      v-model:open="ui.open.value"
-      labelledby="qa-title"
-      @opened="nextTick(() => panel?.focus())"
-    >
-      <QuickAddPanel
-        ref="panel"
-        title-id="qa-title"
-        @close="ui.open.value = false"
-        @saved="ui.open.value = false"
-      />
-    </BottomSheet>
-  </template>
 </template>

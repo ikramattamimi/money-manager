@@ -1,27 +1,11 @@
 <script setup lang="ts">
 import { Download, Repeat, Star } from '@lucide/vue';
 import AppShell from '@/components/layout/AppShell.vue';
-import { provideQuickAddSource } from '@/features/quick-add/useQuickAdd';
-import type { QuickCategory } from '@/features/quick-add/types';
-import { ACCOUNTS, CATEGORIES, TEMPLATES } from '@/mocks/data';
-import { useMockLedger } from '@/mocks/useMockLedger';
+import { TEMPLATES } from '@/mocks/data';
 
 // Layout katalog komponen (/prototype/ui, /prototype/tokens): AppShell dengan
 // data tiruan, tanpa login. Tab bar menuju app asli.
 // Fase 4 membuat layout `app` yang sama dengan sumber data Supabase.
-const ledger = useMockLedger();
-
-provideQuickAddSource({
-  accounts: ref(ACCOUNTS.filter((a) => a.balance >= 0)),
-  categories: ref(
-    CATEGORIES.filter(
-      (c): c is QuickCategory & typeof c => c.kind !== 'transfer',
-    ) as QuickCategory[],
-  ),
-  templates: ref(TEMPLATES),
-  defaultAccountId: ref('cash'),
-  save: (draft) => ledger.add(draft),
-});
 
 const extras = [
   { label: 'Bookmark', icon: Star, count: TEMPLATES.length },

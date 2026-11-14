@@ -12,24 +12,22 @@ const editor = useTxEditor();
 const ui = useQuickAddUi();
 const { lg } = useBreakpoint();
 const prefill = useState('tx:prefill', () => '');
-const quickText = useState('qa:text', () => '');
 
-onMounted(() => {
-  const text = String(route.query.text ?? '').slice(0, 200);
+// Form mana pun membuka Ketik cepat berisi teks ini (tx:prefill)
+onMounted(async () => {
+  prefill.value = String(route.query.text ?? '').slice(0, 200) || ' ';
   if (isPhoneWidth()) {
-    // HP: halaman form penuh dengan kolom "Ketik saja" terisi
-    prefill.value = text;
+    // HP: halaman form penuh
     editor.transaction.value = null;
     editor.draft.value = null;
     editor.session.value++;
     navigateTo('/transaction', { replace: true });
     return;
   }
-  // iPad/desktop: panel catat cepat di halaman Transaksi
-  quickText.value = text;
+  await navigateTo('/', { replace: true });
+  // iPad landscape/desktop: kartu Catat; iPad portrait: sheet form
   if (lg.value) ui.focusTick.value++;
-  else ui.open.value = true;
-  navigateTo('/', { replace: true });
+  else editor.create();
 });
 </script>
 
