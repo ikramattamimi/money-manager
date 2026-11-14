@@ -91,6 +91,8 @@ const docked = computed(() => props.layout === 'page' || props.layout === 'portr
 const pane = computed(() => props.layout === 'split' || props.layout === 'card');
 /** Dialog iPad: Simpan juga di bar atas */
 const sheetBar = computed(() => props.layout === 'split' || props.layout === 'portrait');
+/** Kartu desktop: baris yang sedang diisi selalu terlihat di atas panel (tanpa animasi) */
+const rowsEl = ref<HTMLElement>();
 
 const { bookId, canEdit } = useActiveBook();
 const { active: accounts, byId: accountById } = useAccounts();
@@ -141,6 +143,12 @@ const touched = reactive({ account: false, category: false });
 
 type Panel = 'keypad' | 'fee' | 'category' | 'account' | 'to' | 'date';
 const panel = ref<Panel | null>(null);
+watch(panel, () => {
+  if (props.layout !== 'card') return;
+  nextTick(() =>
+    rowsEl.value?.querySelector('.tx-row.is-on')?.scrollIntoView({ block: 'nearest' }),
+  );
+});
 const repeat = ref<RepeatOption>('none');
 const installment = ref<number | null>(null);
 
@@ -821,7 +829,7 @@ const panelTitle = computed(() =>
         >
           Simpan
         </button>
-        <!-- Kartu desktop: impor (baru) atau kembali ke Catat (ubah) -->
+        <!-- Kartu desktop: tombol Ketik cepat (baru) atau kembali ke Catat (ubah) -->
         <template v-if="layout === 'card'">
           <button
             v-if="editing"
@@ -832,26 +840,7 @@ const panelTitle = computed(() =>
           >
             <X class="size-5" aria-hidden="true" />
           </button>
-          <template v-else>
-            <button
-              type="button"
-              aria-label="Dari foto struk"
-              title="Dari foto struk"
-              class="grid size-10 place-items-center rounded-xl text-primary-accent active:bg-fill-press"
-              @click="importFrom('photo')"
-            >
-              <Camera class="size-5" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              aria-label="Dari mutasi bank"
-              title="Dari mutasi bank"
-              class="grid size-10 place-items-center rounded-xl text-primary-accent active:bg-fill-press"
-              @click="importFrom('bank')"
-            >
-              <FileText class="size-5" aria-hidden="true" />
-            </button>
-          </template>
+          <slot v-else name="actions" />
         </template>
       </div>
     </header>
@@ -885,11 +874,20 @@ const panelTitle = computed(() =>
       saldo lagi, pakai Sesuaikan saldo di halaman akun.
     </p>
 
+    <!--
+      Kartu desktop: baris isian yang mengalah saat ruang kurang (digulir),
+      papan angka tetap utuh — seperti keyboard iOS menutupi konten.
+    -->
     <div
       v-else
+      ref="rowsEl"
       :class="[
         'bg-card',
-        layout === 'dialog' ? 'overflow-hidden rounded-group' : 'mt-0 shrink-0',
+        layout === 'dialog'
+          ? 'overflow-hidden rounded-group'
+          : layout === 'card'
+            ? 'tx-scroll-shade min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none]'
+            : 'mt-0 shrink-0',
         layout === 'page' && panel && 'pb-[360px]',
       ]"
     >
@@ -1270,7 +1268,7 @@ const panelTitle = computed(() =>
     -->
     <component
       :is="docked ? Dock : 'div'"
-      v-if="panel || pane"
+      v-if="panel || layout === 'split'"
       v-bind="
         docked
           ? {
@@ -1286,7 +1284,8 @@ const panelTitle = computed(() =>
                     'flex min-h-0 flex-col bg-[var(--kb-bg)]',
                     layout === 'split'
                       ? 'shadow-[-0.5px_0_0_var(--kb-head-line)]'
-                      : 'flex-1 shadow-[0_-0.5px_0_var(--kb-head-line)]',
+                      : // Kartu: tinggi alami (papan angka 5 × 44px); grid panjang digulir di dalam
+                        'max-h-[min(340px,62%)] shrink-0 shadow-[0_-0.5px_0_var(--kb-head-line)]',
                   ]
                 : 'mt-3.5 overflow-hidden rounded-group bg-[var(--kb-bg)]',
             }
@@ -1298,7 +1297,6 @@ const panelTitle = computed(() =>
         class="flex flex-1 flex-col items-center justify-center gap-1.5 bg-background p-6 text-center text-meta text-muted-foreground"
       >
         <span>Pilih baris untuk mengisi</span>
-        <span v-if="layout === 'card'">Enter lanjut · ⌘ Enter simpan</span>
       </div>
       <div
         v-if="!docked && panel && layout !== 'card'"
@@ -1323,7 +1321,7 @@ const panelTitle = computed(() =>
       >
       <Keypad
         v-if="panel === 'keypad' || panel === 'fee'"
-        :fill="pane"
+        :size="layout === 'split' ? 'fill' : layout === 'card' ? 'fixed' : 'dock'"
         :has-operator="hasOperator(panel === 'fee' ? feeTokens : tokens)"
         @press="onKey"
       />
@@ -1397,6 +1395,21 @@ const panelTitle = computed(() =>
 </template>
 
 <style scoped>
+/*
+ * Bayangan tepi saat baris kartu bisa digulir: penutup (local) ikut isi dan
+ * menutupi bayangan (scroll) ketika sudah di ujung, jadi bayangan hanya
+ * terlihat kalau masih ada isi di atas/bawah. Tanpa JavaScript.
+ */
+.tx-scroll-shade {
+  background:
+    linear-gradient(var(--card) 30%, transparent) top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--card) 70%) bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.12), transparent) top / 100% 8px
+      no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.12), transparent) bottom / 100% 8px
+      no-repeat scroll,
+    var(--card);
+}
 /* Baris form (mockup .fr/.fl): label 80px kiri, nilai kanan, garis dari 16px */
 .tx-row {
   position: relative;

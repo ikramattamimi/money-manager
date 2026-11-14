@@ -5,7 +5,7 @@ import { todayWib } from '@/features/stats/period';
 // Tab bar Liquid Glass (mockup .tabbar/.tab). HP: pil mengambang di bawah,
 // sisakan ruang kanan untuk tombol +; ikon di atas label, tab aktif berlatar
 // aksen lembut. Tab Transaksi memakai ikon kalender berisi tanggal hari ini.
-// iPad: di atas tengah, ikon dan label sebaris. Pindah tab tanpa animasi;
+// iPad: di bawah tengah seperti HP, ikon dan label sebaris. Pindah tab tanpa animasi;
 // ketuk tab aktif = gulir ke atas dan kembali ke bulan ini (lihat AppShell).
 const props = withDefaults(defineProps<{ base: string; active: string; withAdd?: boolean }>(), {
   withAdd: true,
@@ -27,7 +27,7 @@ function onTap(key: string) {
     data-chrome
     aria-label="Navigasi utama"
     :class="withAdd ? 'right-[84px]' : 'right-3.5'"
-    class="ios-tabbar fixed bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] left-3.5 z-40 flex rounded-full p-1 md:bottom-auto md:left-1/2 md:right-auto md:top-[calc(env(safe-area-inset-top,0px)+14px)] md:w-[480px] md:-translate-x-1/2 xl:hidden"
+    class="ios-tabbar fixed bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] left-3.5 z-40 flex rounded-full p-1 md:bottom-[calc(env(safe-area-inset-bottom,0px)+20px)] md:left-1/2 md:right-auto md:w-[480px] md:-translate-x-1/2 xl:hidden"
   >
     <NuxtLink
       v-for="item in NAV_ITEMS"
@@ -48,7 +48,7 @@ function onTap(key: string) {
     </NuxtLink>
   </nav>
   <!-- Gradasi di bawah konten supaya teks tidak beradu dengan tab bar (mockup .edge) -->
-  <div data-chrome class="ios-edge pointer-events-none fixed inset-x-0 bottom-0 z-30 h-[130px] md:hidden" aria-hidden="true" />
+  <div data-chrome class="ios-edge pointer-events-none fixed inset-x-0 bottom-0 z-30 h-[130px] xl:hidden" aria-hidden="true" />
 </template>
 
 <style scoped>

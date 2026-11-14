@@ -10,8 +10,8 @@ withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
     :class="[
       'imp-bar sticky z-20 mx-3 mt-5 flex items-center gap-3 rounded-[22px] py-2.5 pl-4 pr-2.5',
       embedded
-        ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] md:bottom-0'
-        : 'bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] md:bottom-4',
+        ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] xl:bottom-0'
+        : 'bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] xl:bottom-4',
     ]"
   >
     <slot />

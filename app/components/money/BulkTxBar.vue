@@ -75,7 +75,7 @@ const busy = computed(() => bulk.update.isPending.value || bulk.remove.isPending
 
 <template>
   <div
-    class="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mt-4 flex flex-col gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card md:bottom-4"
+    class="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mt-4 flex flex-col gap-2 rounded-card border bg-card px-3.5 py-2.5 shadow-card xl:bottom-4"
     role="toolbar"
     aria-label="Aksi untuk transaksi terpilih"
   >

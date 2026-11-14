@@ -634,7 +634,7 @@ function openTotal(total: AccountTotal | null) {
     <!-- Bilah aksi pilih banyak (kaca, melayang di atas tab bar) -->
     <div
       v-if="selecting"
-      class="select-bar sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mx-3 mt-4 flex flex-col gap-2 rounded-[22px] px-3 pb-3 pt-2.5 md:bottom-4"
+      class="select-bar sticky bottom-[calc(env(safe-area-inset-bottom,0px)+86px)] z-10 mx-3 mt-4 flex flex-col gap-2 rounded-[22px] px-3 pb-3 pt-2.5 xl:bottom-4"
       role="toolbar"
       aria-label="Aksi untuk akun terpilih"
     >

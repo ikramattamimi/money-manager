@@ -7,8 +7,11 @@ import type { CalcKey } from '@/features/transactions/calculator';
 // operasi. Tekan: latar gelap + skala 0,96, 80ms. Tanpa animasi lain.
 const props = defineProps<{
   hasOperator: boolean;
-  /** Mengisi tinggi wadah (kolom kanan iPad, kartu desktop), bukan 48px per baris */
-  fill?: boolean;
+  /**
+   * `dock` 48px per baris + ruang home indicator (HP) · `fill` mengisi tinggi
+   * wadah (kolom kanan iPad) · `fixed` 44px per baris tanpa ruang bawah (kartu desktop)
+   */
+  size?: 'dock' | 'fill' | 'fixed';
 }>();
 const emit = defineEmits<{ press: [key: CalcKey] }>();
 
@@ -51,9 +54,11 @@ const CLS = {
   <div
     :class="[
       'grid grid-cols-4 gap-1.5',
-      props.fill
+      props.size === 'fill'
         ? 'min-h-[196px] flex-1 grid-rows-[repeat(5,minmax(34px,1fr))] p-1.5'
-        : 'grid-rows-[repeat(5,48px)] px-[5px] pb-[30px] pt-[7px]',
+        : props.size === 'fixed'
+          ? 'shrink-0 grid-rows-[repeat(5,44px)] p-1.5'
+          : 'grid-rows-[repeat(5,48px)] px-[5px] pb-[30px] pt-[7px]',
     ]"
   >
     <button

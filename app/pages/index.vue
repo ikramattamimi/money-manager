@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ChevronRight, Layers, ListFilter, Search, Sigma } from '@lucide/vue';
 import Card from '@/components/base/Card.vue';
-import CardHead from '@/components/base/CardHead.vue';
-import HBarList from '@/components/charts/HBarList.vue';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
 import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
@@ -26,7 +24,7 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
 import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import type { Transaction } from '@/features/transactions/api';
-import { netAmount, summarize } from '@/features/transactions/effects';
+import { summarize } from '@/features/transactions/effects';
 import {
   groupByDay,
   shortDate,
@@ -231,24 +229,25 @@ function tapRow(t: Transaction) {
 }
 
 // ---------- kolom kanan (>= 1024px) ----------
-const topCats = computed(() => {
-  const by = new Map<string, number>();
-  for (const t of list.value) {
-    if (t.type !== 'expense' || t.is_adjustment || !t.category_id) continue;
-    const key = rootOf(t.category_id)!;
-    by.set(key, (by.get(key) ?? 0) + netAmount(t));
-  }
-  return [...by.entries()]
-    .filter(([, value]) => value > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([id, value]) => ({
-      id,
-      label: categories.label(id),
-      value,
-      display: formatShort(value),
-      ...categories.style(id),
-    }));
+// Header menempel di atas (semua ukuran); kartu Catat menempel tepat di bawahnya.
+// Batas bawah header diukur supaya posisi kartu ikut tinggi header.
+const navBar = ref<{ $el: HTMLElement }>();
+const stickTop = ref(0);
+let navObserver: ResizeObserver | null = null;
+function measureNav() {
+  const el = navBar.value?.$el;
+  if (!el) return;
+  stickTop.value = (Number.parseFloat(getComputedStyle(el).top) || 0) + el.offsetHeight;
+}
+onMounted(() => {
+  measureNav();
+  navObserver = new ResizeObserver(measureNav);
+  if (navBar.value?.$el) navObserver.observe(navBar.value.$el);
+  window.addEventListener('resize', measureNav);
+});
+onBeforeUnmount(() => {
+  navObserver?.disconnect();
+  window.removeEventListener('resize', measureNav);
 });
 
 function addFirst() {
@@ -269,9 +268,15 @@ watch([highlight, list], ([id]) => {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-clip md:rounded-2xl"
+    :style="{ '--tx-stick': `${stickTop}px` }"
   >
-    <NavBar title="Transaksi" class="sticky top-0 md:static">
+    <!-- Menempel di tepi atas (HP, iPad, desktop) -->
+    <NavBar
+      ref="navBar"
+      title="Transaksi"
+      class="sticky top-0 z-20"
+    >
       <template #left>
         <IconButton label="Cari" to="/search"><Search aria-hidden="true" /></IconButton>
       </template>
@@ -538,27 +543,16 @@ watch([highlight, list], ([id]) => {
         />
       </MonthSwipe>
 
-      <!-- Kolom kanan (>= 1024px): Catat cepat selalu terbuka + pengeluaran teratas -->
+      <!-- Kolom kanan (>= 1024px): kartu Catat menempel tepat di bawah header -->
       <aside
-        v-if="lg"
-        class="sticky top-0 hidden max-h-dvh flex-col gap-3.5 overflow-y-auto overscroll-contain pb-3.5 pt-3.5 lg:flex"
-        aria-label="Catat cepat dan ringkasan"
+        v-if="lg && canEdit"
+        class="sticky top-[var(--tx-stick)] hidden pb-3.5 pt-3.5 lg:block"
+        aria-label="Catat transaksi"
       >
-        <!-- iPad landscape dan desktop: form catat baru di kartu -->
         <Card
-          v-if="canEdit"
-          class="flex h-[clamp(600px,calc(100dvh-232px),800px)] shrink-0 flex-col overflow-hidden p-0"
+          class="flex h-[min(800px,calc(100dvh-var(--tx-stick)-28px))] min-h-[520px] max-xl:h-[calc(100dvh-var(--tx-stick)-104px)] flex-col overflow-hidden p-0"
         >
           <TxCard />
-        </Card>
-        <Card class="p-1">
-          <CardHead title="Pengeluaran teratas" class="px-2.5 pt-2.5">
-            <span class="text-xs text-muted-foreground">{{ MONTHS_LONG[month - 1] }}</span>
-          </CardHead>
-          <HBarList v-if="topCats.length" :items="topCats" />
-          <p v-else class="m-0 px-2.5 pb-3 pt-1 text-meta text-muted-foreground">
-            Belum ada pengeluaran bulan ini.
-          </p>
         </Card>
       </aside>
     </div>
