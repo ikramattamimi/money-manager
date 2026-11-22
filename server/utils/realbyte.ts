@@ -55,9 +55,39 @@ const rowSchema = z.object({
 });
 type Row = z.infer<typeof rowSchema> & { row: number };
 
+/** Kolom yang dibaca parser. Kolom lain (mis. Tag) boleh ada di mana saja. */
+const REQUIRED_COLUMNS = {
+  period: 'Period',
+  account: 'Accounts',
+  category: 'Category',
+  subcategory: 'Subcategory',
+  note: 'Note',
+  idr: 'IDR',
+  kind: 'Income/Expense',
+  description: 'Description',
+  amount: 'Amount',
+} as const;
+type Columns = Record<keyof typeof REQUIRED_COLUMNS, number>;
+
+/**
+ * Posisi tiap kolom menurut judulnya. Realbyte versi baru menyisipkan kolom
+ * (mis. "Tag" sebelum Description), jadi posisi tidak bisa dianggap tetap.
+ * "Accounts" muncul dua kali; yang pertama adalah akun. null = bukan ekspor Realbyte.
+ */
+export function realbyteColumns(header: unknown[]): Columns | null {
+  const names = header.map((cell) => String(cell ?? '').trim());
+  const columns = {} as Columns;
+  for (const [key, name] of Object.entries(REQUIRED_COLUMNS)) {
+    const index = names.indexOf(name);
+    if (index < 0) return null;
+    columns[key as keyof Columns] = index;
+  }
+  return columns;
+}
+
 /** Cek judul kolom: tolak file yang bukan ekspor Realbyte */
 export function isRealbyteHeader(header: unknown[]): boolean {
-  return REALBYTE_HEADER.every((name, i) => String(header[i] ?? '').trim() === name);
+  return realbyteColumns(header) !== null;
 }
 
 /**
@@ -143,20 +173,23 @@ const lower = (s: string) => s.trim().toLowerCase();
 export async function parseRealbyte(rows: unknown[][]): Promise<ParsedImport> {
   const errors: ImportError[] = [];
   const valid: Row[] = [];
+  const col = realbyteColumns(rows[0] ?? []);
+  if (!col) throw new Error('Judul kolom bukan ekspor Realbyte');
 
   rows.slice(1).forEach((raw, i) => {
     const row = i + 1;
     if (!raw || raw.every((cell) => cell == null || cell === '')) return;
+    const kind = raw[col.kind];
     const result = rowSchema.safeParse({
-      period: raw[0],
-      account: raw[1],
-      category: raw[2],
-      subcategory: raw[3],
-      note: raw[4],
+      period: raw[col.period],
+      account: raw[col.account],
+      category: raw[col.category],
+      subcategory: raw[col.subcategory],
+      note: raw[col.note],
       // Kolom IDR; kalau kosong pakai Amount
-      amount: raw[5] ?? raw[8],
-      kind: typeof raw[6] === 'string' ? raw[6].trim() : raw[6],
-      description: raw[7],
+      amount: raw[col.idr] ?? raw[col.amount],
+      kind: typeof kind === 'string' ? kind.trim() : kind,
+      description: raw[col.description],
     });
     if (result.success) valid.push({ ...result.data, row });
     else errors.push({ row, reason: result.error.issues[0]?.message ?? 'Baris tidak valid' });

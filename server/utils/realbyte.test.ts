@@ -158,4 +158,18 @@ describe('parseRealbyte', () => {
     expect(result.errors.map((e) => e.row)).toEqual([1, 2, 3, 4]);
     expect(result.errors[0]!.reason).toMatch(/Period/);
   });
+
+  it('ekspor versi baru dengan kolom Tag: hasil dan kunci anti-dobel sama', async () => {
+    // Realbyte kini menyisipkan "Tag" di antara Income/Expense dan Description
+    const at = HEADER.indexOf('Description');
+    const withTag = SAMPLE.map((r, i) => [
+      ...r.slice(0, at),
+      i === 0 ? 'Tag' : null,
+      ...r.slice(at),
+    ]);
+    expect(isRealbyteHeader(withTag[0]!)).toBe(true);
+    const result = await parseRealbyte(withTag);
+    expect(result.errors).toEqual(parsed.errors);
+    expect(result.transactions).toEqual(parsed.transactions);
+  });
 });
