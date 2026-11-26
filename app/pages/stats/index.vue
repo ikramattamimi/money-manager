@@ -210,6 +210,41 @@ const noteRows = computed(() => {
         </IconButton>
       </template>
       <SubTabs v-model="sub" :options="SUBS" label="Jenis statistik" />
+      <!-- Nominal ikut menempel bersama header; Pemasukan/Pengeluaran sekaligus pemilih jenis -->
+      <div
+        v-if="sub === 'stats'"
+        class="flex bg-card shadow-[inset_0_0.5px_0_var(--sep)]"
+        role="group"
+        aria-label="Jenis"
+      >
+        <button
+          v-for="k in [
+            { value: 'income', label: 'Pemasukan', total: income.total.value, cls: 'text-inc' },
+            {
+              value: 'expense',
+              label: 'Pengeluaran',
+              total: expense.total.value,
+              cls: 'text-exp',
+            },
+          ] as const"
+          :key="k.value"
+          type="button"
+          :aria-pressed="kind === k.value"
+          class="relative flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-note font-semibold text-muted-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-1/4 aria-pressed:after:bottom-0 aria-pressed:after:h-[2.5px] aria-pressed:after:rounded-sm aria-pressed:after:bg-foreground"
+          @click="kind = k.value"
+        >
+          {{ k.label }}
+          <b :class="['text-amount', k.cls]">{{ formatRupiah(k.total) }}</b>
+        </button>
+        <div
+          class="flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-note font-semibold text-muted-foreground"
+        >
+          Total
+          <b class="text-amount text-foreground">{{
+            formatRupiah(income.total.value - expense.total.value)
+          }}</b>
+        </div>
+      </div>
     </NavBar>
 
     <MonthSwipe
@@ -222,32 +257,6 @@ const noteRows = computed(() => {
     >
       <!-- Statistik -->
       <template v-if="sub === 'stats'">
-        <div
-          class="flex bg-card shadow-[inset_0_-0.5px_0_var(--sep)]"
-          role="group"
-          aria-label="Jenis"
-        >
-          <button
-            v-for="k in [
-              { value: 'income', label: 'Pemasukan', total: income.total.value, cls: 'text-inc' },
-              {
-                value: 'expense',
-                label: 'Pengeluaran',
-                total: expense.total.value,
-                cls: 'text-exp',
-              },
-            ] as const"
-            :key="k.value"
-            type="button"
-            :aria-pressed="kind === k.value"
-            class="relative flex flex-1 flex-col items-center gap-px pb-2 pt-[9px] text-note font-semibold text-muted-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-1/4 aria-pressed:after:bottom-0 aria-pressed:after:h-[2.5px] aria-pressed:after:rounded-sm aria-pressed:after:bg-foreground"
-            @click="kind = k.value"
-          >
-            {{ k.label }}
-            <b :class="['text-amount', k.cls]">{{ formatRupiah(k.total) }}</b>
-          </button>
-        </div>
-
         <EmptyCard
           v-if="!query.isPending.value && !slices.length"
           class="mx-0! rounded-none!"

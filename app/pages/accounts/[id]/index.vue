@@ -233,9 +233,9 @@ function openForm() {
         />
       </div>
       <SubTabs v-model="tab" :options="TABS" label="Tampilan rincian akun" />
+      <!-- Nominal ikut menempel bersama header -->
+      <SummaryStrip :items="strip" dense />
     </NavBar>
-
-    <SummaryStrip :items="strip" dense />
 
     <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />
     <EmptyCard

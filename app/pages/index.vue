@@ -3,6 +3,7 @@ import { ChevronRight, Layers, ListFilter, Search, Sigma } from '@lucide/vue';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
 import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
+import IosSheet from '@/components/ios/IosSheet.vue';
 import MonthNav from '@/components/ios/MonthNav.vue';
 import MonthPickerSheet from '@/components/ios/MonthPickerSheet.vue';
 import MonthSwipe from '@/components/ios/MonthSwipe.vue';
@@ -88,22 +89,16 @@ watch([view, year, month], () => selection.stop());
 onBeforeUnmount(() => selection.stop());
 
 // ---------- cakupan: total yang tampil di Transaksi (mis. Uang bulanan) atau semua ----------
-const { accounts, totalViews, transactionsTotal } = useAccounts();
-// null = ikut total yang ditandai "Tampilkan di Transaksi"; 'all' = semua akun; selain itu id total
+const { accounts, totalViews } = useAccounts();
+// Bawaan semua akun; total dipilih lewat tombol di samping Filter (null = semua akun)
 const scopeChoice = useState<string | null>('tx:scope', () => null);
-// Penanda Transaksi berganti dari Akun: kembali ke bawaan yang baru
-watch(
-  () => transactionsTotal.value?.id,
-  (id, old) => old !== undefined && id !== old && (scopeChoice.value = null),
+const scope = computed(
+  () => (scopeChoice.value && totalViews.value.find((t) => t.id === scopeChoice.value)) || null,
 );
-const scope = computed(() => {
-  if (scopeChoice.value === 'all') return null;
-  const picked = scopeChoice.value && totalViews.value.find((t) => t.id === scopeChoice.value);
-  return picked || transactionsTotal.value;
-});
+const scopeOpen = ref(false);
 function pickScope(id: string | null) {
-  // Memilih total bawaan disimpan sebagai null supaya ikut bila penandanya diganti
-  scopeChoice.value = id !== null && id === transactionsTotal.value?.id ? null : (id ?? 'all');
+  scopeChoice.value = id;
+  scopeOpen.value = false;
 }
 const scopeId = computed(() => scope.value?.id ?? null);
 const scopeIds = computed(() =>
@@ -242,6 +237,8 @@ watch([highlight, list], ([id]) => {
     <NavBar title="Transaksi">
       <template #left>
         <IconButton label="Cari" to="/search"><Search aria-hidden="true" /></IconButton>
+        <!-- Penyeimbang dua tombol kanan supaya bulan tetap di tengah -->
+        <span v-if="totalViews.length" class="size-11 shrink-0" aria-hidden="true" />
       </template>
       <template #center>
         <MonthNav
@@ -255,6 +252,15 @@ watch([highlight, list], ([id]) => {
         />
       </template>
       <template #right>
+        <!-- Cakupan: semua akun (bawaan) atau salah satu total akun -->
+        <IconButton
+          v-if="totalViews.length"
+          :label="scope ? `Cakupan: ${scope.name}` : 'Cakupan: semua akun'"
+          :accent="!!scope"
+          @click="scopeOpen = true"
+        >
+          <component :is="scope ? Sigma : Layers" aria-hidden="true" />
+        </IconButton>
         <IconButton
           :label="filter.applied.value ? 'Filter aktif' : 'Filter'"
           to="/filter"
@@ -269,37 +275,25 @@ watch([highlight, list], ([id]) => {
         </IconButton>
       </template>
       <SubTabs v-model="view" :options="VIEWS" label="Tampilan transaksi" />
+      <!-- Nominal ikut menempel bersama header -->
+      <SummaryStrip
+        dense
+        :items="[
+          { label: 'Pemasukan', value: formatRupiah(summary.income), tone: 'inc' },
+          { label: 'Pengeluaran', value: formatRupiah(summary.expense), tone: 'exp' },
+          { label: 'Total', value: formatRupiah(summary.net) },
+        ]"
+      />
     </NavBar>
 
-    <!-- Cakupan (mockup .scope): semua akun atau salah satu total; yang ditandai di Akun jadi bawaan -->
+    <!-- Total akun terpilih: ringkas dan bisa dilepas -->
     <div
-      v-if="totalViews.length"
-      class="flex items-center gap-2 overflow-x-auto bg-card px-4 py-2 shadow-[inset_0_0.5px_0_var(--sep)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      role="group"
-      aria-label="Cakupan akun"
+      v-if="scope"
+      class="flex items-center gap-2 bg-primary-soft px-4 py-2 text-meta text-primary-accent"
     >
-      <button
-        v-for="opt in [
-          { id: null, name: 'Semua akun', sum: 0 },
-          ...totalViews.map((t) => ({ id: t.id, name: t.name, sum: t.sum })),
-        ]"
-        :key="opt.id ?? 'all'"
-        type="button"
-        :aria-pressed="(scope?.id ?? null) === opt.id"
-        :class="[
-          'scope-chip inline-flex h-[30px] shrink-0 items-center gap-[5px] rounded-full px-[11px] text-meta font-semibold active:scale-[0.96] [&_svg]:size-3.5',
-          (scope?.id ?? null) === opt.id ? 'bg-primary-soft text-primary-accent' : 'bg-fill',
-        ]"
-        @click="pickScope(opt.id)"
-      >
-        <component :is="opt.id ? Sigma : Layers" stroke-width="2.6" aria-hidden="true" />
-        {{ opt.name }}
-        <span
-          v-if="opt.id && (scope?.id ?? null) === opt.id"
-          class="font-medium text-muted-foreground"
-          >· {{ formatRupiah(opt.sum) }}</span
-        >
-      </button>
+      <Sigma class="size-4 shrink-0" stroke-width="2.6" aria-hidden="true" />
+      <span class="min-w-0 flex-1 truncate">{{ scope.name }} · {{ formatRupiah(scope.sum) }}</span>
+      <button type="button" class="font-semibold" @click="pickScope(null)">Semua akun</button>
     </div>
 
     <!-- Filter aktif: ringkas dan bisa dihapus -->
@@ -313,15 +307,6 @@ watch([highlight, list], ([id]) => {
         Hapus
       </button>
     </div>
-
-    <SummaryStrip
-      dense
-      :items="[
-        { label: 'Pemasukan', value: formatRupiah(summary.income), tone: 'inc' },
-        { label: 'Pengeluaran', value: formatRupiah(summary.expense), tone: 'exp' },
-        { label: 'Total', value: formatRupiah(summary.net) },
-      ]"
-    />
 
     <MonthSwipe
       :month-key="swipeKey"
@@ -345,7 +330,9 @@ watch([highlight, list], ([id]) => {
           title="Belum ada transaksi"
           :description="`Ketuk + atau tanggal untuk mencatat di ${MONTHS_LONG[month - 1]}.`"
         >
-          <IosButton v-if="canEdit" variant="soft" @click="addOn(todayKey)">Catat transaksi</IosButton>
+          <IosButton v-if="canEdit" variant="soft" @click="addOn(todayKey)"
+            >Catat transaksi</IosButton
+          >
         </EmptyCard>
         <DayGroup
           v-for="d in days"
@@ -478,10 +465,9 @@ watch([highlight, list], ([id]) => {
                   >Masuk {{ formatShort(y.income) }} · Keluar {{ formatShort(y.expense) }}</span
                 >
               </span>
-              <span
-                :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']"
-                >{{ formatShort(y.net) }}</span
-              >
+              <span :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']">{{
+                formatShort(y.net)
+              }}</span>
               <ChevronRight
                 class="size-[18px] text-chevron"
                 stroke-width="2.6"
@@ -503,6 +489,47 @@ watch([highlight, list], ([id]) => {
       />
     </MonthSwipe>
 
+    <IosSheet v-model:open="scopeOpen" title="Tampilkan akun">
+      <button
+        v-for="opt in [
+          { id: null, name: 'Semua akun', caption: 'Bawaan', sum: null },
+          ...totalViews.map((t) => ({
+            id: t.id,
+            name: t.name,
+            caption: `${t.accounts.length} akun`,
+            sum: t.sum,
+          })),
+        ]"
+        :key="opt.id ?? 'all'"
+        type="button"
+        :aria-pressed="(scope?.id ?? null) === opt.id"
+        class="flex min-h-[54px] w-full items-center gap-2.5 px-1 py-1.5 text-left shadow-[inset_0_-0.5px_0_var(--sep)] last:shadow-none"
+        @click="pickScope(opt.id)"
+      >
+        <component
+          :is="opt.id ? Sigma : Layers"
+          :class="[
+            'size-5 shrink-0',
+            (scope?.id ?? null) === opt.id ? 'text-primary-accent' : 'text-ter',
+          ]"
+          stroke-width="2.4"
+          aria-hidden="true"
+        />
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="truncate text-label font-medium">{{ opt.name }}</span>
+          <small class="text-note text-muted-foreground">{{ opt.caption }}</small>
+        </span>
+        <span v-if="opt.sum !== null" class="shrink-0 text-label text-muted-foreground">{{
+          formatRupiah(opt.sum)
+        }}</span>
+        <b
+          v-if="(scope?.id ?? null) === opt.id"
+          class="w-4 shrink-0 text-center text-primary-accent"
+          >✓</b
+        >
+        <span v-else class="w-4 shrink-0" aria-hidden="true" />
+      </button>
+    </IosSheet>
     <MonthPickerSheet
       v-model:open="pickerOpen"
       :year="year"
@@ -524,9 +551,6 @@ watch([highlight, list], ([id]) => {
 </template>
 
 <style scoped>
-.scope-chip {
-  transition: transform 120ms var(--ease-out);
-}
 .year-row + .year-row {
   box-shadow: inset 0 0.5px 0 var(--sep);
 }
