@@ -71,7 +71,6 @@ function shiftYear(delta: 1 | -1) {
 
 // Geser isi = periode berikutnya/sebelumnya, sama dengan Statistik dan rincian budget:
 // grafik diam di tempat, hanya daftar di bawahnya yang bergeser
-const { md } = useBreakpoint();
 const canNext = computed(() => hasNext(period.value, new Date(), monthStartDay.value));
 const shift = (delta: number) =>
   (period.value = shiftPeriod(period.value, delta, monthStartDay.value));
@@ -193,7 +192,6 @@ const days = computed(() => groupByDay(rows.value));
       :prev-label="neighbor(-1)"
       :next-label="neighbor(1)"
       :can-next="canNext"
-      :disabled="md"
       class="min-h-[60dvh]"
       @shift="shift"
     >

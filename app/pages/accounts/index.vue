@@ -59,7 +59,8 @@ const hasTotals = computed(() => totalViews.value.length > 0);
 const mutations = useAccountMutations();
 
 // ---------- saldo per akhir bulan terpilih ----------
-const selectedMonth = useSelectedMonth();
+// Bulan sendiri (mulai bulan berjalan): tidak ikut berganti dari Transaksi/Statistik
+const selectedMonth = useSelectedMonth('accounts');
 // Ketuk ulang tab Akun (seperti Transaksi) = kembali ke bulan ini
 const retap = useState('nav:retap:accounts', () => 0);
 watch(retap, () => selectedMonth.goToday());
@@ -69,7 +70,6 @@ const monthly = useAccountMonths(year, month);
 const balanceOf = (a: Account) => monthly.selected(a.id)?.end ?? a.balance;
 const monthName = computed(() => `${MONTHS_LONG[month.value - 1]} ${year.value}`);
 // Geser daftar = ganti bulan, sama dengan tab Transaksi
-const { md } = useBreakpoint();
 const swipeKey = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`);
 
 // Jumlah transaksi per akun di bulan itu (daftar bulan sudah termuat bersama tab Transaksi)
@@ -401,8 +401,8 @@ function openTotal(total: AccountTotal | null) {
     <!-- Mode Urutkan: urutan grup dulu, lalu urutan akun di dalam tiap grup -->
     <template v-if="sorting">
       <template v-if="views.length > 1">
-        <SectionHeader label="Urutan grup" />
-        <div class="mx-4 overflow-hidden rounded-group bg-card">
+        <SectionHeader label="Urutan grup" class="px-4!" />
+        <div class="overflow-hidden bg-card">
           <SortableList :items="views" label="Urutan grup akun" @reorder="reorderGroups">
             <template #default="{ item }">
               <GroupRow :title="item.name" :subtitle="`${item.accounts.length} akun`">
@@ -412,10 +412,10 @@ function openTotal(total: AccountTotal | null) {
           </SortableList>
         </div>
       </template>
-      <div class="md:columns-2 md:gap-0 [&>section]:break-inside-avoid">
+      <div class="md:columns-2 md:gap-4 [&>section]:break-inside-avoid">
         <section v-for="g in views" :key="g.id">
-          <SectionHeader :label="`Urutan ${g.name}`" />
-          <div class="mx-4 overflow-hidden rounded-group bg-card">
+          <SectionHeader :label="`Urutan ${g.name}`" class="px-4!" />
+          <div class="overflow-hidden bg-card">
             <SortableList
               :items="g.accounts"
               :label="`Urutan akun ${g.name}`"
@@ -430,7 +430,7 @@ function openTotal(total: AccountTotal | null) {
           </div>
         </section>
       </div>
-      <p class="m-0 px-8 pt-2 text-note text-muted-foreground">
+      <p class="m-0 px-4 pt-2 text-note text-muted-foreground">
         Seret pegangan di kanan untuk mengubah urutan.
       </p>
     </template>
@@ -442,14 +442,14 @@ function openTotal(total: AccountTotal | null) {
       :next-label="selectedMonth.neighborLabel(1)"
       :can-next="selectedMonth.canNext.value"
       :loading="switching"
-      :disabled="md || selecting"
+      :disabled="selecting"
       class="min-h-[60dvh]"
       @shift="selectedMonth.shift"
     >
       <!-- Kartu total dan chart diam saat pindah bulan (seperti rincian budget); hanya daftar akun yang bergeser -->
       <template #fixed>
         <!-- Total akun: kartu mendatar, yang tampil di Transaksi disorot -->
-        <SectionHeader v-if="totalCards.length || canEdit" label="Total akun">
+        <SectionHeader v-if="totalCards.length || canEdit" label="Total akun" class="px-4!">
           <template #aside>
             <NuxtLink
               to="/accounts/totals"
@@ -461,7 +461,7 @@ function openTotal(total: AccountTotal | null) {
         </SectionHeader>
         <div
           v-if="totalCards.length || canEdit"
-          class="flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          class="flex gap-2.5 overflow-x-auto px-4 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <TotalCard
             v-for="t in totalCards"
@@ -485,7 +485,7 @@ function openTotal(total: AccountTotal | null) {
         <!-- Filter aktif: bisa diubah atau dilepas tanpa mencari kartunya lagi -->
         <div
           v-if="scope"
-          class="mx-4 mt-2.5 flex items-center gap-3 px-1 text-note text-muted-foreground"
+          class="mt-2.5 flex items-center gap-3 px-4 text-note text-muted-foreground"
         >
           <span class="min-w-0 flex-1 truncate">
             Menampilkan <b class="text-foreground">{{ scope.accounts.length }} akun</b> di
@@ -509,6 +509,7 @@ function openTotal(total: AccountTotal | null) {
         </div>
 
         <NetWorthSpark
+          class="mx-0! rounded-none!"
           :title="scope ? `Tren ${scope.name}` : 'Tren aset bersih'"
           :year="viewYear"
           :can-prev="canPrevYear"
@@ -528,14 +529,16 @@ function openTotal(total: AccountTotal | null) {
         />
       </template>
 
-      <EmptyCard v-if="accounts.isPending.value" title="Memuat akun…" />
+      <EmptyCard v-if="accounts.isPending.value" class="mx-0! rounded-none!" title="Memuat akun…" />
       <EmptyCard
         v-else-if="!views.length && scope"
+        class="mx-0! rounded-none!"
         :title="`${scope.name} belum berisi akun`"
         description="Atur lewat Ubah, atau tahan akun lalu pilih Atur total."
       />
       <EmptyCard
         v-else-if="!views.length"
+        class="mx-0! rounded-none!"
         title="Belum ada akun"
         description="Tambahkan rekening, e-wallet, atau dompet tunai."
       >
@@ -543,11 +546,11 @@ function openTotal(total: AccountTotal | null) {
       </EmptyCard>
 
       <!-- Grup akun; iPad dan desktop 2 kolom -->
-      <div v-else class="md:columns-2 md:gap-0 [&>section]:break-inside-avoid">
+      <div v-else class="md:columns-2 md:gap-4 [&>section]:break-inside-avoid">
         <section v-for="g in views" :key="g.id">
           <button
             type="button"
-            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pl-8 pr-8 pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+            class="flex w-full items-baseline justify-between gap-3 pb-[7px] pt-[18px] px-4 text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
             :aria-expanded="!collapsed.includes(g.id)"
             @click="toggleGroup(g.id)"
           >
@@ -566,7 +569,7 @@ function openTotal(total: AccountTotal | null) {
               formatRupiah(g.total)
             }}</span>
           </button>
-          <div v-if="!collapsed.includes(g.id)" class="mx-4 overflow-hidden rounded-group bg-card">
+          <div v-if="!collapsed.includes(g.id)" class="overflow-hidden bg-card">
             <AccountRow
               v-for="i in g.items"
               :key="i.account.id"
@@ -590,7 +593,7 @@ function openTotal(total: AccountTotal | null) {
       <template v-if="archived.length">
         <button
           type="button"
-          class="mt-2 flex w-full items-baseline justify-between gap-3 px-8 pb-[7px] pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
+          class="mt-2 flex w-full items-baseline justify-between gap-3 px-4 pb-[7px] pt-[18px] text-left text-note uppercase tracking-[0.02em] text-muted-foreground active:opacity-60"
           :aria-expanded="showArchived"
           @click="showArchived = !showArchived"
         >
@@ -607,7 +610,7 @@ function openTotal(total: AccountTotal | null) {
           </span>
           <span class="normal-case">{{ archived.length }}</span>
         </button>
-        <div v-if="showArchived" class="mx-4 overflow-hidden rounded-group bg-card">
+        <div v-if="showArchived" class="overflow-hidden bg-card">
           <GroupRow
             v-for="a in archived"
             :key="a.id"

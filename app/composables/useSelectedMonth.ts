@@ -2,17 +2,18 @@ import { useActiveBook } from '@/features/books/useActiveBook';
 import { addMonths, dayKey, MONTHS_LONG, MONTHS_SHORT, periodOf, periodRangeLabel } from '@/lib/time';
 
 /**
- * Bulan terpilih yang dipakai bersama tab Transaksi dan rincian akun (mockup:
- * rincian akun mengikuti bulan di Transaksi). Bertahan saat pindah tab.
+ * Bulan terpilih, dipakai bersama per `scope` dan bertahan saat pindah tab.
+ * `tx` (bawaan): Transaksi, Statistik, Budget, Filter. `accounts`: tab Akun dan
+ * rincian akun, mulai dari bulan berjalan dan hanya berganti dari halaman Akun.
  * Periode mengikuti tanggal awal bulan buku: awal 25 → Oktober = 25 Sep – 24 Okt.
  * Batas maju = Desember tahun berjalan (atau bulan depan kalau sudah Desember);
  * geser melewatinya memakai rubber-band.
  */
-export function useSelectedMonth() {
+export function useSelectedMonth(scope: 'tx' | 'accounts' = 'tx') {
   const { monthStartDay } = useActiveBook();
   const current = computed(() => periodOf(dayKey(new Date()), monthStartDay.value));
-  const year = useState('tx:year', () => current.value.year);
-  const month = useState('tx:month', () => current.value.month);
+  const year = useState(`${scope}:year`, () => current.value.year);
+  const month = useState(`${scope}:month`, () => current.value.month);
 
   const index = (y: number, m: number) => y * 12 + (m - 1);
   const maxIndex = computed(() =>

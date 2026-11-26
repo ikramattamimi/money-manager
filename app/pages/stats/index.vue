@@ -41,7 +41,6 @@ const retap = useState('nav:retap:stats', () => 0);
 watch(retap, () => {
   period.value = { kind: 'month', anchor: todayWib() };
 });
-const { md } = useBreakpoint();
 const kind = useState<'expense' | 'income'>('stats:kind', () => 'expense');
 const SUBS = [
   { value: 'stats', label: 'Statistik' },
@@ -218,7 +217,6 @@ const noteRows = computed(() => {
       :prev-label="neighbor(-1)"
       :next-label="neighbor(1)"
       :can-next="canNext"
-      :disabled="md"
       class="min-h-[60dvh]"
       @shift="shift"
     >
@@ -252,6 +250,7 @@ const noteRows = computed(() => {
 
         <EmptyCard
           v-if="!query.isPending.value && !slices.length"
+          class="mx-0! rounded-none!"
           :title="kind === 'expense' ? 'Belum ada pengeluaran' : 'Belum ada pemasukan'"
           :description="`Tidak ada transaksi di ${bounds.label}.`"
         />
@@ -268,7 +267,7 @@ const noteRows = computed(() => {
             :caption="kind === 'expense' ? 'Pengeluaran' : 'Pemasukan'"
             :total="formatRupiah(total)"
           />
-          <div class="mx-4 mt-3 overflow-hidden rounded-group bg-card">
+          <div class="mt-3 overflow-hidden bg-card">
             <button
               v-for="s in slices"
               :key="s.id"
@@ -292,9 +291,10 @@ const noteRows = computed(() => {
           </div>
         </div>
 
-        <InsightCard />
+        <InsightCard wide />
 
         <GroupedList
+          wide
           label="6 bulan terakhir"
           :aside="`sampai ${MONTHS_SHORT[bounds.endMonth - 1]} ${bounds.endYear}`"
         >
@@ -330,16 +330,19 @@ const noteRows = computed(() => {
         </div>
         <EmptyCard
           v-if="notes.error.value"
+          class="mx-0! rounded-none!"
           title="Statistik catatan belum tersedia"
           :description="notes.error.value.message"
         />
         <EmptyCard
           v-else-if="!notes.isPending.value && !noteRows.length"
+          class="mx-0! rounded-none!"
           title="Belum ada catatan"
           :description="`Tidak ada transaksi bercatatan di ${bounds.label}.`"
         />
         <GroupedList
           v-else
+          wide
           :label="`Per catatan · ${kind === 'expense' ? 'pengeluaran' : 'pemasukan'}`"
           :aside="`${noteRows.length} catatan`"
         >

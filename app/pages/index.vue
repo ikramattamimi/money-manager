@@ -51,7 +51,6 @@ definePageMeta({ layout: 'app' });
 useHead({ title: 'Transaksi · Money Manager' });
 
 const { canEdit, monthStartDay } = useActiveBook();
-const { md } = useBreakpoint();
 const editor = useTxEditor();
 const highlight = useTxHighlight();
 const categories = useCategories();
@@ -330,7 +329,7 @@ watch([highlight, list], ([id]) => {
       :next-label="selected.neighborLabel(1)"
       :can-next="selected.canNext.value"
       :loading="switching"
-      :disabled="md || selection.selecting.value"
+      :disabled="selection.selecting.value"
       class="min-h-[60dvh]"
       @shift="selected.shift"
     >

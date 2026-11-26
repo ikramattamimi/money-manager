@@ -35,7 +35,7 @@ import { formatRupiah } from '@/lib/format';
 import { dayKey, jakartaParts, MONTHS_LONG, MONTHS_SHORT, periodRangeLabel } from '@/lib/time';
 
 // Rincian akun (mockup account-detail / card-detail): ‹ Akun, nama, pensil =
-// ubah akun; bulan sama dengan tab Transaksi (useSelectedMonth); sub-tab
+// ubah akun; bulan sama dengan tab Akun (useSelectedMonth('accounts')); sub-tab
 // Harian / Bulanan; strip Setoran / Penarikan / Saldo (kartu kredit: Tagihan /
 // Belum ditagih / Saldo). Harian = transaksi bulan itu dengan saldo berjalan
 // di bawah nominal; kepala tanggal = catat dengan akun ini. Bulanan = 6 bulan
@@ -45,7 +45,6 @@ definePageMeta({ layout: 'app' });
 const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { canEdit, monthStartDay } = useActiveBook();
-const { md } = useBreakpoint();
 const { accounts, byId, groupById } = useAccounts();
 const { rowView } = useTxDisplay();
 const editor = useTxEditor();
@@ -57,8 +56,8 @@ const group = computed(() =>
 const isCard = computed(() => group.value?.kind === 'card');
 useHead({ title: () => `${account.value?.name ?? 'Akun'} · Money Manager` });
 
-// ---------- bulan (bersama tab Transaksi) ----------
-const selected = useSelectedMonth();
+// ---------- bulan (bersama tab Akun) ----------
+const selected = useSelectedMonth('accounts');
 const { year, month } = selected;
 const swipeKey = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`);
 const pickerOpen = ref(false);
@@ -253,7 +252,6 @@ function openForm() {
       :prev-label="selected.neighborLabel(-1)"
       :next-label="selected.neighborLabel(1)"
       :can-next="selected.canNext.value"
-      :disabled="md"
       class="min-h-[60dvh] pb-6"
       @shift="selected.shift"
     >
