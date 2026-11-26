@@ -214,14 +214,9 @@ function openForm() {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar
-      :title="account?.name ?? 'Akun'"
-      back="Akun"
-      back-to="/accounts"
-      class="sticky top-0 md:static"
-    >
+    <NavBar :title="account?.name ?? 'Akun'" back="Akun" back-to="/accounts">
       <template #right>
         <IconButton v-if="canEdit && account" label="Ubah akun" accent @click="openForm()">
           <Pencil class="!size-5" aria-hidden="true" />

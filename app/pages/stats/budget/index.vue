@@ -47,14 +47,13 @@ const NuxtLink = resolveComponent('NuxtLink');
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
     <NavBar
       title="Atur budget"
       back="Statistik"
       back-to="/stats"
       line
-      class="sticky top-0 md:static"
     >
       <div class="flex items-center justify-center gap-0.5 pb-1.5">
         <button

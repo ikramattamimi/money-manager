@@ -190,15 +190,9 @@ async function deleteBook() {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar
-      :title="book?.name ?? 'Buku'"
-      back="Buku"
-      back-to="/settings/books"
-      line
-      class="sticky top-0 md:static"
-    >
+    <NavBar :title="book?.name ?? 'Buku'" back="Buku" back-to="/settings/books" line>
       <template #right>
         <button
           v-if="book && book.id !== activeId"

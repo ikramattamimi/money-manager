@@ -94,7 +94,7 @@ async function save() {
       back="Kembali"
       back-to="/settings/import"
       line
-      class="sticky top-0 md:static md:rounded-t-2xl"
+      class="md:rounded-t-2xl"
     />
 
     <p class="mx-8 mb-0 mt-3.5 text-meta leading-[1.45] text-muted-foreground">

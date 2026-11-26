@@ -4,15 +4,14 @@ import IosAlert from '@/components/ios/IosAlert.vue';
 import AppSidebar, { type SidebarExtra } from './AppSidebar.vue';
 import TabBar from './TabBar.vue';
 import Toaster from '@/components/base/Toaster.vue';
-import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
-import { NAV_ITEMS, navHref } from '@/lib/navigation';
+import { NAV_ITEMS } from '@/lib/navigation';
 
 // Kerangka aplikasi untuk tiga ukuran (lihat .ai/plans/mvp/fase-3-design.md):
 // HP: tab bar bawah + tombol +, halaman form catat.
 // iPad: tab bar bawah tengah + tombol +, sheet form catat;
-//       landscape (>= 1024px) kartu Catat di halaman Transaksi.
-// Desktop (>= 1180px): sidebar, kartu Catat, pintasan N.
+//       landscape (>= 1024px) dialog form catat.
+// Desktop (>= 1180px): sidebar, dialog form catat, pintasan N.
 // Halaman digulir oleh window supaya bar ringkas dan safe area sederhana.
 const props = withDefaults(
   defineProps<{
@@ -32,11 +31,9 @@ const props = withDefaults(
 const emit = defineEmits<{ logout: [] }>();
 
 const route = useRoute();
-const { md, lg } = useBreakpoint();
-const ui = useQuickAddUi();
+const { md } = useBreakpoint();
 const editor = useTxEditor();
 
-const txPath = navHref(props.base, NAV_ITEMS[0]!);
 const active = computed(() => {
   const match = [...NAV_ITEMS]
     .reverse()
@@ -78,21 +75,15 @@ function onQuick(action: QuickAction) {
 
 /** Tombol +, tombol sidebar, dan pintasan N. `quick` = langsung ke Ketik cepat */
 const quickRequest = useState('tx:quick', () => false);
-async function startQuickAdd(quick = false) {
+function startQuickAdd(quick = false) {
   if (!props.canAdd) return;
-  if (!lg.value) quickRequest.value = quick;
+  quickRequest.value = quick;
   if (!md.value && props.phoneAdd) {
     props.phoneAdd();
     return;
   }
-  // iPad tanpa kolom kanan: form catat baru (sheet portrait)
-  if (!lg.value) {
-    editor.create();
-    return;
-  }
-  // Layar lebar: kartu Catat di halaman Transaksi, buka Ketik cepat di sana
-  if (route.path !== txPath) await navigateTo(txPath);
-  ui.focusTick.value++;
+  // iPad portrait: sheet; iPad landscape/desktop: dialog tengah
+  editor.create();
 }
 
 function onKey(event: KeyboardEvent) {

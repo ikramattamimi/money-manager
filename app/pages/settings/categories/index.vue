@@ -140,13 +140,7 @@ const styleOf = (c: Category) => ({ icon: categoryIcon(c.icon), tone: asTone(c.t
   <div
     class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:rounded-2xl"
   >
-    <NavBar
-      title="Kategori"
-      back="Lainnya"
-      back-to="/more"
-      line
-      class="sticky top-0 md:static md:rounded-t-2xl"
-    >
+    <NavBar title="Kategori" back="Lainnya" back-to="/more" line class="md:rounded-t-2xl">
       <template v-if="canEdit" #right>
         <IconButton
           :label="sorting ? 'Selesai mengurutkan' : 'Urutkan kategori'"

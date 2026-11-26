@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ChevronRight, Layers, ListFilter, Search, Sigma } from '@lucide/vue';
-import Card from '@/components/base/Card.vue';
 import EmptyCard from '@/components/ios/EmptyCard.vue';
 import IconButton from '@/components/ios/IconButton.vue';
 import IosButton from '@/components/ios/IosButton.vue';
@@ -16,13 +15,11 @@ import DayGroup from '@/components/money/DayGroup.vue';
 import DaySheet from '@/components/money/DaySheet.vue';
 import MonthSummary from '@/components/money/MonthSummary.vue';
 import PendingRecurring from '@/components/money/PendingRecurring.vue';
-import TxCard from '@/components/money/TxCard.vue';
 import TxCalendar from '@/components/money/TxCalendar.vue';
 import TxRow from '@/components/money/TxRow.vue';
 import { useAccounts } from '@/features/accounts/useAccounts';
 import { useActiveBook } from '@/features/books/useActiveBook';
 import { useCategories } from '@/features/categories/useCategories';
-import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import type { Transaction } from '@/features/transactions/api';
 import { summarize } from '@/features/transactions/effects';
 import {
@@ -48,13 +45,13 @@ import { dayKey, jakartaParts, MONTHS_LONG, periodDays, periodRangeLabel } from 
 // Tab Transaksi (mockup daily/calendar/weekly/monthly/summary): bar atas
 // Cari · ‹ bulan › · Filter, sub-tab lima tampilan, ringkasan tiga kolom.
 // Geser daftar = pindah bulan; kepala tanggal = catat di tanggal itu;
-// tahan baris = pilih banyak. iPad landscape/desktop: kolom kanan Catat cepat.
+// tahan baris = pilih banyak. Semua ukuran hanya menampilkan daftar; form catat
+// dibuka lewat tombol + (dialog di iPad/desktop).
 definePageMeta({ layout: 'app' });
 useHead({ title: 'Transaksi · Money Manager' });
 
 const { canEdit, monthStartDay } = useActiveBook();
-const { md, lg } = useBreakpoint();
-const ui = useQuickAddUi();
+const { md } = useBreakpoint();
 const editor = useTxEditor();
 const highlight = useTxHighlight();
 const categories = useCategories();
@@ -228,33 +225,6 @@ function tapRow(t: Transaction) {
   else editor.edit(t);
 }
 
-// ---------- kolom kanan (>= 1024px) ----------
-// Header menempel di atas (semua ukuran); kartu Catat menempel tepat di bawahnya.
-// Batas bawah header diukur supaya posisi kartu ikut tinggi header.
-const navBar = ref<{ $el: HTMLElement }>();
-const stickTop = ref(0);
-let navObserver: ResizeObserver | null = null;
-function measureNav() {
-  const el = navBar.value?.$el;
-  if (!el) return;
-  stickTop.value = (Number.parseFloat(getComputedStyle(el).top) || 0) + el.offsetHeight;
-}
-onMounted(() => {
-  measureNav();
-  navObserver = new ResizeObserver(measureNav);
-  if (navBar.value?.$el) navObserver.observe(navBar.value.$el);
-  window.addEventListener('resize', measureNav);
-});
-onBeforeUnmount(() => {
-  navObserver?.disconnect();
-  window.removeEventListener('resize', measureNav);
-});
-
-function addFirst() {
-  if (lg.value) ui.focusTick.value++;
-  else addOn(todayKey);
-}
-
 // ---------- sorotan transaksi baru ----------
 const rows = ref<Record<string, InstanceType<typeof TxRow> | null>>({});
 watch([highlight, list], ([id]) => {
@@ -268,15 +238,9 @@ watch([highlight, list], ([id]) => {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-clip md:rounded-2xl"
-    :style="{ '--tx-stick': `${stickTop}px` }"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <!-- Menempel di tepi atas (HP, iPad, desktop) -->
-    <NavBar
-      ref="navBar"
-      title="Transaksi"
-      class="sticky top-0 z-20"
-    >
+    <NavBar title="Transaksi">
       <template #left>
         <IconButton label="Cari" to="/search"><Search aria-hidden="true" /></IconButton>
       </template>
@@ -360,202 +324,185 @@ watch([highlight, list], ([id]) => {
       ]"
     />
 
-    <div
-      class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5"
+    <MonthSwipe
+      :month-key="swipeKey"
+      :prev-label="selected.neighborLabel(-1)"
+      :next-label="selected.neighborLabel(1)"
+      :can-next="selected.canNext.value"
+      :loading="switching"
+      :disabled="md || selection.selecting.value"
+      class="min-h-[60dvh]"
+      @shift="selected.shift"
     >
-      <MonthSwipe
-        :month-key="swipeKey"
-        :prev-label="selected.neighborLabel(-1)"
-        :next-label="selected.neighborLabel(1)"
-        :can-next="selected.canNext.value"
-        :loading="switching"
-        :disabled="md || selection.selecting.value"
-        class="min-h-[60dvh]"
-        @shift="selected.shift"
-      >
-        <PendingRecurring />
+      <PendingRecurring />
 
-        <EmptyCard v-if="error" title="Transaksi gagal dimuat" :description="error.message" />
-        <EmptyCard v-else-if="isPending && !txs" title="Memuat transaksi…" />
+      <EmptyCard v-if="error" title="Transaksi gagal dimuat" :description="error.message" />
+      <EmptyCard v-else-if="isPending && !txs" title="Memuat transaksi…" />
 
-        <!-- Harian -->
-        <template v-else-if="view === 'daily'">
-          <EmptyCard
-            v-if="!list.length"
-            title="Belum ada transaksi"
-            :description="`Ketuk + atau tanggal untuk mencatat di ${MONTHS_LONG[month - 1]}.`"
-          >
-            <IosButton v-if="canEdit" variant="soft" @click="addFirst">Catat transaksi</IosButton>
-          </EmptyCard>
-          <DayGroup
-            v-for="d in days"
-            :key="d.key"
-            :day-key="d.key"
-            :income="d.income"
-            :expense="d.expense"
-            :addable="canEdit && !selection.selecting.value"
-            @add="addOn(d.key)"
-          >
-            <TxRow
-              v-for="t in d.items"
-              :id="t.id"
-              :key="t.id"
-              :ref="(el) => (rows[t.id] = el as InstanceType<typeof TxRow> | null)"
-              v-bind="rowView(t)"
-              :selectable="canEdit"
-              :selecting="selection.selecting.value"
-              :selected="selection.has(t.id)"
-              @open="tapRow(t)"
-              @longpress="startSelect(t)"
-            />
-          </DayGroup>
-          <BulkTxBar v-if="selection.selecting.value" :list="list" />
-        </template>
-
-        <!-- Kalender -->
-        <template v-else-if="view === 'calendar'">
-          <TxCalendar :days="periodKeys" :sums="sums" :today="todayKey" @pick="openDay" />
-          <p class="mx-4 mt-3 text-center text-meta text-muted-foreground">
-            Ketuk tanggal untuk melihat transaksi atau mencatat di hari itu.
-          </p>
-        </template>
-
-        <!-- Mingguan -->
-        <div v-else-if="view === 'weekly'" class="mt-2.5">
-          <button
-            v-for="w in weeks"
-            :key="w.from"
-            type="button"
-            :aria-current="w.current ? 'true' : undefined"
-            :class="[
-              'grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-[11px] text-left shadow-[inset_0_-0.5px_0_var(--sep)] active:bg-fill-press',
-              w.current ? 'bg-primary-soft' : 'bg-card',
-            ]"
-            @click="openWeek(w)"
-          >
-            <span class="text-body font-semibold">
-              {{ weekLabel(w) }}
-              <small class="mt-px block text-note font-medium text-muted-foreground">{{
-                w.current
-                  ? 'Minggu ini'
-                  : `${Math.round((Date.parse(w.to) - Date.parse(w.from)) / 864e5) + 1} hari`
-              }}</small>
-            </span>
-            <span class="flex flex-col items-end gap-px text-amount font-semibold">
-              <span class="text-inc">{{ formatRupiah(w.income) }}</span>
-              <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
-              <span>{{ formatRupiah(w.income - w.expense) }}</span>
-            </span>
-          </button>
-        </div>
-
-        <!-- Bulanan: bulan di tahun ini, bulan terpilih terbuka per minggu; lalu per tahun -->
-        <template v-else-if="view === 'monthly'">
-          <EmptyCard
-            v-if="!months.length"
-            title="Belum ada transaksi"
-            :description="`Belum ada catatan di tahun ${year}.`"
-          />
-          <div v-else class="mt-2.5">
-            <template v-for="m in months" :key="m.month">
-              <button
-                type="button"
-                :aria-expanded="m.month === month"
-                :class="[
-                  'grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-[11px] text-left shadow-[inset_0_-0.5px_0_var(--sep)] active:bg-fill-press',
-                  m.month === month ? 'bg-primary-soft' : 'bg-card',
-                ]"
-                @click="pickMonth(m.month)"
-              >
-                <span class="text-body font-semibold">
-                  {{ MONTHS_LONG[m.month - 1] }}
-                  <small class="mt-px block text-note font-medium text-muted-foreground">{{
-                    periodRangeLabel(year, m.month, monthStartDay) || `${m.tx_count} transaksi`
-                  }}</small>
-                </span>
-                <span class="flex flex-col items-end gap-px text-amount font-semibold">
-                  <span class="text-inc">{{ formatRupiah(m.income) }}</span>
-                  <span class="text-exp">{{ formatRupiah(m.expense) }}</span>
-                  <span>{{ formatRupiah(m.net) }}</span>
-                </span>
-              </button>
-              <template v-if="m.month === month">
-                <div
-                  v-for="w in weeks"
-                  :key="w.from"
-                  class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 bg-surface-2 py-[11px] pl-8 pr-4 shadow-[inset_0_-0.5px_0_var(--sep)]"
-                >
-                  <span class="text-label font-medium">{{ weekLabel(w) }}</span>
-                  <span class="flex flex-col items-end gap-px text-amount font-semibold">
-                    <span class="text-inc">{{ formatRupiah(w.income) }}</span>
-                    <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
-                  </span>
-                </div>
-              </template>
-            </template>
-          </div>
-          <template v-if="years.length > 1">
-            <SectionHeader label="Per tahun" />
-            <div class="mx-4 overflow-hidden rounded-group bg-card">
-              <button
-                v-for="y in years"
-                :key="y.year"
-                type="button"
-                :class="[
-                  'year-row flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-fill-press',
-                  y.year === year && 'bg-primary-soft',
-                ]"
-                @click="
-                  selected.set(
-                    y.year,
-                    y.year === selected.current.value.year ? selected.current.value.month : 12,
-                  )
-                "
-              >
-                <span class="flex min-w-0 flex-1 flex-col">
-                  <b class="text-row font-medium">{{ y.year }}</b>
-                  <span class="text-meta text-muted-foreground"
-                    >Masuk {{ formatShort(y.income) }} · Keluar {{ formatShort(y.expense) }}</span
-                  >
-                </span>
-                <span
-                  :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']"
-                  >{{ formatShort(y.net) }}</span
-                >
-                <ChevronRight
-                  class="size-[18px] text-chevron"
-                  stroke-width="2.6"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
-          </template>
-        </template>
-
-        <!-- Ringkasan -->
-        <MonthSummary
-          v-else
-          :year="year"
-          :month="month"
-          :list="list"
-          :today="todayKey"
-          :prev="prev"
-        />
-      </MonthSwipe>
-
-      <!-- Kolom kanan (>= 1024px): kartu Catat menempel tepat di bawah header -->
-      <aside
-        v-if="lg && canEdit"
-        class="sticky top-[var(--tx-stick)] hidden pb-3.5 pt-3.5 lg:block"
-        aria-label="Catat transaksi"
-      >
-        <Card
-          class="flex h-[min(800px,calc(100dvh-var(--tx-stick)-28px))] min-h-[520px] max-xl:h-[calc(100dvh-var(--tx-stick)-104px)] flex-col overflow-hidden p-0"
+      <!-- Harian -->
+      <template v-else-if="view === 'daily'">
+        <EmptyCard
+          v-if="!list.length"
+          title="Belum ada transaksi"
+          :description="`Ketuk + atau tanggal untuk mencatat di ${MONTHS_LONG[month - 1]}.`"
         >
-          <TxCard />
-        </Card>
-      </aside>
-    </div>
+          <IosButton v-if="canEdit" variant="soft" @click="addOn(todayKey)">Catat transaksi</IosButton>
+        </EmptyCard>
+        <DayGroup
+          v-for="d in days"
+          :key="d.key"
+          :day-key="d.key"
+          :income="d.income"
+          :expense="d.expense"
+          :addable="canEdit && !selection.selecting.value"
+          @add="addOn(d.key)"
+        >
+          <TxRow
+            v-for="t in d.items"
+            :id="t.id"
+            :key="t.id"
+            :ref="(el) => (rows[t.id] = el as InstanceType<typeof TxRow> | null)"
+            v-bind="rowView(t)"
+            :selectable="canEdit"
+            :selecting="selection.selecting.value"
+            :selected="selection.has(t.id)"
+            @open="tapRow(t)"
+            @longpress="startSelect(t)"
+          />
+        </DayGroup>
+        <BulkTxBar v-if="selection.selecting.value" :list="list" />
+      </template>
+
+      <!-- Kalender -->
+      <template v-else-if="view === 'calendar'">
+        <TxCalendar :days="periodKeys" :sums="sums" :today="todayKey" @pick="openDay" />
+        <p class="mx-4 mt-3 text-center text-meta text-muted-foreground">
+          Ketuk tanggal untuk melihat transaksi atau mencatat di hari itu.
+        </p>
+      </template>
+
+      <!-- Mingguan -->
+      <div v-else-if="view === 'weekly'" class="mt-2.5">
+        <button
+          v-for="w in weeks"
+          :key="w.from"
+          type="button"
+          :aria-current="w.current ? 'true' : undefined"
+          :class="[
+            'grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-[11px] text-left shadow-[inset_0_-0.5px_0_var(--sep)] active:bg-fill-press',
+            w.current ? 'bg-primary-soft' : 'bg-card',
+          ]"
+          @click="openWeek(w)"
+        >
+          <span class="text-body font-semibold">
+            {{ weekLabel(w) }}
+            <small class="mt-px block text-note font-medium text-muted-foreground">{{
+              w.current
+                ? 'Minggu ini'
+                : `${Math.round((Date.parse(w.to) - Date.parse(w.from)) / 864e5) + 1} hari`
+            }}</small>
+          </span>
+          <span class="flex flex-col items-end gap-px text-amount font-semibold">
+            <span class="text-inc">{{ formatRupiah(w.income) }}</span>
+            <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
+            <span>{{ formatRupiah(w.income - w.expense) }}</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Bulanan: bulan di tahun ini, bulan terpilih terbuka per minggu; lalu per tahun -->
+      <template v-else-if="view === 'monthly'">
+        <EmptyCard
+          v-if="!months.length"
+          title="Belum ada transaksi"
+          :description="`Belum ada catatan di tahun ${year}.`"
+        />
+        <div v-else class="mt-2.5">
+          <template v-for="m in months" :key="m.month">
+            <button
+              type="button"
+              :aria-expanded="m.month === month"
+              :class="[
+                'grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-[11px] text-left shadow-[inset_0_-0.5px_0_var(--sep)] active:bg-fill-press',
+                m.month === month ? 'bg-primary-soft' : 'bg-card',
+              ]"
+              @click="pickMonth(m.month)"
+            >
+              <span class="text-body font-semibold">
+                {{ MONTHS_LONG[m.month - 1] }}
+                <small class="mt-px block text-note font-medium text-muted-foreground">{{
+                  periodRangeLabel(year, m.month, monthStartDay) || `${m.tx_count} transaksi`
+                }}</small>
+              </span>
+              <span class="flex flex-col items-end gap-px text-amount font-semibold">
+                <span class="text-inc">{{ formatRupiah(m.income) }}</span>
+                <span class="text-exp">{{ formatRupiah(m.expense) }}</span>
+                <span>{{ formatRupiah(m.net) }}</span>
+              </span>
+            </button>
+            <template v-if="m.month === month">
+              <div
+                v-for="w in weeks"
+                :key="w.from"
+                class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 bg-surface-2 py-[11px] pl-8 pr-4 shadow-[inset_0_-0.5px_0_var(--sep)]"
+              >
+                <span class="text-label font-medium">{{ weekLabel(w) }}</span>
+                <span class="flex flex-col items-end gap-px text-amount font-semibold">
+                  <span class="text-inc">{{ formatRupiah(w.income) }}</span>
+                  <span class="text-exp">{{ formatRupiah(w.expense) }}</span>
+                </span>
+              </div>
+            </template>
+          </template>
+        </div>
+        <template v-if="years.length > 1">
+          <SectionHeader label="Per tahun" />
+          <div class="mx-4 overflow-hidden rounded-group bg-card">
+            <button
+              v-for="y in years"
+              :key="y.year"
+              type="button"
+              :class="[
+                'year-row flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-fill-press',
+                y.year === year && 'bg-primary-soft',
+              ]"
+              @click="
+                selected.set(
+                  y.year,
+                  y.year === selected.current.value.year ? selected.current.value.month : 12,
+                )
+              "
+            >
+              <span class="flex min-w-0 flex-1 flex-col">
+                <b class="text-row font-medium">{{ y.year }}</b>
+                <span class="text-meta text-muted-foreground"
+                  >Masuk {{ formatShort(y.income) }} · Keluar {{ formatShort(y.expense) }}</span
+                >
+              </span>
+              <span
+                :class="['text-amount font-semibold', y.net >= 0 ? 'text-inc' : 'text-exp']"
+                >{{ formatShort(y.net) }}</span
+              >
+              <ChevronRight
+                class="size-[18px] text-chevron"
+                stroke-width="2.6"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </template>
+      </template>
+
+      <!-- Ringkasan -->
+      <MonthSummary
+        v-else
+        :year="year"
+        :month="month"
+        :list="list"
+        :today="todayKey"
+        :prev="prev"
+      />
+    </MonthSwipe>
 
     <MonthPickerSheet
       v-model:open="pickerOpen"

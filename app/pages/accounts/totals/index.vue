@@ -51,9 +51,9 @@ function openForm(total: AccountTotal | null) {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-6 md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-6 md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar title="Total akun" back="Akun" back-to="/accounts" line class="sticky top-0 md:static">
+    <NavBar title="Total akun" back="Akun" back-to="/accounts" line>
       <template #right>
         <IconButton v-if="canEdit" label="Tambah total" accent @click="openForm(null)">
           <Plus stroke-width="2.2" aria-hidden="true" />

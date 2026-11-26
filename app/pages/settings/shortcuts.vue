@@ -56,15 +56,9 @@ const WAYS = [
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar
-      title="Pintasan iOS"
-      back="Lainnya"
-      back-to="/more"
-      line
-      class="sticky top-0 md:static"
-    />
+    <NavBar title="Pintasan iOS" back="Lainnya" back-to="/more" line />
 
     <div class="pb-8">
       <p class="mx-8 mb-0 mt-3.5 text-meta leading-[1.45] text-muted-foreground">

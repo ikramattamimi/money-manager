@@ -33,7 +33,7 @@ function goBack() {
 <template>
   <header
     :class="[
-      'relative z-[4] shrink-0 bg-card pt-[env(safe-area-inset-top,0px)]',
+      'sticky top-0 z-20 shrink-0 bg-card pt-[env(safe-area-inset-top,0px)]',
       line && 'shadow-[0_0.5px_0_var(--sep)]',
     ]"
   >

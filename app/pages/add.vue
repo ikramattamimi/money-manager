@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useQuickAddUi } from '@/features/quick-add/useQuickAdd';
 import { useTxEditor } from '@/features/transactions/useTxEditor';
 
 // /add?text=kopi%2025rb%20gopay — dibuka dari Shortcut iOS (tombol layar
@@ -9,8 +8,6 @@ definePageMeta({ layout: false });
 
 const route = useRoute();
 const editor = useTxEditor();
-const ui = useQuickAddUi();
-const { lg } = useBreakpoint();
 const prefill = useState('tx:prefill', () => '');
 
 // Form mana pun membuka Ketik cepat berisi teks ini (tx:prefill)
@@ -25,9 +22,8 @@ onMounted(async () => {
     return;
   }
   await navigateTo('/', { replace: true });
-  // iPad landscape/desktop: kartu Catat; iPad portrait: sheet form
-  if (lg.value) ui.focusTick.value++;
-  else editor.create();
+  // iPad portrait: sheet form; iPad landscape/desktop: dialog form
+  editor.create();
 });
 </script>
 

@@ -8,8 +8,7 @@ import { useTxEditor } from '@/features/transactions/useTxEditor';
 // iPad landscape / desktop (>= 1024px): dialog dua kolom, panel di kanan.
 // iPad portrait: sheet 640px dari bawah, panel menempel di bawah sheet.
 // (HP tidak memakai ini: useTxEditor membuka halaman /transaction.)
-// Di halaman Transaksi desktop form tampil di kartu kolom kanan (TxCard),
-// dialog ini tidak dibuka. Form tetap dirender saat menutup supaya animasi
+// Form tetap dirender saat menutup supaya animasi
 // keluar tidak kosong; :key membuat form baru setiap kali dibuka.
 const editor = useTxEditor();
 const { lg } = useBreakpoint();

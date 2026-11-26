@@ -178,11 +178,11 @@ async function logout() {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
     <!-- Bar kartu biasa seperti tab lain (bukan judul besar di atas latar halaman),
          supaya status bar opak yang diwarnai dari tepi atas menyatu dengan header -->
-    <NavBar title="Lainnya" line class="sticky top-0 md:static" />
+    <NavBar title="Lainnya" line />
 
     <div class="pb-6">
       <GroupedList class="mt-6">

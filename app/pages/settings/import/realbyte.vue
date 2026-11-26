@@ -148,7 +148,7 @@ const showErrors = ref(false);
       back="Impor"
       back-to="/settings/import"
       line
-      class="sticky top-0 md:static md:rounded-t-2xl"
+      class="md:rounded-t-2xl"
     />
 
     <input

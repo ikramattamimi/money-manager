@@ -328,9 +328,9 @@ function openTotal(total: AccountTotal | null) {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-6 md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-6 md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar title="Akun" line class="sticky top-0 md:static">
+    <NavBar title="Akun" line>
       <template #left>
         <button
           v-if="selecting"
@@ -368,35 +368,35 @@ function openTotal(total: AccountTotal | null) {
           </IconButton>
         </template>
       </template>
-    </NavBar>
 
-    <SummaryStrip :items="strip" dense />
+      <SummaryStrip :items="strip" dense />
 
-    <!-- Bulan terpilih (sama dengan Transaksi dan Statistik): saldo yang tampil adalah saldo akhir bulan itu -->
-    <div
-      :class="[
-        'flex items-center gap-2 px-4 py-2 text-note',
-        selectedMonth.isCurrent.value
-          ? 'bg-card text-muted-foreground shadow-[inset_0_-0.5px_0_var(--sep)]'
-          : 'bg-primary-soft text-primary-accent',
-      ]"
-    >
-      <span class="flex-1">
-        {{
-          monthly.available.value
-            ? `Saldo per akhir ${monthName} · geser untuk ganti bulan`
-            : `Saldo sekarang (saldo ${monthName} belum tersedia)`
-        }}
-      </span>
-      <button
-        v-if="!selectedMonth.isCurrent.value"
-        type="button"
-        class="font-semibold"
-        @click="selectedMonth.goToday()"
+      <!-- Bulan terpilih (sama dengan Transaksi dan Statistik): saldo yang tampil adalah saldo akhir bulan itu -->
+      <div
+        :class="[
+          'flex items-center gap-2 px-4 py-2 text-note',
+          selectedMonth.isCurrent.value
+            ? 'bg-card text-muted-foreground shadow-[inset_0_-0.5px_0_var(--sep)]'
+            : 'bg-primary-soft text-primary-accent',
+        ]"
       >
-        Bulan ini
-      </button>
-    </div>
+        <span class="flex-1">
+          {{
+            monthly.available.value
+              ? `Saldo per akhir ${monthName} · geser untuk ganti bulan`
+              : `Saldo sekarang (saldo ${monthName} belum tersedia)`
+          }}
+        </span>
+        <button
+          v-if="!selectedMonth.isCurrent.value"
+          type="button"
+          class="font-semibold"
+          @click="selectedMonth.goToday()"
+        >
+          Bulan ini
+        </button>
+      </div>
+    </NavBar>
 
     <!-- Mode Urutkan: urutan grup dulu, lalu urutan akun di dalam tiap grup -->
     <template v-if="sorting">

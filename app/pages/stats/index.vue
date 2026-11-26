@@ -182,11 +182,11 @@ const noteRows = computed(() => {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
     <!-- Sama dengan bar Transaksi: ‹ periode › di tengah, tombol ikon 44px di
          kanan. Jenis periode = huruf dalam kotak (gaya ikon tab Transaksi). -->
-    <NavBar title="Statistik" class="sticky top-0 md:static">
+    <NavBar title="Statistik">
       <template #center>
         <MonthNav
           :label="headerLabel"

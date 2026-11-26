@@ -59,9 +59,9 @@ function openForm(template: Template | null) {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar title="Bookmark" back="Lainnya" back-to="/more" line class="sticky top-0 md:static">
+    <NavBar title="Bookmark" back="Lainnya" back-to="/more" line>
       <template v-if="canEdit" #right>
         <IconButton label="Bookmark baru" accent @click="openForm(null)"><Plus /></IconButton>
       </template>

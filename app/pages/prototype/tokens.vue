@@ -41,7 +41,7 @@ const TYPE = [
 
 <template>
   <div class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-10 md:mx-0 md:mt-0">
-    <NavBar title="Token desain" line class="sticky top-0 md:static" />
+    <NavBar title="Token desain" line />
 
     <GroupedList v-for="g in GROUPS" :key="g.title" :label="g.title">
       <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 p-4">

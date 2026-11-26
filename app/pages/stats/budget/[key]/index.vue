@@ -212,9 +212,9 @@ const editor = useTxEditor();
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar :title="title" back="Budget" back-to="/stats" class="sticky top-0 md:static">
+    <NavBar :title="title" back="Budget" back-to="/stats">
       <template #title>
         <span class="flex items-center justify-center gap-1.5">
           <ToneIcon :icon="style.icon" :tone="style.tone" size="xs" />{{ title }}

@@ -99,15 +99,9 @@ async function restore() {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-8 md:mx-0 md:mt-0 md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] pb-8 md:mx-0 md:mt-0 md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar
-      title="Backup & pulihkan"
-      back="Lainnya"
-      back-to="/more"
-      line
-      class="sticky top-0 md:static"
-    />
+    <NavBar title="Backup & pulihkan" back="Lainnya" back-to="/more" line />
 
     <GroupedList label="Backup">
       <GroupRow

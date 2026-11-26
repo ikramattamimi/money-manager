@@ -44,9 +44,9 @@ const SOURCES = [
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar title="Impor data" back="Lainnya" back-to="/more" line class="sticky top-0 md:static" />
+    <NavBar title="Impor data" back="Lainnya" back-to="/more" line />
 
     <div class="pb-8">
       <div class="mx-5 mb-3 mt-4">

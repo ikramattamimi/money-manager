@@ -36,15 +36,9 @@ async function ask(batch: ImportBatch) {
 
 <template>
   <div
-    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:overflow-hidden md:rounded-2xl"
+    class="-mx-3 -mt-[calc(env(safe-area-inset-top,0px)+8px)] md:mx-auto md:mt-0 md:max-w-[680px] md:flow-root md:overflow-clip md:rounded-2xl"
   >
-    <NavBar
-      title="Riwayat impor"
-      back="Kembali"
-      back-to="/settings/import"
-      line
-      class="sticky top-0 md:static"
-    />
+    <NavBar title="Riwayat impor" back="Kembali" back-to="/settings/import" line />
 
     <div class="pb-8">
       <EmptyCard
