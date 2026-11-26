@@ -313,8 +313,23 @@ function openPanel(which: Panel) {
 }
 
 // ---------- papan angka ----------
+// Membuka lagi papan angka saat nominal sudah terisi = nominal "terpilih":
+// angka pertama yang ditekan menggantinya (tidak perlu C dulu); operator,
+// hapus, dan = tetap melanjutkan nominal yang ada.
+const amountSelected = ref(false);
+watch(panel, (p, prev) => {
+  if (p === prev) return;
+  amountSelected.value =
+    (p === 'keypad' && tokens.value.length > 0) || (p === 'fee' && feeTokens.value.length > 0);
+});
 function onKey(key: CalcKey) {
   const target = panel.value === 'fee' ? feeTokens : tokens;
+  const replace = amountSelected.value && /^\d+$/.test(key);
+  amountSelected.value = false;
+  if (replace) {
+    target.value = pressKey([], key);
+    return;
+  }
   if (key === '=' && !hasOperator(target.value)) {
     if (panel.value === 'fee') panel.value = null;
     else if (amount.value > 0) advance('keypad');
@@ -1089,7 +1104,9 @@ const panelTitle = computed(() =>
               AMOUNT_TONE[form.type],
             ]"
           >
-            {{ formatRupiah(amount) }}
+            <span :class="panel === 'keypad' && amountSelected && 'tx-selected'">{{
+              formatRupiah(amount)
+            }}</span>
             <span v-if="panel === 'keypad'" class="tx-caret" aria-hidden="true" />
           </span>
         </span>
@@ -1202,9 +1219,11 @@ const panelTitle = computed(() =>
           @click="openPanel('fee')"
         >
           <span class="tx-label">Nominal biaya</span>
-          <span class="flex min-h-[52px] flex-1 items-center text-row font-medium">{{
-            formatRupiah(fee)
-          }}</span>
+          <span class="flex min-h-[52px] flex-1 items-center text-row font-medium"
+            ><span :class="panel === 'fee' && amountSelected && 'tx-selected'">{{
+              formatRupiah(fee)
+            }}</span></span
+          >
         </button>
       </template>
 
@@ -1510,6 +1529,11 @@ const panelTitle = computed(() =>
 }
 .tx-row.is-on .tx-label {
   color: var(--primary-accent);
+}
+/* Nominal terpilih: angka berikutnya menggantinya, seperti teks yang diblok */
+.tx-selected {
+  border-radius: 4px;
+  background: var(--primary-soft);
 }
 .tx-caret {
   display: inline-block;
