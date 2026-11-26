@@ -417,15 +417,17 @@ watch([quickLists.accounts, quickLists.categories], () => {
   if (quickText.value && !touched.account && !touched.category) applyQuick(quickText.value);
 });
 
-// Saran dari riwayat buku: catatan yang diketik mengisi kategori/akun yang
-// belum dipilih sendiri (pengaturan "Isi otomatis catatan" di mockup)
+// Saran dari riwayat buku: catatan yang diketik mengisi kategori yang belum
+// dipilih sendiri (pengaturan "Isi otomatis catatan" di mockup). Akun hanya
+// diisi kalau masih kosong: akun bawaan (terakhir dipakai) dianggap pilihan
+// pengguna, jadi tidak boleh pindah sendiri saat mengetik Catatan.
 const suggestNote = computed(() => (editing.value ? '' : form.note));
 const suggestion = useSuggest(suggestNote);
 watch(suggestion, (s) => {
   if (!s || editing.value) return;
   const category = s.category_id ? categories.byId.value.get(s.category_id) : undefined;
   if (category && category.kind === form.type && !touched.category) form.categoryId = category.id;
-  if (s.account_id && !touched.account) form.accountId = s.account_id;
+  if (s.account_id && !touched.account && !form.accountId) form.accountId = s.account_id;
 });
 // Catatan yang pernah dipakai, ditampilkan sambil mengetik
 const noteFocused = ref(false);
