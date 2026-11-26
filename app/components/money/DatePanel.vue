@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
+import WheelPicker from '@/components/ios/WheelPicker.vue';
 import { mondayOffset } from '@/features/transactions/grouping';
 import { addMonths, daysInMonth, jakartaParts, MONTHS_LONG } from '@/lib/time';
 
 // Panel tanggal & jam di dock (mockup .dp): kalender bulan dengan ‹ ›, chip
-// Kemarin / Hari ini, jam ±15 menit, dan chip jam cepat. Memilih tanggal
+// Kemarin / Hari ini, roda jam & menit (seperti alarm), dan chip jam cepat. Memilih tanggal
 // langsung mengubah form; tidak menutup panel supaya jam bisa diatur juga.
 const date = defineModel<string>('date', { required: true });
 const time = defineModel<string>('time', { required: true });
@@ -29,11 +30,15 @@ const days = computed(() =>
 );
 const blanks = computed(() => mondayOffset(days.value[0]!.key));
 
-function step(minutes: number) {
-  const [h, m] = time.value.split(':').map(Number) as [number, number];
-  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
-  time.value = `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
-}
+// Jam & menit diatur dengan roda gulir seperti alarm (per menit)
+const hour = computed({
+  get: () => Number(time.value.slice(0, 2)),
+  set: (h: number) => (time.value = `${pad(h)}:${time.value.slice(3, 5)}`),
+});
+const minute = computed({
+  get: () => Number(time.value.slice(3, 5)),
+  set: (m: number) => (time.value = `${time.value.slice(0, 2)}:${pad(m)}`),
+});
 const QUICK = ['07:00', '12:00', '15:00', '18:00', '21:00'];
 const label = (t: string) => t.replace(':', '.');
 </script>
@@ -106,43 +111,34 @@ const label = (t: string) => t.replace(':', '.');
         {{ d.n }}
       </button>
     </div>
-    <div class="mt-2 flex items-center gap-2 border-t-[0.5px] border-sep px-0.5 pt-2.5">
-      <b class="text-label font-semibold text-muted-foreground">Jam</b>
-      <div
-        class="ml-auto flex items-center gap-0.5 rounded-[10px] bg-[var(--kb-key)] p-0.5 shadow-[0_1px_0_var(--kb-shadow)]"
-      >
-        <button
-          type="button"
-          aria-label="Mundur 15 menit"
-          class="grid h-8 w-[34px] place-items-center rounded-lg text-[18px] text-primary-accent active:bg-fill"
-          @click="step(-15)"
-        >
-          −
-        </button>
-        <b class="min-w-[52px] text-center text-row font-semibold">{{ label(time) }}</b>
-        <button
-          type="button"
-          aria-label="Maju 15 menit"
-          class="grid h-8 w-[34px] place-items-center rounded-lg text-[18px] text-primary-accent active:bg-fill"
-          @click="step(15)"
-        >
-          +
-        </button>
+    <div class="mt-2 flex items-center gap-3 border-t-[0.5px] border-sep px-0.5 pt-2.5">
+      <div class="min-w-0 flex-1">
+        <b class="text-label font-semibold text-muted-foreground">Jam</b>
+        <div class="flex flex-wrap gap-1.5 pt-2">
+          <button
+            v-for="t in QUICK"
+            :key="t"
+            type="button"
+            :class="[
+              'h-[30px] shrink-0 rounded-full px-[11px] text-meta font-semibold',
+              time === t ? 'bg-primary-soft text-primary-accent' : 'bg-fill',
+            ]"
+            @click="time = t"
+          >
+            {{ label(t) }}
+          </button>
+        </div>
       </div>
-    </div>
-    <div class="flex gap-1.5 overflow-x-auto pt-2.5 [scrollbar-width:none]">
-      <button
-        v-for="t in QUICK"
-        :key="t"
-        type="button"
-        :class="[
-          'h-[30px] shrink-0 rounded-full px-[11px] text-meta font-semibold',
-          time === t ? 'bg-primary-soft text-primary-accent' : 'bg-fill',
-        ]"
-        @click="time = t"
-      >
-        {{ label(t) }}
-      </button>
+      <!-- Roda jam : menit; pita di belakang menandai baris terpilih -->
+      <div class="relative flex shrink-0 items-center px-1">
+        <div
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-x-0 top-1/2 h-[34px] -translate-y-1/2 rounded-[10px] bg-[var(--kb-key)] shadow-[0_1px_0_var(--kb-shadow)]"
+        />
+        <WheelPicker v-model="hour" :count="24" label="Jam" class="relative w-12" />
+        <b class="relative pb-0.5 text-[21px] font-semibold" aria-hidden="true">:</b>
+        <WheelPicker v-model="minute" :count="60" label="Menit" class="relative w-12" />
+      </div>
     </div>
   </div>
 </template>
